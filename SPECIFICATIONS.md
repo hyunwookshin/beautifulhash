@@ -1,14 +1,15 @@
 ## Core Principles
 
-BeautifulHash converts an input string into a stylized, layered landscape.
+BeautifulHash converts a 256-bit hash into a stylized, layered landscape.
 
 The following principles govern the design:
 
 * Determinism: The same input and algorithm version must produce the same landscape.
-* Immutability: Once V0 is finalized, its generation rules must never change.
+* Immutability: Once an algorithm version is finalized, its generation rules must never change,
+  and it remains available for regenerating existing artwork.
 * Beauty first: Generated landscapes should be aesthetically coherent rather than visually random.
-* Max variation: The generator should support an enormous number of distinct compositions,
-  targetting 1:1 mapping from hash to unique image.
+* Max variation: The generator should support an enormous number of distinct compositions.
+  A 1:1 mapping from hash to unique image is a design objective, not a guarantee.
 * Portability: The generation algorithm should run consistently in native C++ and WebAssembly.
 * Resolution independence: Changing export resolution must not change the generated composition.
 
@@ -18,20 +19,22 @@ No generative AI: All artwork is produced by a deterministic procedural algorith
 
 ### Input
 
-The generator accepts a UTF-8 string. A wrapper function may convert other
-input medium (images, texts into this format)
+The BeautifulHash core accepts exactly 256 bits (32 bytes). External wrappers
+convert arbitrary digital inputs into bytes and compute their SHA-256 digest
+before invoking the generator. A caller may also supply a 32-byte digest directly.
 
-Examples:
+Example wrapper inputs:
 
-* 2026-10-18
-* BeautifulHash
+* The string `2026-10-18`
+* The string `BeautifulHash`
 * A personalized message
+* A PDF, image, or other file
 
-Unicode normalization, whitespace handling, and case sensitivity must be explicitly defined before V0 is frozen.
+For the string wrapper, Unicode normalization, whitespace handling, and case sensitivity must be explicitly defined before V0 is frozen.
 
 ### Hashing
 
-The input is transformed using SHA-256:
+Wrappers transform their input into a 256-bit hash using SHA-256:
 ```
                   INPUT WRAPPERS
                           │
@@ -113,9 +116,11 @@ Themes should share the same underlying generation framework while providing dis
 ### Architecture
 
 ```
-Input
+Input (via wrapper)
   ↓
 SHA-256
+  ↓
+256-bit hash  ← core boundary
   ↓
 Versioned deterministic PRNG
   ↓
@@ -125,7 +130,7 @@ Layer and object generation
   ↓
 Canonical scene description
   ↓
-Renderer
+SVG renderer (canonical artwork)
   ├── Web preview
   └── High-resolution export
 ```
@@ -208,6 +213,12 @@ Export resolution must not influence the scene-generation algorithm.
 
 ### Rendering targets
 
+SVG is the canonical artwork format. Raster exports are produced by rendering the SVG at the target resolution.
+Canvas may be used as an optional preview mechanism, but it is not the source of truth.
+
+The target resolution is an explicit rendering parameter (width × height in pixels, e.g. 2048 × 1536)
+passed to the SVG renderer. It must never be derived from the browser's display size.
+
 | Target | Resolution |
 |---|---|
 | Website preview | 1024 × 768 |
@@ -215,9 +226,36 @@ Export resolution must not influence the scene-generation algorithm.
 | 16 × 12-inch print at 300 DPI | 4800 × 3600 |
 | 24 × 18-inch print at 300 DPI | 7200 × 5400 |
 
-SVG is a candidate rendering format because the artwork is primarily composed of stylized 2D shapes.
+SVG suits the artwork because it is primarily composed of stylized 2D shapes.
 
-Pixel-identical rendering across different SVG engines is not guaranteed.
+Pixel-identical rendering across different SVG engines is not guaranteed. The guarantee below covers
+the SVG bytes, not how a given engine rasterizes them.
+
+### V0 compatibility guarantee
+
+For a given 256-bit hash, algorithm version, and target resolution, BeautifulHash must produce an
+identical canonical scene and byte-for-byte identical SVG output, regardless of whether the generator
+runs natively or in WebAssembly.
+
+Changing the target resolution may change SVG coordinates or serialization, but must not change the
+underlying landscape composition.
+
+The core API separates these two steps:
+
+```cpp
+Scene generate_scene(Hash256 hash, Version version);
+
+std::string render_svg(
+    const Scene& scene,
+    uint32_t width,
+    uint32_t height
+);
+```
+
+* `generate_scene` is independent of resolution.
+* `render_svg` guarantees identical SVG bytes for identical arguments across supported platforms.
+
+Golden tests verify this by comparing canonical scene digests and exact SVG hashes between native and WebAssembly builds.
 
 ### Visual constraints
 

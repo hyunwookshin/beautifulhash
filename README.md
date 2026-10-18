@@ -1,7 +1,7 @@
 ## BeautifulHash
 
 The project is to turn any input (strings, numbers, pdfs) into a beautiful,
-unique, and repeatable landscape imagery in SVG format.
+distinctive, and repeatable landscape imagery in SVG format.
 
 ### Rationale
 
@@ -29,27 +29,34 @@ Unlike other repository the algorithm will be treated and develop like a protoco
 The updates will only be committed if the new version consistently produces higher
 fidelity images across large distribution of seeds, without significant regressions.
 
-The cadence will also be significantly slower than other projects. Version 0.1
-will minimum last 6 month, and subsequent versions will likely last significantly
-longer than 6 months.
+Algorithm versions are named with a single integer: V0, V1, V2, and so on.
 
-Each version is intended to be the "last" version. Meaning when the new algorithm
-version is rolled out, it is intended to "last" forever. The reason is people
-will prefer to regenerate the images from the seeds, and having multiple versions
-to juggle through is not an optimal user experience.
+The cadence will also be significantly slower than other projects. V0 will
+remain the default for at least 6 months, and subsequent versions will likely
+remain the default for significantly longer than that.
+
+There is always exactly one *default* version, which is what new artwork uses.
+Every earlier version remains a *supported historical version*: once released,
+it never changes and stays available, so any existing artwork can be regenerated
+from its input and version. A new version becomes the default only when it is
+clearly better, so most users never need to think about versions at all.
 
 ### What is the Input to the Algorithm
 
-The input is any digital medium, it can be plain text (i.e. `string`), numbers,
-pdf files, zip file, even images. They are converted to sha256 hash (which
-is essentially what is used to store 'passwords'). The sha256 hash is then
-mapped to a unique image that depicts a beautiful landscape.
+The BeautifulHash core accepts exactly 256 bits (32 bytes). External wrappers
+convert arbitrary digital inputs into bytes and compute their SHA-256 digest
+before invoking the generator. The input can be plain text (i.e. `string`),
+numbers, pdf files, zip files, even images; a 32-byte hash can also be supplied
+directly. The hash is then mapped to an image that depicts a beautiful landscape.
 
 ### Will each input have unique landscape
 
-Each sha256 hash should map to a unique landscape image.
-But it is not a guarantee that two inputs generate two unique hash,
-although it would be an astronomically rare event.
+Strict uniqueness, where every SHA-256 hash maps to a different landscape, is a
+design objective, not a guarantee. An injective hash-to-image mapping has not
+been designed yet (see collision considerations below).
+
+Separately, two different inputs are not guaranteed to produce different hashes,
+although a SHA-256 collision would be an astronomically rare event.
 
 #### Collision considerations
 
@@ -68,9 +75,10 @@ The number of available combinations and the uniqueness of the mapping are diffe
 | Core scene generator | C++ |
 | Browser compilation | WebAssembly |
 | Website interface | TypeScript |
-| Preview rendering | SVG or Canvas |
+| Canonical artwork format | SVG |
+| Preview rendering | SVG, optionally Canvas |
 | Native generation | C++ executable |
-| High-resolution export | SVG or raster export |
+| High-resolution export | SVG, or raster rendered from the SVG |
 
 #### Core boundaries
 
@@ -89,13 +97,19 @@ Its responsibility is to produce a canonical scene description from an input has
 #### Suggested API
 
 ```cpp
-Scene generate_scene(
-    const Hash256& hash,
-    AlgorithmVersion version
+Scene generate_scene(Hash256 hash, Version version);
+
+std::string render_svg(
+    const Scene& scene,
+    uint32_t width,
+    uint32_t height
 );
 ```
 
-The renderer consumes the scene separately.
+`generate_scene` is independent of resolution. `render_svg` takes the target
+resolution as an explicit parameter (never the browser's display size) and
+produces identical SVG bytes for identical arguments on every supported
+platform. See the V0 compatibility guarantee in the specification.
 
 ### Versioning and Immutability
 
@@ -117,7 +131,8 @@ Once V0 is frozen:
 * Default palettes and geometry rules cannot change.
 * Scene serialization rules must remain compatible.
 
-Bug fixes that alter scene output require a new algorithm version.
+Bug fixes that alter scene output require a new algorithm version. The old
+version stays available as a supported historical version.
 
 Presentation-only changes may be made separately, but any change that alters the promised final visual output must be versioned.
 
@@ -127,14 +142,19 @@ Before freezing V0, create golden test vectors.
 
 Each test vector should include:
 
-* Input string
+* Input (string, file bytes, or 32-byte hash) and the wrapper used
 * SHA-256 digest
 * Algorithm version
 * Canonical scene digest
-* Reference rendering, if pixel reproducibility is required
+* Target resolution
+* SHA-256 of the exact SVG output
+* Reference raster rendering, if pixel reproducibility is required
 
 Test categories should include:
 
+* Direct 32-byte hashes (including all-zero and all-ones)
+* Empty files
+* Binary file inputs (e.g. images, PDFs, zip files)
 * Empty string
 * ASCII input
 * Unicode input
@@ -144,14 +164,15 @@ Test categories should include:
 * Inputs differing by one character
 * Optional-layer combinations
 * Every environmental theme
+* Several target resolutions for the same hash (composition must not change)
 
-Native and WebAssembly implementations must generate identical canonical scenes for the same test vectors.
+Native and WebAssembly builds must produce identical canonical scene digests and identical SVG hashes for the same test vectors.
 
 ### Open Design Decisions
 
 The following remain unresolved and should not be treated as finalized V0 requirements:
 
-* Unicode normalization policy
+* Unicode normalization policy for the string wrapper
 * PRNG algorithm and stream derivation
 * Theme-selection distribution
 * Exact mountain and hill geometry algorithms
@@ -162,7 +183,6 @@ The following remain unresolved and should not be treated as finalized V0 requir
 * Whether pixel-level uniqueness is required
 * Whether pixel-identical rendering across platforms is required
 * Final logical canvas dimensions
-* SVG versus Canvas rendering
 * Whether the first release includes print ordering
 
 ### V0 Completion Criteria
@@ -172,7 +192,7 @@ V0 is ready to freeze when:
 * All five themes can produce aesthetically acceptable landscapes.
 * All required and optional layers function.
 * Identical inputs produce identical scenes.
-* Native C++ and WebAssembly scene outputs match.
+* Native C++ and WebAssembly scene digests and SVG bytes match.
 * Scene composition is independent of export resolution.
 * Golden tests cover the core generator.
 * The visual output has been reviewed across a representative sample of hashes.
