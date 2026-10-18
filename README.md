@@ -52,8 +52,10 @@ directly. The hash is then mapped to an image that depicts a beautiful landscape
 ### Will each input have unique landscape
 
 Strict uniqueness, where every SHA-256 hash maps to a different landscape, is a
-design objective, not a guarantee. An injective hash-to-image mapping has not
-been designed yet (see collision considerations below).
+design objective, not a guarantee. V0 aims to preserve all 256 bits of the hash
+in its SVG output, which requires an injective hash-to-SVG mapping. That mapping
+has not been designed yet, and it must be proven rather than just tested (see
+collision considerations below).
 
 Separately, two different inputs are not guaranteed to produce different hashes,
 although a SHA-256 collision would be an astronomically rare event.

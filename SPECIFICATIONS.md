@@ -10,6 +10,8 @@ The following principles govern the design:
 * Beauty first: Generated landscapes should be aesthetically coherent rather than visually random.
 * Max variation: The generator should support an enormous number of distinct compositions.
   A 1:1 mapping from hash to unique image is a design objective, not a guarantee.
+* 256-bit entropy preservation: V0 aims to preserve all 256 bits of the input hash in its
+  canonical SVG representation (see Entropy preservation objective).
 * Portability: The generation algorithm should run consistently in native C++ and WebAssembly.
 * Resolution independence: Changing export resolution must not change the generated composition.
 
@@ -151,23 +153,22 @@ The PRNG algorithm is TBD.
 
 ### Independent random streams
 
-Each major layer should have its own deterministic random stream.
-
-For example:
+Each major layer should have its own deterministic random stream. Streams are not
+derived from the entire hash; the hash is first split by the namespace partitioner,
+and each namespace seeds its own stream or substreams from its own bits.
 
 ```
-SHA-256 hash
-  ├── Theme stream
-  ├── Sky stream
-  ├── Cloud stream
-  ├── Celestial stream
-  ├── Mountain 1 stream
-  ├── Mountain 2 stream
-  ├── Mountain 3 stream
-  ├── Hill stream
-  ├── Tree stream
-  ├── Vegetation stream
-  └── Fog stream
+SHA-256 (256 bits)
+    │
+    └── Namespace partitioner
+          ├── Global (16 bits) → Global PRNG
+          ├── Sky (24 bits) → Sky PRNG
+          ├── Celestial (8 bits) → Celestial PRNG
+          ├── Mountains (88 bits) → Mountain substreams
+          ├── Hills (40 bits) → Hill substreams
+          ├── Trees (48 bits) → Tree substreams
+          ├── Vegetation (24 bits) → Vegetation PRNG
+          └── Fog (8 bits) → Fog PRNG
 ```
 
 This prevents adding or changing one layer from unintentionally changing every other layer during development.
@@ -344,9 +345,9 @@ An optional feature may be omitted from the rendered landscape based on a determ
 
 However, its allocated bits remain owned by the parent namespace.
 
-The parent namespace must explicitly define how those bits are interpreted when the optional feature is absent. It may reuse them for other variations within the same namespace, provided the behavior is deterministic and documented.
+The parent namespace must explicitly define how those bits are interpreted when the optional feature is absent. Under the entropy preservation objective, it must redistribute them to other variations within the same namespace; it may not discard them. The behavior must be deterministic and documented.
 
-Reusing otherwise inactive bits is encouraged to improve variation, but does not by itself guarantee unique output for every hash.
+Redistributing otherwise inactive bits does not by itself guarantee unique output for every hash.
 
 ### Independence and Dependencies
 
@@ -371,7 +372,7 @@ A deterministic PRNG may expand these bits into an arbitrary sequence of values,
 
 Partitioning all 256 bits ensures that every input bit has an assigned owner. It does not guarantee that every bit affects the rendered scene or that every distinct hash produces a distinct SVG.
 
-Strict hash-to-image uniqueness remains a design objective, not a V0 guarantee.
+Strict hash-to-SVG uniqueness is the V0 entropy preservation objective (see Uniqueness and Combination Space). Partitioning is necessary for it but not sufficient.
 
 ### Verification Requirements
 
@@ -398,6 +399,8 @@ The following must be finalized before V0 is frozen:
 * Generation order.
 * Parameter ranges and distributions.
 * Tests validating partition integrity and deterministic output.
+* Per-namespace accounting of every allocated bit, including when optional features are absent.
+* A formal construction or proof that the hash-to-SVG mapping is injective.
 
 **Status:** The top-level allocation is proposed. Subnamespace layouts and interpretation rules remain open design decisions.
 
@@ -474,6 +477,7 @@ Golden tests verify this by comparing canonical scene digests and exact SVG hash
 BeautifulHash distinguishes three types of uniqueness.
 
 * Parameter uniqueness: Different hashes produce different scene parameter configurations.
+* SVG uniqueness: Different hashes produce different canonical SVG output.
 * Pixel uniqueness: Different hashes produce different final raster images.
 * Perceptual uniqueness: Different hashes produce images that humans can visually distinguish.
 
@@ -495,17 +499,29 @@ The actual number of possible landscapes depends on:
 * Color variation
 * Fog and atmospheric effects
 
-A previous illustrative allocation estimated approximately 219 bits of scene-parameter variation.
+The namespace partition allocates all 256 bits of input entropy. It does not establish
+256 bits of distinct rendered output: how many distinct landscapes the generator can
+actually produce depends on how each namespace interprets its bits.
 
-That estimate was hypothetical, not a verified capacity of the generator.
+### Entropy preservation objective
+
+256-bit entropy preservation: BeautifulHash V0 aims to preserve all 256 bits of the input
+hash in its canonical SVG representation. Every namespace must account for its complete
+allocated bit width, including when optional visual features are absent. A namespace may
+redistribute its bits among its own subnamespaces, but may not discard them.
+
+Full entropy preservation requires an injective hash-to-SVG mapping. Merely consuming all
+input bits through a PRNG does not satisfy this requirement.
+
+The mapping must be verified through a formal construction or proof rather than
+statistical collision testing alone.
 
 ### Uniqueness objective
 
 Proposed V0 policy:
 
 * Prioritize aesthetic quality and reproducibility.
+* Pursue SVG uniqueness through the entropy preservation objective.
 * Maximize independent variation across layers.
-* Do not require perceptual uniqueness for every hash.
-* Do not claim a collision-free hash-to-image mapping without a formal guarantee.
-
-If strict image uniqueness becomes a requirement, a separate injective encoding mechanism must be designed and verified.
+* Do not require pixel or perceptual uniqueness for every hash.
+* Do not claim a collision-free hash-to-SVG mapping until the injectivity construction or proof is complete.
