@@ -80,8 +80,8 @@ in three-ridge mode). The role selects the ridge's style:
 | Role | Skeleton generator | Roughness $r$ | Vertical scale $s$ | Total depth | Points |
 |---|---|---:|---:|---:|---:|
 | Front | midpoint | 0.100 | 1.372 | 5 | 33 |
-| Middle | summit | 0.125 | 1.070 | 4 | 17 |
-| Back | summit | 0.150 | 0.930 | 4 | 17 |
+| Middle | summit | 0.125 | 1.070 | 6 | 65 |
+| Back | summit | 0.150 | 0.930 | 6 | 65 |
 
 The intent is a calm, detailed foreground and a gently peaked distance:
 
@@ -92,7 +92,7 @@ The intent is a calm, detailed foreground and a gently peaked distance:
   summit with shoulders. Roughness rises gradually with distance, so peaks get
   slightly sharper further back without becoming obvious.
 * **Vertical scales** bring every role's exact worst-case silhouette height to
-  about 650 logical units. Worst-case height grows roughly linearly with $r$, so
+  about 600–680 logical units. Worst-case height grows roughly linearly with $r$, so
   equalizing it keeps rougher ridges from overflowing the canvas budget.
   Typical heights are about half the worst case for every style.
 
@@ -281,24 +281,26 @@ Vertical scaling leaves every $x$ unchanged, so it cannot break monotonicity.
 #### Detail levels (bit-free resolution)
 
 Nearer ridges should look more detailed than farther ones, regardless of how
-many bits each ridge has. So resolution is set deterministically by depth
-position, not by the bit budget. After its bit-driven levels, each ridge is
-subdivided further by **detail levels** that consume no bits, until it reaches
-its total depth:
+many bits each ridge has, and distant ridges should look rugged. So resolution
+is set deterministically by depth role, not by the bit budget. After its
+bit-driven levels, each ridge is subdivided further by **detail levels** that
+consume no bits, until it reaches its total depth:
 
-| Role | Total depth | Points |
-|---|---:|---:|
-| Front | 5 | 33 |
-| Middle | 4 | 17 |
-| Back | 4 | 17 |
+| Role | Total depth | Points | Detail kind |
+|---|---:|---:|---|
+| Front | 5 | 33 | smooth (concave) |
+| Middle | 6 | 65 | jagged (bit-reusing) |
+| Back | 6 | 65 | jagged (bit-reusing) |
 
-The front ridge always has the most vertices. For example, two-ridge Ridge 1 has
-4 bit levels plus 1 detail level, three-ridge Ridge 1 has 3 bit levels plus 2,
-and three-ridge Ridge 3 has 2 bit levels plus 2.
+For example, two-ridge Ridge 1 has 4 bit levels plus 1 detail level,
+three-ridge Ridge 1 has 3 bit levels plus 2, and three-ridge Ridge 3 has 2 bit
+levels plus 4. The front ridge gets further vertices from its biome tree
+texture (see Biome styling).
 
 A detail point uses the same perpendicular displacement and interval rule as a
-bit-driven point. Only its $t$ is different: a fixed function of the segment's
-slope instead of a value read from bits:
+bit-driven point. Only its $t$ differs, and there are two kinds.
+
+**Smooth detail (front role).** $t$ is a fixed function of the segment's slope:
 
 $$
 u = k \left| \frac{\Delta_h}{\Delta_x} \right|,
@@ -309,20 +311,43 @@ $$
 where $k$ is the detail strength (proposed $2$). $t$ always lies in
 $(-t_{\max}, 0]$, so the midpoint moves just below the chord on both rising and
 falling segments. Steep faces become slightly concave, like eroded slopes, and
-flat segments are left unchanged. The rule uses only `+`, `-`, `*`, `/`, and `abs`.
+flat segments are left unchanged.
+
+**Jagged detail (middle and back roles).** Every segment after the last bit
+level descends from one last-level bit point $P_i$: it is the left or right
+child of the segment that $P_i$ subdivided. Its detail reuses that point's
+decoded value $v_i$. At detail level $m$ ($m = 0, 1, \ldots$), the $q$-th midpoint
+of the subtree gets
+
+$$
+t = t_{\max} \cdot \lambda^m \cdot \big(f + (1 - f)\, r_1\big) \cdot \operatorname{sign}(r_2)
+$$
+
+where $\lambda = 0.75$ is the decay, $f = 0.35$ is the floor, and $r_1, r_2 \in [0, 1)$
+are a fixed integer mix of the key $(i, v_i, \text{side})$ and the midpoint's
+position $(m, q)$; $\operatorname{sign}(r_2)$ is $-1$ below $0.5$ and $+1$ otherwise. Every
+level displaces by at least a fraction $f$ of its allowed interval, so the
+silhouette stays rugged, and the amplitude shrinks with depth like the
+bit-driven levels. Because the key contains $v_i$, different hashes give
+different jag patterns without consuming any extra bits. The bits themselves
+are still decoded directly; this only expands values after decoding.
+
+Both kinds use only `+`, `-`, `*`, `/`, `abs`, comparisons, and integer
+arithmetic.
 
 Properties:
 
 * **No information, no new entropy:** detail points are a fixed function of the
-  bit-driven points, so they cannot affect injectivity. Decoding reads only the
-  bit-driven points, which sit at known indices: the $j$-th point of bit level
-  $k$ is vertex $(2j + 1) \cdot 2^{D - k}$ of a ridge with total depth $D$.
+  bit-driven points and their decoded values, so they cannot affect
+  injectivity. Decoding reads only the bit-driven points, which sit at known
+  indices: the $j$-th point of bit level $k$ is vertex $(2j + 1) \cdot 2^{D - k}$
+  of a ridge with total depth $D$.
 * **Monotonic:** detail points obey the same interval rule, so every segment
-  keeps the guaranteed minimum width. The narrowest final segment is 2 logical
-  units (front ridge, depth 5), or 1 px at 1024 × 768, well above the 0.01 quantum.
-* **No extra canvas budget:** the exhaustive height search includes detail
-  levels, and the exact maximum heights are unchanged, because a concave dip
-  never falls below the ridge's existing lowest point.
+  keeps the guaranteed minimum width.
+* **Exact canvas budget:** each last-level point's detail depends only on its
+  own value and its two parents, so the exhaustive height search still solves
+  the last level directly, detail included. Smooth detail never changes the
+  exact maximum heights. Jagged detail raises them slightly (see Canvas bounds).
 
 ### Ridge placement (height hierarchy)
 
@@ -464,13 +489,16 @@ ridge has a strictly positive headroom for every hash.
 
 | | Two-ridge mode | Three-ridge mode |
 |---|---:|---:|
-| Exact $\hat H$ per ridge, after vertical scale | 650.20, 650.14 | 602.71, 649.81, 563.36 |
-| Reserves behind Ridge 1 | 227.55 | 227.43 + 197.18 |
-| Slack $S$ | **334.25** | **184.68** |
-| Smallest extra-elevation step | 4.18 px (Ridge 2) | 2.47 px (Ridge 3) |
+| Exact $\hat H$ per ridge, after vertical scale | 650.20, 657.10 | 602.71, 680.20, 591.82 |
+| Reserves behind Ridge 1 | 229.99 | 238.07 + 207.14 |
+| Slack $S$ | **331.81** | **164.08** |
+| Smallest extra-elevation step | 4.15 px (Ridge 2) | 2.20 px (Ridge 3) |
 
 Values are for the default styles, $G = 260$, $C = 1472$, and $\rho = 0.35$, with steps at
-1024 × 768. For example, two-ridge mode: $S = 1472 - 260 - 650.20 - 227.55 = 334.25$.
+1024 × 768. For example, two-ridge mode: $S = 1472 - 260 - 650.20 - 229.99 = 331.81$.
+Jagged detail raised the middle and back worst cases slightly (three-ridge
+middle from 649.81 to 680.20, back from 563.36 to 591.82); the scales were
+left unchanged.
 
 The exact heights are far below the analytic bound from summing every level's
 maximum displacement (about twice as large), because a single shape cannot reach
@@ -572,16 +600,33 @@ packed hue steps too closely.
 
 #### Alpine: snow caps
 
-The back ridge gets snow above a horizontal snowline one third of the way down
-from its highest point to its lowest:
+The back ridge gets snow above a gently wavy snowline. The line is centered
+one third of the way down from the ridge's highest point to its lowest:
 
 $$
 h_{\text{snow}} = h_{\max} - \tfrac13 \left( h_{\max} - h_{\min} \right)
 $$
 
-Each maximal run of the silhouette above the snowline becomes a closed polygon:
-the entry crossing, the vertices above the line, and the exit crossing, closed
-along the line. The polygons form one `<path class="snow">` element (color
+The wave is smooth 1D midpoint displacement in $h$ on a uniform grid across the
+canvas width:
+
+* The two endpoints are offset from $h_{\text{snow}}$ by up to $\pm A$, with $A = 36$
+  logical units.
+* Each of 5 levels inserts midpoints at the average of their neighbors, plus an
+  offset of up to $\pm A \cdot 0.85^{m+1}$ at level $m$, giving 33 knots.
+* Offsets come from a fixed integer mix of a seed folded from the back ridge's
+  decoded values, so each hash gets its own snowline without any extra bits.
+
+The amplitude is absolute rather than a fraction of the ridge's height, and it
+decays slowly, so the undulation is visible at the scale of the cap itself
+while staying much smoother than the jagged ridgeline. On a low ridge the wave
+can split the snow into separate patches.
+
+The silhouette and the snowline are both linear between their merged vertex
+positions, so their difference is too, and the crossings are exact. Each
+maximal run of the silhouette above the snowline becomes a closed polygon: the
+entry crossing, the silhouette above, the exit crossing, then back along the
+snowline. The polygons form one `<path class="snow">` element (color
 `#EEF2F6`), drawn right after the ridge and before the haze in front of it, so
 nearer ridges cover it and fog tints it. The ridge's own path is unchanged.
 
@@ -943,7 +988,7 @@ gallery variant in `tools/variants.hpp`: one per biome.
 
 Latest run: 20,000 hashes per mode and size for the default configuration
 (Alpine), plus 2,000 per mode and size for each biome. 0 mismatches, smallest
-observed decode margin 2.19 px, smallest ceiling clearance 231.5 logical units.
+observed decode margin 2.19 px, smallest ceiling clearance 240.9 logical units.
 `make gallery` renders all four biomes on the same 40 random hashes, with fog on
 and off.
 
@@ -968,19 +1013,21 @@ and off.
 * Whether lighting rewrites ridge fills or is applied as separate SVG elements.
 * Tilt range $D$, ground level $G$ (260), ceiling $C$ (1472), and headroom shares
   $\kappa$ (0.25, 0.5, 0.5).
-* Detail strength $k$ and the total depth per role (5, 4, 4).
+* Detail strength $k$ and the total depth per role (5, 6, 6).
 * Summit field ranges: position 0.2–0.8 of the width, rise and drop 160–440.
 * Back ridges sometimes form a broad plateau with a small peak at one end.
   Keeping each flank's shoulder below its chord could prevent this.
 * A front ridge drawn high can hide most of the ridges behind it.
 * The theme's color family: hue range, lightness bands, and chroma ranges.
-* Biome styling parameters: snowline fraction (1/3), tree threshold (0.35),
-  conifer height and valley cut (18, 8), canopy height (16), texture spacing.
+* Biome styling parameters: snowline fraction (1/3), snowline wave amplitude and
+  decay (36, 0.85), tree threshold (0.35), conifer height and valley cut (18, 8),
+  canopy height (16), texture spacing.
+* Jagged detail parameters: decay $\lambda$ (0.75), floor $f$ (0.35), and the depth of
+  middle and back ridges (6).
 * Whether tree density should stay tied to the terrain's own values or come from
   an independent source, such as position or a dedicated seed.
 * Conifer teeth on steep slopes form stair-step serrations; they could be scaled
   down where the slope is steep.
-* Snow caps on plateau-shaped back ridges become a flat band.
 * Visibility ratio $\rho$ (0.35) and the absolute floor $E_{\min}$ (48).
 * Ridge 1's foreground level $T_1$.
 * Whether a background ridge's peak should also be required to exceed the

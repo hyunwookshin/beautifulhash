@@ -49,6 +49,48 @@ void add_detail(std::vector<Point>& pts, int levels, const Params& p) {
     }
 }
 
+// Integer mix to [0, 1). Deterministic on every platform.
+double unit(uint32_t key, uint32_t salt) {
+    uint32_t x = key * 0x9E3779B1u ^ salt * 0x85EBCA77u;
+    x ^= x >> 16;
+    x *= 0x7FEB352Du;
+    x ^= x >> 15;
+    x *= 0x846CA68Bu;
+    x ^= x >> 16;
+    return static_cast<double>(x) / 4294967296.0;
+}
+
+// Identifies the subtree under one last-level bit point: its index i, its
+// decoded value v, and which child segment (side 0 or 1). Different hashes
+// give different keys, so jag patterns vary with the bits.
+uint32_t jag_key(uint32_t i, uint32_t v, int bits, uint32_t side) {
+    return ((i << bits) | v) * 2u + side;
+}
+
+// Bit-reusing jagged detail for one segment {a, b}: `levels` more constrained
+// midpoint displacements. Each midpoint's t is a fixed mix of the subtree key
+// and the midpoint's position, with amplitude decaying by jag_decay per level
+// and at least jag_floor of the allowed interval, so the line stays jagged.
+void jag(std::vector<Point>& seg, int levels, uint32_t key, const Params& p) {
+    double amp = 1.0;
+    for (int m = 0; m < levels; ++m) {
+        std::vector<Point> next;
+        next.reserve(2 * seg.size() - 1);
+        for (size_t q = 0; q + 1 < seg.size(); ++q) {
+            Point a = seg[q], b = seg[q + 1];
+            uint32_t node = key * 64u + ((1u << m) + static_cast<uint32_t>(q));
+            double mag = p.jag_floor + (1.0 - p.jag_floor) * unit(node, 11);
+            double sign = unit(node, 12) < 0.5 ? -1.0 : 1.0;
+            double t = interval(b.x - a.x, b.h - a.h, p) * amp * mag * sign;
+            next.push_back(a);
+            next.push_back(displace(a, b, t, p));
+        }
+        next.push_back(seg.back());
+        seg.swap(next);
+        amp *= p.jag_decay;
+    }
+}
+
 }  // namespace
 
 double steps(int bits) { return static_cast<double>((1u << bits) - 1u); }
@@ -161,8 +203,19 @@ private:
         double best = fmax - fmin;
         for (size_t j = 0; j < segs; ++j) {
             for (uint32_t v = 0; v < n; ++v) {
-                std::vector<Point> local = {pts[j], subdivide(pts[j], pts[j + 1], v, bits, p_), pts[j + 1]};
-                add_detail(local, detail_, p_);
+                Point mid = subdivide(pts[j], pts[j + 1], v, bits, p_);
+                std::vector<Point> local;
+                if (p_.jagged) {
+                    uint32_t i = static_cast<uint32_t>(j);
+                    std::vector<Point> left = {pts[j], mid}, right = {mid, pts[j + 1]};
+                    jag(left, detail_, jag_key(i, v, bits, 0), p_);
+                    jag(right, detail_, jag_key(i, v, bits, 1), p_);
+                    local = left;
+                    local.insert(local.end(), right.begin() + 1, right.end());
+                } else {
+                    local = {pts[j], mid, pts[j + 1]};
+                    add_detail(local, detail_, p_);
+                }
                 double mx = -kInf, mn = kInf;
                 for (const Point& q : local) {
                     mx = std::max(mx, q.h);
@@ -194,10 +247,10 @@ private:
 
 double max_height(const RidgeLayout& layout, const Params& p, int depth) {
     using Key = std::tuple<const RidgeLayout*, int, int, double, double, double, double, double, double, double,
-                           double>;
+                           double, bool, double, double>;
     static std::map<Key, double> cache;
     Key key{&layout, depth, static_cast<int>(p.generator), p.roughness, p.margin, p.tilt_range, p.detail,
-            p.summit_x_min, p.summit_x_max, p.rise_min, p.rise_max};
+            p.summit_x_min, p.summit_x_max, p.rise_min, p.rise_max, p.jagged, p.jag_decay, p.jag_floor};
     auto it = cache.find(key);
     if (it == cache.end()) it = cache.emplace(key, max_shape_height(layout, p, depth)).first;
     return it->second;
@@ -282,6 +335,7 @@ Params ridge_params(const Params& p, bool three_ridge, int index) {
     out.roughness = s.roughness;
     out.scale = s.scale;
     out.resolution = s.resolution;
+    out.jagged = s.jagged;
     return out;
 }
 
@@ -339,7 +393,25 @@ std::vector<Point> shape(const RidgeLayout& layout, uint32_t tilt,
         next.push_back(pts.back());
         pts.swap(next);
     }
-    add_detail(pts, depth - static_cast<int>(layout.levels.size()), p);
+    int extra = depth - static_cast<int>(layout.levels.size());
+    if (p.jagged) {
+        // Every segment descends from one last-level bit point; its jagged
+        // detail reuses that point's decoded value.
+        size_t last = layout.levels.size() - 1;
+        int bits = layout.levels[last];
+        size_t first = (size_t{1} << last) - 1;
+        std::vector<Point> out;
+        for (size_t j = 0; j + 1 < pts.size(); ++j) {
+            uint32_t i = static_cast<uint32_t>(j / 2);
+            std::vector<Point> seg = {pts[j], pts[j + 1]};
+            jag(seg, extra, jag_key(i, points[first + i], bits, static_cast<uint32_t>(j % 2)), p);
+            out.insert(out.end(), seg.begin(), seg.end() - 1);
+        }
+        out.push_back(pts.back());
+        pts.swap(out);
+    } else {
+        add_detail(pts, extra, p);
+    }
     for (Point& q : pts) q.h = s * q.h;
     return pts;
 }
@@ -437,7 +509,7 @@ std::vector<Ridge> generate(const Config& config, const Hash256& hash) {
     for (size_t i = 0; i < placed.size(); ++i) {
         int index = static_cast<int>(i);
         if (p.theme == Theme::kAlpine && role(v.three_ridge, index) == 2) {
-            placed[i].snow = snow_caps(placed[i].points, p);
+            placed[i].snow = snow_caps(placed[i].points, p, v.ridges[i]);
             placed[i].snow_rgb = p.snow_rgb;
         }
         placed[i].points = style_points(placed[i].points, p, v.three_ridge, index, v.ridges[i]);
@@ -581,40 +653,72 @@ std::vector<Point> add_canopy(const std::vector<Point>& pts, const Params& p, co
 }
 
 
-std::vector<std::vector<Point>> snow_caps(const std::vector<Point>& pts, const Params& p) {
+std::vector<std::vector<Point>> snow_caps(const std::vector<Point>& pts, const Params& p, const RidgeValues& values) {
     double top = -kInf, base = kInf;
     for (const Point& q : pts) {
         top = std::max(top, q.h);
         base = std::min(base, q.h);
     }
-    double line = top - (top - base) * p.snow_fraction;
+    double center = top - (top - base) * p.snow_fraction;
 
-    // Each maximal run of the silhouette above the line becomes one polygon:
-    // entry crossing, the vertices above, exit crossing, closed along the line.
-    std::vector<std::vector<Point>> caps;
-    std::vector<Point> cur;
-    auto crossing = [&](Point a, Point b) {
-        return Point{a.x + (b.x - a.x) * ((line - a.h) / (b.h - a.h)), line};
-    };
-    if (pts.front().h > line) cur.push_back({pts.front().x, line});
-    for (size_t j = 0; j < pts.size(); ++j) {
-        const Point& q = pts[j];
-        if (q.h > line) cur.push_back(q);
-        if (j + 1 == pts.size()) break;
-        const Point& n = pts[j + 1];
-        bool above = q.h > line, next_above = n.h > line;
-        if (above != next_above) {
-            cur.push_back(crossing(q, n));
-            if (above) {
-                caps.push_back(cur);
-                cur.clear();
-            }
+    // Seed from the ridge's decoded values, so each hash gets its own snowline.
+    uint32_t seed = values.tilt * 0x9E3779B1u + values.elevation;
+    for (size_t i = 0; i < values.points.size(); ++i) seed = seed * 31u + values.points[i] + static_cast<uint32_t>(i);
+
+    // Smooth wavy snowline: 1D midpoint displacement in h on a uniform x grid,
+    // amplitude decaying by snow_decay at each level.
+    double amp = p.snow_wave;
+    std::vector<Point> line = {{0.0, center + amp * (2.0 * unit(seed, 30) - 1.0)},
+                               {kCanvasWidth, center + amp * (2.0 * unit(seed, 31) - 1.0)}};
+    for (int m = 0; m < p.snow_levels; ++m) {
+        amp *= p.snow_decay;
+        std::vector<Point> next;
+        for (size_t q = 0; q + 1 < line.size(); ++q) {
+            uint32_t node = (1u << m) + static_cast<uint32_t>(q);
+            next.push_back(line[q]);
+            next.push_back({(line[q].x + line[q + 1].x) / 2.0,
+                            (line[q].h + line[q + 1].h) / 2.0 + amp * (2.0 * unit(seed + node, 32) - 1.0)});
         }
+        next.push_back(line.back());
+        line.swap(next);
     }
-    if (!cur.empty()) {
-        cur.push_back({pts.back().x, line});
-        caps.push_back(cur);
+
+    // Both polylines are linear between the merged x positions, so their
+    // difference is too, and crossings are exact.
+    std::vector<double> xs;
+    for (const Point& q : pts) xs.push_back(q.x);
+    for (const Point& q : line) xs.push_back(q.x);
+    std::sort(xs.begin(), xs.end());
+    xs.erase(std::unique(xs.begin(), xs.end()), xs.end());
+
+    std::vector<std::vector<Point>> caps;
+    std::vector<Point> topside, bottom;
+    auto close = [&]() {
+        std::vector<Point> poly = topside;
+        poly.insert(poly.end(), bottom.rbegin(), bottom.rend());
+        caps.push_back(poly);
+        topside.clear();
+        bottom.clear();
+    };
+    double prev_x = 0.0, prev_d = 0.0;
+    for (size_t k = 0; k < xs.size(); ++k) {
+        double x = xs[k];
+        double s = height_at(pts, x), w = height_at(line, x);
+        double d = s - w;
+        if (k > 0 && (prev_d > 0.0) != (d > 0.0)) {
+            double xc = prev_x + (x - prev_x) * (prev_d / (prev_d - d));
+            double hc = height_at(pts, xc);
+            topside.push_back({xc, hc});
+            if (prev_d > 0.0) close();
+        }
+        if (d > 0.0) {
+            topside.push_back({x, s});
+            bottom.push_back({x, w});
+        }
+        prev_x = x;
+        prev_d = d;
     }
+    if (!topside.empty()) close();
     return caps;
 }
 

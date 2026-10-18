@@ -47,19 +47,23 @@ struct Params {
         double roughness;  // r
         double scale;      // vertical scale s
         int resolution;    // total subdivision depth (bit levels + detail levels)
+        bool jagged;       // detail levels: jagged, reusing bit values (true) or smooth concave (false)
     };
-    // Calm, detailed foreground; gently peaked distance. Each scale brings the
-    // role's exact worst-case silhouette height to about 650.
+    // Calm, detailed foreground; gently peaked, jagged distance. Each scale
+    // brings the role's exact worst-case silhouette height to about 650.
     Style style[3] = {
-        {Generator::kMidpoint, 0.100, 1.372, 5},
-        {Generator::kSummit, 0.125, 1.070, 4},
-        {Generator::kSummit, 0.150, 0.930, 4},
+        {Generator::kMidpoint, 0.100, 1.372, 5, false},
+        {Generator::kSummit, 0.125, 1.070, 6, true},
+        {Generator::kSummit, 0.150, 0.930, 6, true},
     };
+    double jag_decay = 0.75;  // jagged detail: amplitude multiplier per level
+    double jag_floor = 0.35;  // jagged detail: minimum fraction of the allowed interval
 
     // Effective values for one ridge, filled in by ridge_params() from its
     // style. generator and roughness above are effective values as well.
     double scale = 1.0;
     int resolution = 5;
+    bool jagged = false;
     double detail = 2.0;                // k: strength of bit-free detail levels
 
     // Summit generator only. The summit sits at x in [x_min, x_max] * W; the
@@ -75,6 +79,9 @@ struct Params {
     double canopy_height = 16.0;      // temperate front ridge: nominal bump height (varies 0.55-1.3x)
     double tree_threshold = 0.35;     // tree density score below which the front ridge is flat
     double snow_fraction = 1.0 / 3.0; // alpine back ridge: snowline this far down from the peak
+    double snow_wave = 36.0;          // alpine back ridge: snowline wave amplitude, logical units
+    int snow_levels = 5;              // alpine back ridge: snowline subdivision levels (33 knots)
+    double snow_decay = 0.85;         // alpine back ridge: snowline amplitude multiplier per level
     uint32_t snow_rgb = 0xEEF2F6;
 
     double summit_x_min = 0.2;
@@ -201,9 +208,11 @@ std::vector<Point> tree_density(const std::vector<Point>& pts, const RidgeLayout
 std::vector<Point> style_points(const std::vector<Point>& pts, const Params& p, bool three_ridge, int index,
                                 const RidgeValues& values);
 
-// Alpine back ridge: closed polygons of the ridge above a horizontal snowline
-// at snow_fraction of the way down from its highest point to its lowest.
-std::vector<std::vector<Point>> snow_caps(const std::vector<Point>& pts, const Params& p);
+// Alpine back ridge: closed polygons of the ridge above a gently wavy snowline
+// centered snow_fraction of the way down from its highest point to its lowest.
+// The wave is smooth 1D midpoint displacement seeded from the ridge's decoded
+// values, with amplitude decaying by snow_decay at each level.
+std::vector<std::vector<Point>> snow_caps(const std::vector<Point>& pts, const Params& p, const RidgeValues& values);
 
 // Total subdivision depth of ridge `index` as serialized, including biome
 // styling levels.
