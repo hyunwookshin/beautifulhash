@@ -1,0 +1,98 @@
+// Renders comparison galleries: each parameter sweep (tools/variants.hpp) is
+// rendered on the same random hashes, in two- and three-ridge mode, with fog
+// off and on. Writes SVGs plus an index.html with a fog toggle.
+#include <cstdio>
+#include <cstdlib>
+#include <fstream>
+#include <random>
+#include <string>
+#include <sys/stat.h>
+#include <vector>
+
+#include "generate.hpp"
+#include "mountains.hpp"
+#include "partition.hpp"
+#include "variants.hpp"
+
+using namespace bh;
+namespace mt = bh::mountains;
+
+namespace {
+
+void write_file(const std::string& path, const std::string& text) {
+    std::ofstream f(path, std::ios::binary);
+    f << text;
+}
+
+}  // namespace
+
+int main(int argc, char** argv) {
+    std::string dir = argc > 1 ? argv[1] : "gallery";
+    int per_mode = argc > 2 ? std::atoi(argv[2]) : 6;
+    uint64_t seed = argc > 3 ? std::strtoull(argv[3], nullptr, 10) : 2026;
+    mkdir(dir.c_str(), 0755);
+
+    // The same hashes are used for every variant.
+    std::mt19937_64 rng(seed);
+    std::vector<Hash256> hashes;
+    for (int mode : {2, 3}) {
+        for (int i = 0; i < per_mode; ++i) {
+            Hash256 h;
+            for (auto& b : h.bytes) b = static_cast<uint8_t>(rng());
+            h.set_bit(kMountains.begin, mode == 3);  // header: 0 = two ridges, 1 = three
+            hashes.push_back(h);
+        }
+    }
+
+    std::vector<Variant> all = variants();
+    std::vector<mt::Config> configs;
+    for (const Variant& v : all) configs.push_back(mt::make_config(v.params));
+
+    std::string html =
+        "<!doctype html><meta charset=\"utf-8\"><title>Mountain Gallery</title>\n"
+        "<style>body{font:14px system-ui,sans-serif;margin:24px;background:#f4f4f2;color:#222}"
+        "h2{margin-top:40px}table{border-collapse:separate;border-spacing:8px}"
+        "th{font-weight:600;text-align:center}td.h{font:11px monospace;color:#888;max-width:90px;word-break:break-all}"
+        "img{width:340px;display:block;border-radius:4px;box-shadow:0 1px 3px #0003}"
+        "label{position:sticky;top:0;background:#f4f4f2;display:block;padding:8px 0;z-index:1}</style>\n"
+        "<h1>Mountain Gallery</h1>\n"
+        "<p>Seed " + std::to_string(seed) + ". Every column within a sweep uses the same hashes; only one "
+        "parameter changes. Ground level G = 340 for all variants. Only the Mountains namespace "
+        "(bits 48&ndash;135) is used.</p>\n"
+        "<label><input type=\"checkbox\" id=\"fog\" checked> Fog</label>\n";
+
+    for (const Group& g : variant_groups()) {
+        html += "<h2>" + g.description + "</h2><table><tr><th></th>";
+        std::vector<size_t> members;
+        for (size_t v = 0; v < all.size(); ++v) {
+            if (all[v].group == g.name) {
+                members.push_back(v);
+                html += "<th>" + all[v].label + "</th>";
+            }
+        }
+        html += "</tr>\n";
+        for (size_t i = 0; i < hashes.size(); ++i) {
+            html += "<tr><td class=\"h\">" + std::string(i < static_cast<size_t>(per_mode) ? "2 ridges" : "3 ridges") +
+                    "<br>" + hashes[i].to_hex().substr(12, 22) + "&hellip;</td>";
+            for (size_t v : members) {
+                Scene scene;
+                scene.ridges = mt::generate(configs[v], hashes[i]);
+                std::string base = "v" + std::to_string(v) + "_h" + std::to_string(i);
+                scene.fog.enabled = false;
+                write_file(dir + "/" + base + "_clear.svg", render_svg(scene, 1024, 768));
+                scene.fog.enabled = true;
+                write_file(dir + "/" + base + "_fog.svg", render_svg(scene, 1024, 768));
+                html += "<td><img data-base=\"" + base + "\" src=\"" + base + "_fog.svg\"></td>";
+            }
+            html += "</tr>\n";
+        }
+        html += "</table>\n";
+    }
+    html +=
+        "<script>document.getElementById('fog').addEventListener('change',e=>{"
+        "for(const i of document.querySelectorAll('img[data-base]'))"
+        "i.src=i.dataset.base+(e.target.checked?'_fog.svg':'_clear.svg');});</script>\n";
+    write_file(dir + "/index.html", html);
+    std::printf("wrote %zu variants x %zu hashes to %s/index.html\n", all.size(), hashes.size(), dir.c_str());
+    return 0;
+}
