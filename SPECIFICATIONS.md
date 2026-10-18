@@ -76,7 +76,7 @@ Layers are listed from foreground to background.
 | 1 | Vegetation | Foreground plants, grasses, foliage | No |
 | 2 | Trees | Branched trees | No |
 | 3 | Additional trees | Extra tree arrangements | Yes |
-| 4 | Hill with trees | Terrain and vegetation | No |
+| 4 | Primary hill | Terrain geometry, silhouette, and surface colors | No |
 | 5 | Additional hill | Secondary terrain | Yes |
 | 6 | Mountain ridge | Hash-derived silhouette | No |
 | 7 | Taller mountain ridge | More distant/taller silhouette | No |
@@ -223,7 +223,7 @@ The proposed V0 allocation is:
 | Sky | 16–39 | 24 | Sky colors, clouds, atmospheric conditions |
 | Celestial | 40–47 | 8 | Sun, moon, position, and lighting |
 | Mountains | 48–135 | 88 | Mountain ridges and their geometry |
-| Hills | 136–175 | 40 | Hills, terrain shapes, and associated vegetation |
+| Hills | 136–175 | 40 | Hill terrain geometry, silhouettes, and surface colors (no trees) |
 | Trees | 176–223 | 48 | Tree arrangements, sizes, and branching |
 | Vegetation | 224–247 | 24 | Foreground plants and foliage |
 | Fog | 248–255 | 8 | Atmospheric depth and layer-specific fog |
@@ -272,6 +272,11 @@ SHA-256 (256 bits)
 ```
 
 The subnamespaces shown above are conceptual. Their exact widths and boundaries have not yet been finalized.
+
+Each namespace is specified in its own document under [`subspec/`](subspec/):
+[Global](subspec/global.md), [Sky](subspec/sky.md), [Celestial](subspec/celestial.md),
+[Mountains](subspec/mountains.md), [Hills](subspec/hills.md), [Trees](subspec/trees.md),
+[Vegetation](subspec/vegetation.md), and [Fog](subspec/fog.md).
 
 ### Partitioning Rules
 
@@ -356,7 +361,7 @@ Namespace partitioning separates entropy ownership from visual dependencies.
 For example:
 
 * The Mountains namespace may use the Global namespace's selected theme to choose appropriate mountain geometry.
-* The Trees namespace may use terrain information from the Hills namespace to position trees.
+* The Trees namespace may use the landscape's depth model to place trees at a consistent depth.
 * The Fog namespace may use the scene's layer depths to determine atmospheric effects.
 * The Celestial namespace may use the Sky namespace's lighting mode to select a compatible sun or moon.
 
