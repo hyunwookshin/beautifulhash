@@ -427,10 +427,212 @@ std::vector<Ridge> generate(const Config& config, const Hash256& hash) {
         Ridge r;
         r.points = pl.shape;
         for (Point& q : r.points) q.h = q.h + pl.offset;
-        r.rgb = palette(ridges[i].palette)[v.ridges[i].color];
+        r.rgb = palette(config.params.theme, ridges[i].palette)[v.ridges[i].color];
         placed.push_back(r);
     }
+
+    // Biome styling runs only after every ridge is placed, so it can never
+    // change placement or the hash-derived geometry.
+    const Params& p = config.params;
+    for (size_t i = 0; i < placed.size(); ++i) {
+        int index = static_cast<int>(i);
+        if (p.theme == Theme::kAlpine && role(v.three_ridge, index) == 2) {
+            placed[i].snow = snow_caps(placed[i].points, p);
+            placed[i].snow_rgb = p.snow_rgb;
+        }
+        placed[i].points = style_points(placed[i].points, p, v.three_ridge, index, v.ridges[i]);
+    }
     return placed;
+}
+
+
+
+namespace {
+
+// Straight subdivision with no displacement, used before texture levels.
+std::vector<Point> split(std::vector<Point> pts, int levels) {
+    for (int k = 0; k < levels; ++k) {
+        std::vector<Point> next;
+        next.reserve(2 * pts.size() - 1);
+        for (size_t j = 0; j + 1 < pts.size(); ++j) {
+            next.push_back(pts[j]);
+            next.push_back({(pts[j].x + pts[j + 1].x) / 2.0, (pts[j].h + pts[j + 1].h) / 2.0});
+        }
+        next.push_back(pts.back());
+        pts.swap(next);
+    }
+    return pts;
+}
+
+// Fixed variation in [0, 1) for texture element `index`. It depends only on the
+// element's position along the ridge, never on hash bits, so every hash gets
+// the same pattern. Integer-only, so identical on every platform.
+double jitter(uint32_t index, uint32_t salt) {
+    uint32_t x = index * 0x9E3779B1u ^ salt * 0x85EBCA77u;
+    x ^= x >> 16;
+    x *= 0x7FEB352Du;
+    x ^= x >> 15;
+    x *= 0x846CA68Bu;
+    x ^= x >> 16;
+    return static_cast<double>(x) / 4294967296.0;
+}
+
+Point lerp_at(Point a, Point b, double f, double lift) {
+    return {a.x + (b.x - a.x) * f, a.h + (b.h - a.h) * f + lift};
+}
+
+}  // namespace
+
+std::vector<Point> style_points(const std::vector<Point>& pts, const Params& p, bool three_ridge, int index,
+                                const RidgeValues& values) {
+    if (role(three_ridge, index) != 0) return pts;
+    if (p.theme != Theme::kAlpine && p.theme != Theme::kTemperate) return pts;
+    int depth = ridge_params(p, three_ridge, index).resolution;
+    std::vector<Point> density = tree_density(pts, layout(three_ridge)[index], values, depth);
+    if (p.theme == Theme::kAlpine) return add_conifers(pts, p, density);
+    return add_canopy(pts, p, density);
+}
+
+std::vector<Point> tree_density(const std::vector<Point>& pts, const RidgeLayout& layout, const RidgeValues& values,
+                                int depth) {
+    // Zones are the deepest bit level's points. A zone's score averages its
+    // point's value with its parent point's value, both normalized to [0, 1].
+    size_t levels = layout.levels.size();
+    size_t deepest = levels - 1;
+    size_t first = (size_t{1} << deepest) - 1;           // index of the deepest level's first value
+    size_t parent_first = (size_t{1} << (deepest - 1)) - 1;
+    std::vector<Point> knots;
+    for (size_t j = 0; j < (size_t{1} << deepest); ++j) {
+        size_t vertex = (2 * j + 1) << (depth - static_cast<int>(levels));
+        double own = values.points[first + j] / steps(layout.levels[deepest]);
+        double parent = values.points[parent_first + j / 2] / steps(layout.levels[deepest - 1]);
+        knots.push_back({pts[vertex].x, (own + parent) / 2.0});
+    }
+    return knots;
+}
+
+namespace {
+
+// Tree size factor in [0, 1] at x: 0 (a flat clearing) below the threshold,
+// rising linearly to 1 at the densest score.
+double tree_factor(const std::vector<Point>& density, double x, const Params& p) {
+    double s = height_at(density, x);
+    return s <= p.tree_threshold ? 0.0 : (s - p.tree_threshold) / (1.0 - p.tree_threshold);
+}
+
+}  // namespace
+
+std::vector<Point> add_conifers(const std::vector<Point>& pts, const Params& p, const std::vector<Point>& density) {
+    // Straight subdivision, then the new (non-original) points become valleys
+    // cut conifer_depth below the silhouette, and one tooth per segment rises
+    // to 35-65% of the segment. Original points, including every bit-driven
+    // point, never move. Sizes scale with the local tree factor; where it is 0
+    // the texture is flat.
+    std::vector<Point> base = split(pts, p.conifer_subdivisions);
+    size_t stride = size_t{1} << p.conifer_subdivisions;
+    for (size_t j = 0; j < base.size(); ++j) {
+        if (j % stride != 0) base[j].h = base[j].h - p.conifer_depth * tree_factor(density, base[j].x, p);
+    }
+    // Each segment holds a continuous zigzag of two teeth: tip, V-valley cut
+    // conifer_depth below the silhouette, tip. All edges are straight, so both
+    // peaks and valleys are sharp. Three points per segment add two levels of
+    // structure. Positions lean and heights vary by a fixed pattern.
+    std::vector<Point> out;
+    out.reserve(4 * base.size() - 3);
+    for (size_t j = 0; j + 1 < base.size(); ++j) {
+        uint32_t k = static_cast<uint32_t>(j);
+        double f1 = 0.20 + 0.10 * jitter(k, 1);
+        double fv = 0.45 + 0.10 * jitter(k, 5);
+        double f2 = 0.70 + 0.10 * jitter(k, 6);
+        double g = tree_factor(density, lerp_at(base[j], base[j + 1], fv, 0.0).x, p);
+        double h1 = p.conifer_height * (0.6 + 0.6 * jitter(k, 2)) * g;
+        double h2 = p.conifer_height * (0.6 + 0.6 * jitter(k, 7)) * g;
+        out.push_back(base[j]);
+        out.push_back(lerp_at(base[j], base[j + 1], f1, h1));
+        out.push_back(lerp_at(base[j], base[j + 1], fv, -p.conifer_depth * g));
+        out.push_back(lerp_at(base[j], base[j + 1], f2, h2));
+    }
+    out.push_back(base.back());
+    return out;
+}
+
+std::vector<Point> add_canopy(const std::vector<Point>& pts, const Params& p, const std::vector<Point>& density) {
+    // One rounded bump per segment: a semicircle-like arc of seven points
+    // sqrt(1 - (2f - 1)^2) at f = k/8, from a constant table (no square root at
+    // run time). The arc covers 65-100% of the segment and its height varies
+    // from 0.55x to 1.3x of canopy_height, scaled by the local tree factor.
+    // Seven points per segment add three levels of structure, so bit-driven
+    // points keep known indices.
+    static const double kArc[7] = {0.6614378277661477, 0.8660254037844386, 0.9682458365518543, 1.0,
+                                   0.9682458365518543, 0.8660254037844386, 0.6614378277661477};
+    std::vector<Point> base = split(pts, p.canopy_subdivisions);
+    std::vector<Point> out;
+    out.reserve(8 * base.size() - 7);
+    for (size_t j = 0; j + 1 < base.size(); ++j) {
+        uint32_t k = static_cast<uint32_t>(j);
+        double w = 0.65 + 0.35 * jitter(k, 3);
+        double g = tree_factor(density, lerp_at(base[j], base[j + 1], w / 2.0, 0.0).x, p);
+        double h = p.canopy_height * (0.55 + 0.75 * jitter(k, 4)) * g;
+        out.push_back(base[j]);
+        for (int i = 0; i < 7; ++i) out.push_back(lerp_at(base[j], base[j + 1], w * (i + 1) / 8.0, h * kArc[i]));
+    }
+    out.push_back(base.back());
+    return out;
+}
+
+
+std::vector<std::vector<Point>> snow_caps(const std::vector<Point>& pts, const Params& p) {
+    double top = -kInf, base = kInf;
+    for (const Point& q : pts) {
+        top = std::max(top, q.h);
+        base = std::min(base, q.h);
+    }
+    double line = top - (top - base) * p.snow_fraction;
+
+    // Each maximal run of the silhouette above the line becomes one polygon:
+    // entry crossing, the vertices above, exit crossing, closed along the line.
+    std::vector<std::vector<Point>> caps;
+    std::vector<Point> cur;
+    auto crossing = [&](Point a, Point b) {
+        return Point{a.x + (b.x - a.x) * ((line - a.h) / (b.h - a.h)), line};
+    };
+    if (pts.front().h > line) cur.push_back({pts.front().x, line});
+    for (size_t j = 0; j < pts.size(); ++j) {
+        const Point& q = pts[j];
+        if (q.h > line) cur.push_back(q);
+        if (j + 1 == pts.size()) break;
+        const Point& n = pts[j + 1];
+        bool above = q.h > line, next_above = n.h > line;
+        if (above != next_above) {
+            cur.push_back(crossing(q, n));
+            if (above) {
+                caps.push_back(cur);
+                cur.clear();
+            }
+        }
+    }
+    if (!cur.empty()) {
+        cur.push_back({pts.back().x, line});
+        caps.push_back(cur);
+    }
+    return caps;
+}
+
+int styled_depth(const Params& p, bool three_ridge, int index) {
+    int depth = ridge_params(p, three_ridge, index).resolution;
+    if (role(three_ridge, index) == 0) {
+        if (p.theme == Theme::kAlpine) depth += p.conifer_subdivisions + 2;
+        if (p.theme == Theme::kTemperate) depth += p.canopy_subdivisions + 3;
+    }
+    return depth;
+}
+
+double texture_min_fraction(const Params& p, bool three_ridge, int index) {
+    if (role(three_ridge, index) != 0) return 1.0;
+    // Narrowest conifer piece: tip to valley, at least 0.45 - 0.30 = 0.15.
+    if (p.theme == Theme::kAlpine) return 0.15 / std::pow(2.0, p.conifer_subdivisions);
+    if (p.theme == Theme::kTemperate) return (0.65 / 8.0) / std::pow(2.0, p.canopy_subdivisions);
+    return 1.0;
 }
 
 }  // namespace bh::mountains

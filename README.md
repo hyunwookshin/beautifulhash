@@ -191,7 +191,7 @@ The following remain unresolved and should not be treated as finalized V0 requir
 
 V0 is ready to freeze when:
 
-* All five themes can produce aesthetically acceptable landscapes.
+* All four themes can produce aesthetically acceptable landscapes.
 * All required and optional layers function.
 * Identical inputs produce identical scenes.
 * Native C++ and WebAssembly scene digests and SVG bytes match.

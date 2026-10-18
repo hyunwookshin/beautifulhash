@@ -5,6 +5,7 @@
 
 #include "hash.hpp"
 #include "scene.hpp"
+#include "theme.hpp"
 
 // Mountains namespace (subspec/mountains.md).
 namespace bh::mountains {
@@ -35,7 +36,7 @@ struct Params {
     double margin = 0.5;          // gamma
     double tilt_range = 256.0;    // D: tilt in [-D, D]
     double visibility = 0.35;     // rho
-    double min_exposure = 24.0;   // E_min
+    double min_exposure = 48.0;   // E_min: at least twice the tallest biome texture
     double ground = 260.0;        // G: Ridge 1's lowest point at zero extra elevation
     double ceiling = 1472.0;      // C: no silhouette point above this
     double share[3] = {0.25, 0.5, 0.5};  // kappa per ridge: fraction of headroom it may use
@@ -64,6 +65,18 @@ struct Params {
     // Summit generator only. The summit sits at x in [x_min, x_max] * W; the
     // rise from the left edge and the drop to the right edge lie in
     // [rise_min, rise_max]. All later levels use the same roughness r.
+    // Biome styling. Applied after placement, so it never changes placement or
+    // the hash-derived geometry. Provisional; tuned from rendered samples.
+    Theme theme = Theme::kAlpine;
+    int conifer_subdivisions = 1;     // alpine front ridge: straight subdivisions per segment
+    double conifer_height = 18.0;     // alpine front ridge: nominal tooth height (varies 0.6-1.2x)
+    double conifer_depth = 8.0;       // alpine front ridge: valley cut below the silhouette
+    int canopy_subdivisions = 0;      // temperate front ridge: straight subdivisions per segment
+    double canopy_height = 16.0;      // temperate front ridge: nominal bump height (varies 0.55-1.3x)
+    double tree_threshold = 0.35;     // tree density score below which the front ridge is flat
+    double snow_fraction = 1.0 / 3.0; // alpine back ridge: snowline this far down from the peak
+    uint32_t snow_rgb = 0xEEF2F6;
+
     double summit_x_min = 0.2;
     double summit_x_max = 0.8;
     double rise_min = 160.0;
@@ -161,6 +174,44 @@ struct Placement {
 
 Placement place(const Config& config, bool three_ridge, int index, const RidgeValues& values,
                 const std::vector<Ridge>& front);
+
+// Alpine front ridge: subdivides every segment conifer_subdivisions times with
+// no displacement, cuts the new points conifer_depth below the silhouette as
+// valleys, and adds a sharp two-tooth zigzag per segment, giving a conifer tree
+// line that is part of the silhouette. Sizes scale with the tree density; tooth position
+// and height also vary by a fixed pattern that does not depend on the hash.
+std::vector<Point> add_conifers(const std::vector<Point>& pts, const Params& p, const std::vector<Point>& density);
+
+// Temperate front ridge: subdivides every segment canopy_subdivisions times
+// with no displacement, then turns each segment into a rounded bump (a
+// seven-point arc), giving a deciduous canopy that is part of the silhouette.
+// Bump width and height vary by a fixed pattern that does not depend on the hash.
+std::vector<Point> add_canopy(const std::vector<Point>& pts, const Params& p, const std::vector<Point>& density);
+
+// Tree density along a front ridge, as knots (x, score in [0, 1]) at the
+// deepest bit level's points. Each score averages that point's value with its
+// parent point's value, so forest cover varies with the hash without using
+// any extra bits. `pts` are the placed, unstyled points at total depth `depth`.
+std::vector<Point> tree_density(const std::vector<Point>& pts, const RidgeLayout& layout, const RidgeValues& values,
+                                int depth);
+
+// The silhouette of ridge `index` as serialized: its placed points plus any
+// biome texture (alpine conifers or temperate canopy on the front ridge), sized
+// by the ridge's tree density and flat where the density is below threshold.
+std::vector<Point> style_points(const std::vector<Point>& pts, const Params& p, bool three_ridge, int index,
+                                const RidgeValues& values);
+
+// Alpine back ridge: closed polygons of the ridge above a horizontal snowline
+// at snow_fraction of the way down from its highest point to its lowest.
+std::vector<std::vector<Point>> snow_caps(const std::vector<Point>& pts, const Params& p);
+
+// Total subdivision depth of ridge `index` as serialized, including biome
+// styling levels.
+int styled_depth(const Params& p, bool three_ridge, int index);
+
+// Smallest fraction of a pre-texture segment that one serialized texture
+// segment can span (1 when the ridge has no texture). Used for separation bounds.
+double texture_min_fraction(const Params& p, bool three_ridge, int index);
 
 // Decodes the namespace and builds every ridge, front to back.
 std::vector<Ridge> generate(const Config& config, const Hash256& hash);

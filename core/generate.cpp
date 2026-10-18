@@ -99,6 +99,24 @@ std::string render_svg(const Scene& scene, uint32_t width, uint32_t height) {
         append_uint(out, height);
         out += " Z\"/>\n";
 
+        // Snow caps: a separate element over the ridge, so the ridge path itself
+        // is unchanged. Drawn before the haze in front of this ridge.
+        if (!r.snow.empty()) {
+            out += "<path class=\"snow\" fill=\"";
+            append_hex(out, r.snow_rgb);
+            out += "\" d=\"";
+            for (const auto& poly : r.snow) {
+                for (size_t i = 0; i < poly.size(); ++i) {
+                    out += i == 0 ? (&poly == &r.snow.front() ? "M" : " M") : " L";
+                    append_fixed2(out, poly[i].x * scale);
+                    out += ",";
+                    append_fixed2(out, (kCanvasHeight - poly[i].h) * scale);
+                }
+                out += " Z";
+            }
+            out += "\"/>\n";
+        }
+
         if (scene.fog.enabled && n > 0) {
             out += "<rect class=\"fog\" ";
             append_full_rect(out, width, height);

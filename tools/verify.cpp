@@ -143,6 +143,8 @@ void check_separation(const mt::Config& c, bool verbose) {
             }
             // dx is now the width of the segments subdivided at the next level.
             double final_dx = dx * std::pow(factor, p.resolution - static_cast<int>(l.levels.size())) * 0.5;
+            // Biome textures (conifers, canopy) split segments unevenly.
+            final_dx *= mt::texture_min_fraction(c.params, three, static_cast<int>(i));
             narrowest = std::min(narrowest, final_dx);
             if (verbose) {
                 std::printf("  %s R%zu: depth %d (%zu bit levels + %d detail), min final segment width %.2f px\n",
@@ -160,12 +162,15 @@ void check_separation(const mt::Config& c, bool verbose) {
 // ---- 4. Palettes -----------------------------------------------------------
 
 void check_palettes() {
-    std::printf("== Palettes (shared color family)\n");
-    for (int id : {kPaletteFront, kPaletteMiddle, kPaletteFar}) {
-        const auto& pal = palette(id);
-        std::set<uint32_t> distinct(pal.begin(), pal.end());
-        std::printf("  palette %d: %zu entries, %zu distinct #RRGGBB values\n", id, pal.size(), distinct.size());
-        check(distinct.size() == pal.size(), "palette has duplicate colors");
+    std::printf("== Palettes (one color family per biome)\n");
+    for (Theme t : kThemes) {
+        for (int id : {kPaletteFront, kPaletteMiddle, kPaletteFar}) {
+            const auto& pal = palette(t, id);
+            std::set<uint32_t> distinct(pal.begin(), pal.end());
+            std::printf("  %-7s palette %d: %zu entries, %zu distinct #RRGGBB values\n", theme_name(t), id,
+                        pal.size(), distinct.size());
+            check(distinct.size() == pal.size(), "palette has duplicate colors");
+        }
     }
 }
 
@@ -255,7 +260,7 @@ bool round_trip(const mt::Config& c, const Hash256& hash, uint32_t width, uint32
         const ParsedRidge& pr = parsed[i];
         const mt::Params p = mt::ridge_params(c.params, v.three_ridge, static_cast<int>(i));
         double s = p.scale;
-        int depth = p.resolution;
+        int depth = mt::styled_depth(c.params, v.three_ridge, static_cast<int>(i));
         if (pr.xs.size() != (size_t{1} << depth) + 1) return false;
         for (size_t j = 1; j < pr.xs.size(); ++j) {
             if (!(pr.xs[j] > pr.xs[j - 1])) st.monotonic = false;
@@ -317,7 +322,7 @@ bool round_trip(const mt::Config& c, const Hash256& hash, uint32_t width, uint32
             return std::fabs(pr.ys[0] - (kCanvasHeight - offset) * sc);
         }, st);
 
-        const auto& pal = palette(l.palette);
+        const auto& pal = palette(c.params.theme, l.palette);
         auto it = std::find(pal.begin(), pal.end(), pr.fill);
         if (it == pal.end()) return false;
         rv.color = static_cast<uint32_t>(it - pal.begin());
@@ -328,8 +333,11 @@ bool round_trip(const mt::Config& c, const Hash256& hash, uint32_t width, uint32
         r.points = pl.shape;
         for (Point& q : r.points) q.h = q.h + pl.offset;
 
+        // Ceiling check includes biome styling (conifer and canopy tips); placement
+        // and the exposure check use the unstyled ridge, as the generator does.
+        std::vector<Point> styled = mt::style_points(r.points, c.params, v.three_ridge, static_cast<int>(i), rv);
         double top = -kInf;
-        for (const Point& q : r.points) top = std::max(top, q.h);
+        for (const Point& q : styled) top = std::max(top, q.h);
         st.min_clearance = std::min(st.min_clearance, p.ceiling - top);
         if (i > 0) {
             double hmin = kInf, hmax = -kInf;

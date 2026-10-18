@@ -8,7 +8,7 @@
 
 The Trees namespace owns all tree generation in V0. It places and grows the branched trees independently of the other layers: where they stand,
 how large they are, and how they branch. Tree species must suit the theme,
-for example conifers in Alpine scenes and palms in Beachside or Rainforest
+for example conifers in Alpine scenes and broadleaf trees in Temperate
 scenes.
 
 A primary group of trees is always present, and an additional arrangement is

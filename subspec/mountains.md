@@ -381,8 +381,10 @@ E_i = \max\!\left(\rho \, H_i,\; E_{\min}\right)
 $$
 
 where $\rho$ is the visibility ratio (proposed $0.35$, so at least 35% of the
-ridge's own height is exposed) and $E_{\min}$ is a small absolute floor (proposed
-$24$), so a nearly flat ridge still shows clearly. 35% was chosen from rendered
+ridge's own height is exposed) and $E_{\min}$ is an absolute floor (proposed
+$48$), so a nearly flat ridge still shows clearly. The floor is at least twice the
+tallest biome texture (about 22), so even behind tree tips at least half of it
+stays visible (see Biome styling). 35% was chosen from rendered
 samples: 20% leaves background ridges as thin slivers, and 50% starts to stack
 three-ridge scenes into flat bands.
 
@@ -498,8 +500,9 @@ The index is not split into RGB channels. Instead, the theme defines one
 coherent **color family** shared by every ridge, and each ridge's bits select a
 distinct shade within it:
 
-* The family is a theme-defined hue range in a perceptual color space (OKLCH).
-  The placeholder "alpine slate" theme uses hues 215°–275°.
+* The family is a theme-defined hue range in a perceptual color space (OKLCH),
+  optionally different per depth band, with a chroma multiplier (see Biome
+  styling for each biome's family).
 * Each ridge position has its own lightness band within the family: darkest in
   front, lightest at the back. The bands do not overlap, so depth order is
   always preserved.
@@ -507,11 +510,11 @@ distinct shade within it:
   8 lightness × 8 hue × 4 chroma steps. For Ridge 3's 16 entries:
   4 lightness × 4 hue steps at a fixed chroma.
 
-| Ridge position | Lightness band | Chroma | Entries |
+| Palette | Lightness band | Chroma (before the biome multiplier) | Entries |
 |---|---|---|---:|
-| Ridge 1 (front) | 0.30–0.48 | 0.030–0.075 | 256 |
-| Ridge 2 (middle) | 0.51–0.65 | 0.025–0.065 | 256 |
-| Ridge 3 (back) | 0.68–0.77 | 0.040 | 16 |
+| Front | 0.30–0.48 | 0.030–0.075 | 256 |
+| Middle | 0.51–0.65 | 0.025–0.065 | 256 |
+| Far (Ridge 3) | 0.68–0.77 | 0.040 | 16 |
 
 The palette tables are constants of the theme. The reference implementation
 currently builds them at startup; they must become precomputed tables before V0.
@@ -536,6 +539,106 @@ automated test checks every combination.
 Distinct `#RRGGBB` values guarantee SVG uniqueness, not that viewers can tell
 the colors apart. Perceptual separation is an aesthetic goal for palette design,
 not an injectivity requirement.
+
+### Biome styling
+
+The theme (biome) is context from the Global namespace, not Mountains bits. It
+changes styling only:
+
+* **Applied after placement:** every ridge is placed first, and styling is
+  applied afterward. Geometry and placement are therefore identical in every
+  biome; the same hash gives the same mountain shapes everywhere.
+* **Deterministic:** every styling rule is a fixed function of the ridge's
+  geometry and decoded values. Styling consumes no bits.
+* **Injectivity preserved:** the injectivity claim already holds for a fixed
+  theme. Textures only insert vertices with a fixed structure and never move a
+  bit-driven point, so decoding is unchanged. Snow is a separate SVG element.
+* **Provisional:** all styling parameters are tuned from rendered galleries.
+
+#### Color families
+
+| Biome | Front hues | Middle hues | Far hues | Chroma multiplier |
+|---|---|---|---|---:|
+| Alpine (cool slate blue) | 215–275° | 215–275° | 215–275° | 1.0 |
+| Temperate (bluish teal, fading to soft blue) | 175–205° | 188–232° | 210–240° | 1.0 |
+| Tundra (muted purple, cool lavender) | 285–325° | 285–325° | 285–325° | 0.9 |
+| Desert (warm golden, ochre, sand) | 50–85° | 50–85° | 50–85° | 1.2 |
+
+Temperate shifts toward blue with distance (aerial perspective). Every palette
+of every biome has pairwise distinct `#RRGGBB` entries, which `make verify`
+checks. Tuning found two collisions, both fixed: a Desert chroma multiplier of
+1.35 pushed colors out of the sRGB gamut, and a 195–225° Temperate middle range
+packed hue steps too closely.
+
+#### Alpine: snow caps
+
+The back ridge gets snow above a horizontal snowline one third of the way down
+from its highest point to its lowest:
+
+$$
+h_{\text{snow}} = h_{\max} - \tfrac13 \left( h_{\max} - h_{\min} \right)
+$$
+
+Each maximal run of the silhouette above the snowline becomes a closed polygon:
+the entry crossing, the vertices above the line, and the exit crossing, closed
+along the line. The polygons form one `<path class="snow">` element (color
+`#EEF2F6`), drawn right after the ridge and before the haze in front of it, so
+nearer ridges cover it and fog tints it. The ridge's own path is unchanged.
+
+#### Front-ridge trees: Alpine and Temperate
+
+The front ridge's silhouette carries a tree texture: conifers in Alpine, a
+deciduous canopy in Temperate. The texture is part of the ridge's own path.
+
+**Tree density from the ridge's own values.** The deepest bit level's points
+divide the front ridge into zones: 8 in two-ridge mode and 4 in three-ridge
+mode. A zone's score averages its point's value with its parent point's value,
+each normalized to $[0, 1]$. Scores are interpolated linearly between the zone
+points, and the tree factor is
+
+$$
+g(x) = \max\!\left(0,\; \frac{s(x) - \theta}{1 - \theta}\right), \qquad \theta = 0.35
+$$
+
+Where $g = 0$ the texture is exactly flat, a clearing. Forest cover therefore
+varies from hash to hash without using any extra bits.
+
+**Fixed variation.** Each tooth or bump also varies in size and position by a
+fixed integer mixer of its index along the ridge. The variation is the same for
+every hash; it could later be seeded from the hash.
+
+**Alpine conifers.** Each front-ridge segment is split once (to about 32
+units). The new split points are cut $8g$ below the silhouette as valleys. Each
+resulting segment then holds a sharp two-tooth zigzag: a tip at 20–30% of the
+segment, a V-valley at 45–55% cut $8g$ below the line, and a tip at 70–80%. Tip
+heights are $18 \cdot (0.6\text{–}1.2) \cdot g$. All edges are straight, so peaks
+and valleys are both sharp.
+
+**Temperate canopy.** Each front-ridge segment (about 64 units) becomes one
+rounded bump: seven points on a semicircle-like arc
+$\sqrt{1 - (2f - 1)^2}$ at $f = k/8$, taken from a constant table, so no square
+root is computed at run time. The arc covers 65–100% of the segment, and its
+height is $16 \cdot (0.55\text{–}1.3) \cdot g$.
+
+**Properties:**
+
+* **Decoding:** both textures add exactly three levels of fixed structure.
+  Conifers add one straight split plus three points per segment; the canopy
+  adds seven points per segment. Original vertices never move, so the
+  bit-driven points sit at known indices of a ridge with total depth 8
+  (257 points).
+* **Monotonic:** every inserted point lies strictly between its neighbors in
+  $x$. The narrowest serialized segment is 0.07 px (Alpine) and 0.08 px
+  (Temperate) at 1024 × 768, above the 0.01 quantum.
+* **Ceiling:** the tallest texture is about 22 (conifers $18 \times 1.2$, canopy
+  $16 \times 1.3 = 20.8$). It is smaller than the reserves kept behind the front
+  ridge, so tree tips never rise above the ceiling.
+* **Visibility:** trees can cover at most about 22 of a back ridge's exposure.
+  Required exposure is at least $E_{\min} = 48$, so at least 26 stays visible.
+
+#### Tundra and Desert
+
+Palette only; no textures or overlays.
 
 ### Bit layouts (provisional)
 
@@ -827,25 +930,28 @@ which checks:
   exhaustive enumeration of every shape (up to $2^{24}$ configurations per
   ridge, with the last level solved directly), and $S > 0$ for both modes.
 * **Separation:** the worst-case step for every slot, at 1024 × 768.
-* **Palettes:** every entry has a distinct `#RRGGBB` value.
+* **Palettes:** every entry of every biome's palettes has a distinct `#RRGGBB` value.
 * **Round trip:** random hashes are rendered to SVG text, the text is parsed
   back, and the 88 bits are decoded from it, at 1024 × 768 and 2048 × 1536.
-  Every ridge is also checked to stay below the ceiling and to meet its
-  required exposure.
+  Every ridge is also checked to stay below the ceiling, including tree tips,
+  and to meet its required exposure. Front ridges with tree textures are
+  decoded at their textured depth.
 
 It also checks that serialized $x$ coordinates are strictly increasing, which
 covers detail points, and repeats the budget and round-trip checks for every
-gallery variant in `tools/variants.hpp`.
+gallery variant in `tools/variants.hpp`: one per biome.
 
-Latest run (default styles: front midpoint, middle and back summit): 20,000
-hashes per mode and size. 0 mismatches, smallest observed decode margin 2.19 px,
-smallest ceiling clearance 231.5 logical units. `make gallery` renders the
-default configuration on 40 random hashes, with fog on and off.
+Latest run: 20,000 hashes per mode and size for the default configuration
+(Alpine), plus 2,000 per mode and size for each biome. 0 mismatches, smallest
+observed decode margin 2.19 px, smallest ceiling clearance 231.5 logical units.
+`make gallery` renders all four biomes on the same 40 random hashes, with fog on
+and off.
 
 ### Dependencies
 
-* Consumes: the theme and broad composition constraints from Global (roughness,
-  vertical scale, color palettes, foreground level) and the lighting mode from Sky.
+* Consumes: the theme (biome) and broad composition constraints from Global
+  (roughness, vertical scale, color palettes, foreground level) and the lighting
+  mode from Sky.
 * Internal: each ridge's placement depends on the already placed ridges in
   front of it. This uses their decoded geometry, never their raw bits.
 * Provides: ridge silhouettes, colors, and depths, used by Fog and for occlusion.
@@ -868,7 +974,14 @@ default configuration on 40 random hashes, with fog on and off.
   Keeping each flank's shoulder below its chord could prevent this.
 * A front ridge drawn high can hide most of the ridges behind it.
 * The theme's color family: hue range, lightness bands, and chroma ranges.
-* Visibility ratio $\rho$ (0.35) and the absolute floor $E_{\min}$ (24).
+* Biome styling parameters: snowline fraction (1/3), tree threshold (0.35),
+  conifer height and valley cut (18, 8), canopy height (16), texture spacing.
+* Whether tree density should stay tied to the terrain's own values or come from
+  an independent source, such as position or a dedicated seed.
+* Conifer teeth on steep slopes form stair-step serrations; they could be scaled
+  down where the slope is steep.
+* Snow caps on plateau-shaped back ridges become a flat band.
+* Visibility ratio $\rho$ (0.35) and the absolute floor $E_{\min}$ (48).
 * Ridge 1's foreground level $T_1$.
 * Whether a background ridge's peak should also be required to exceed the
   front ridges' peak, in addition to the visibility constraint.
@@ -879,7 +992,7 @@ default configuration on 40 random hashes, with fog on and off.
 
 ### Status
 
-The ridge algorithm, depth-role styles, both layouts, color requirements,
-serialization rules, and injectivity argument are proposed and implemented in
-the reference renderer. The default styles were chosen from rendered galleries;
+The ridge algorithm, depth-role styles, biome styling, both layouts, color
+requirements, serialization rules, and injectivity argument are proposed and
+implemented in the reference renderer. The default styles were chosen from rendered galleries;
 layouts and artistic parameters remain provisional until V0 is frozen.

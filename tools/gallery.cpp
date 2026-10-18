@@ -53,7 +53,7 @@ int main(int argc, char** argv) {
         "<style>body{font:14px system-ui,sans-serif;margin:24px;background:#f4f4f2;color:#222}"
         "h2{margin-top:40px}table{border-collapse:separate;border-spacing:8px}"
         "th{font-weight:600;text-align:center}td.h{font:11px monospace;color:#888;max-width:90px;word-break:break-all}"
-        "img{width:340px;display:block;border-radius:4px;box-shadow:0 1px 3px #0003}"
+        "img{width:480px;display:block;border-radius:4px;box-shadow:0 1px 3px #0003}"
         "label{position:sticky;top:0;background:#f4f4f2;display:block;padding:8px 0;z-index:1}</style>\n"
         "<h1>Mountain Gallery</h1>\n"
         "<p>Seed " + std::to_string(seed) + ". Every column within a sweep uses the same hashes; only one "

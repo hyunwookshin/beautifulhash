@@ -22,13 +22,19 @@ struct Group {
 
 inline std::vector<Group> variant_groups() {
     return {
-        {"default", "Default configuration (subspec/mountains.md): front ridge midpoint r = 0.10, "
-                    "middle ridge summit r = 0.125, back ridge summit r = 0.15"},
+        {"biomes", "Biome styling on identical hashes (experimental). Geometry and placement are "
+                   "identical across columns; only colors, alpine snow caps, and alpine conifer texture differ."},
     };
 }
 
 inline std::vector<Variant> variants() {
-    return {{"default", "default", mountains::Params{}}};
+    std::vector<Variant> out;
+    for (Theme t : kThemes) {
+        mountains::Params p;
+        p.theme = t;
+        out.push_back({"biomes", theme_name(t), p});
+    }
+    return out;
 }
 
 }  // namespace bh

@@ -97,21 +97,22 @@ Layers are listed from foreground to background.
 
 ## Environmental Themes
 
-The generator supports five initial themes.
+BeautifulHash focuses on mountainous landscapes. V0 supports four themes, also called biomes:
 
 | Theme | Defining characteristics |
 |---|---|
-| Tundra | Cold terrain, sparse vegetation, possible aurora |
-| Alpine | Mountainous terrain, coniferous trees |
-| Temperate | Deciduous or mixed vegetation |
-| Rainforest / volcanic | Dense tropical vegetation, palms, volcanic forms |
-| Beachside | Coastal scenery, palms, softer terrain |
+| Alpine | Slate-blue ranges, snow-capped back ridge, conifer tree line in front |
+| Temperate | Bluish-teal ranges fading to soft blue, rounded deciduous canopy in front |
+| Tundra | Muted purple and cool lavender ranges, bare silhouettes |
+| Desert | Warm golden, ochre, and sandy ranges, bare silhouettes |
 
-Theme selection is hash-derived.
+Beachside and Rainforest / volcanic were dropped when BeautifulHash committed to mountain scenes.
 
-Each theme defines constraints on allowable terrain shapes, vegetation, atmospheric effects, and color palettes.
+Theme selection is hash-derived, by the Global namespace.
 
-Themes should share the same underlying generation framework while providing distinct visual characteristics.
+A theme changes styling only: color palettes, textures, and overlays such as snow. It never changes the hash-derived geometry or placement, so the same hash produces the same mountain shapes in every theme.
+
+Themes share the same underlying generation framework while providing distinct visual characteristics. Per-namespace effects are specified in each subspec; see [subspec/mountains.md](subspec/mountains.md), Biome styling.
 
 ## Deterministic Scene Generation
 
@@ -361,7 +362,7 @@ Namespace partitioning separates entropy ownership from visual dependencies.
 
 For example:
 
-* The Mountains namespace may use the Global namespace's selected theme to choose appropriate mountain geometry.
+* The Mountains namespace may use the Global namespace's selected theme to choose mountain colors and textures.
 * The Trees namespace may use the landscape's depth model to place trees at a consistent depth.
 * The Fog namespace may use the scene's layer depths to determine atmospheric effects.
 * The Celestial namespace may use the Sky namespace's lighting mode to select a compatible sun or moon.
