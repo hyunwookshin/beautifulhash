@@ -1,5 +1,11 @@
 ## BeautifulHash
 
+![An Alpine BeautifulHash landscape: snow-capped back ridge behind a front ridge with a conifer tree line, in hazy slate blue](docs/scenery.svg)
+
+*Alpine biome, two-ridge mode, rendered by the reference implementation from
+hash `8f78c264dd573dde8985a34ac1e2d7c2f9e596589ab0a83f2310ea2a81cf3730`.
+Only the Mountains namespace is implemented so far.*
+
 The project is to turn any input (strings, numbers, pdfs) into a beautiful,
 distinctive, and repeatable landscape imagery in SVG format.
 
