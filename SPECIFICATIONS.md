@@ -252,6 +252,7 @@ SHA-256 (256 bits)
 │   └── Position / Intensity
 │
 ├── Mountains (88 bits)
+│   ├── Header (Ridge 3 present?)
 │   ├── Ridge 1
 │   ├── Ridge 2
 │   └── Ridge 3 (optional)
@@ -333,7 +334,7 @@ For example, the 88-bit Mountains namespace could use:
 | Texture | 16 |
 | **Total** | **88** |
 
-These are illustrative alternatives, not finalized V0 decisions.
+These are illustrative alternatives, not finalized V0 decisions. Mountains has provisionally adopted a variant: a 1-bit header selects between two independent layouts, two ridges (43/44) or three ridges (32/32/23); see [subspec/mountains.md](subspec/mountains.md).
 
 The parent namespace is responsible for defining how its subnamespaces map to visual parameters, including their ranges, distributions, dependencies, and constraints.
 
