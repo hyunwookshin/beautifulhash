@@ -172,6 +172,8 @@ SHA-256 hash
 
 This prevents adding or changing one layer from unintentionally changing every other layer during development.
 
+Each stream is seeded only from the bits of the namespace that owns it (see Hash Namespace Partitioning).
+
 Before V0 is frozen, the stream derivation method and generation order must be specified.
 
 ### Scene representation
@@ -199,6 +201,205 @@ Example conceptual structure:
 ```
 
 This is an illustrative structure, not the frozen V0 schema.
+
+## Hash Namespace Partitioning
+
+### Overview
+
+BeautifulHash partitions the 256-bit SHA-256 digest into a hierarchy of **namespaces** and **subnamespaces**.
+
+Each namespace owns a fixed number of bits and is responsible for a particular aspect of the landscape. A namespace may subdivide its allocated bits into smaller subnamespaces, allowing individual generation algorithms to define their own internal structure.
+
+The purpose of partitioning is to establish explicit ownership of all 256 bits, isolate generation subsystems, and provide a stable foundation for deterministic scene generation.
+
+### Top-Level Namespace Allocation
+
+The proposed V0 allocation is:
+
+| Namespace | Bit range | Width | Responsibility |
+|---|---|---:|---|
+| Global | 0–15 | 16 | Theme selection and overall composition |
+| Sky | 16–39 | 24 | Sky colors, clouds, atmospheric conditions |
+| Celestial | 40–47 | 8 | Sun, moon, position, and lighting |
+| Mountains | 48–135 | 88 | Mountain ridges and their geometry |
+| Hills | 136–175 | 40 | Hills, terrain shapes, and associated vegetation |
+| Trees | 176–223 | 48 | Tree arrangements, sizes, and branching |
+| Vegetation | 224–247 | 24 | Foreground plants and foliage |
+| Fog | 248–255 | 8 | Atmospheric depth and layer-specific fog |
+| **Total** | **0–255** | **256** | **Entire SHA-256 digest** |
+
+Bit 0 is the most significant bit of the first byte of the SHA-256 digest. Bit 255 is the least significant bit of the final byte.
+
+All bit ranges are inclusive.
+
+### Namespace Hierarchy
+
+```text
+SHA-256 (256 bits)
+│
+├── Global (16 bits)
+│   ├── Theme
+│   └── Composition
+│
+├── Sky (24 bits)
+│   ├── Palette
+│   ├── Clouds
+│   └── Atmosphere
+│
+├── Celestial (8 bits)
+│   ├── Sun / Moon (optional)
+│   └── Position / Intensity
+│
+├── Mountains (88 bits)
+│   ├── Ridge 1
+│   ├── Ridge 2
+│   └── Ridge 3 (optional)
+│
+├── Hills (40 bits)
+│   ├── Primary Hill
+│   └── Secondary Hill (optional)
+│
+├── Trees (48 bits)
+│   ├── Primary Trees
+│   └── Additional Trees (optional)
+│
+├── Vegetation (24 bits)
+│   └── Foreground Vegetation
+│
+└── Fog (8 bits)
+    └── Atmospheric Depth
+```
+
+The subnamespaces shown above are conceptual. Their exact widths and boundaries have not yet been finalized.
+
+### Partitioning Rules
+
+1. **Complete allocation:** Every bit of the 256-bit hash must belong to exactly one top-level namespace.
+
+2. **Contiguous ranges:** Each namespace receives a contiguous bit range. All ranges are defined using the same bit-numbering convention.
+
+3. **Hierarchical subdivision:** A namespace may subdivide its allocated bits into two or more subnamespaces. Subnamespaces may be recursively subdivided.
+
+4. **Flexible allocation:** Subnamespaces do not need equal widths. Their allocation is determined by the requirements of the parent namespace.
+
+5. **No overlap:** Sibling namespaces and subnamespaces must not overlap or consume bits owned by another namespace.
+
+6. **Complete subdivision:** The widths of all immediate subnamespaces must sum to the width of their parent namespace. Any unassigned capacity must be explicitly declared as reserved.
+
+7. **Entropy ownership:** A namespace may only use its allocated bits as its source of pseudorandom entropy. Deterministic expansion through a PRNG or another specified algorithm is permitted, but does not increase the amount of independent entropy.
+
+8. **Context sharing:** Namespaces may consume deterministic context produced by other namespaces, such as the selected theme or lighting conditions, without directly consuming their bit allocations.
+
+9. **Versioning:** Namespace widths, boundaries, and interpretation rules are part of the versioned algorithm. Once V0 is frozen, they must not change.
+
+10. **Portability:** Bit extraction and interpretation must be independent of native integer endianness, compiler behavior, and execution platform.
+
+### Subnamespace Allocation
+
+Each namespace defines its own internal partitioning.
+
+For example, the 88-bit Mountains namespace could use:
+
+**Option A — Unequal ridge allocation**
+
+| Subnamespace | Width |
+|---|---:|
+| Ridge 1 | 32 |
+| Ridge 2 | 32 |
+| Ridge 3 | 24 |
+| **Total** | **88** |
+
+**Option B — Approximately equal ridge allocation**
+
+| Subnamespace | Width |
+|---|---:|
+| Ridge 1 | 30 |
+| Ridge 2 | 29 |
+| Ridge 3 | 29 |
+| **Total** | **88** |
+
+**Option C — Property-based allocation**
+
+| Subnamespace | Width |
+|---|---:|
+| Geometry | 44 |
+| Color | 28 |
+| Texture | 16 |
+| **Total** | **88** |
+
+These are illustrative alternatives, not finalized V0 decisions.
+
+The parent namespace is responsible for defining how its subnamespaces map to visual parameters, including their ranges, distributions, dependencies, and constraints.
+
+### Optional Subnamespaces
+
+The optional features in V0 are the layers marked optional in the Landscape Layers table:
+
+* Third mountain ridge
+* Secondary hill
+* Additional trees
+* Sun or moon
+
+An optional feature may be omitted from the rendered landscape based on a deterministic decision.
+
+However, its allocated bits remain owned by the parent namespace.
+
+The parent namespace must explicitly define how those bits are interpreted when the optional feature is absent. It may reuse them for other variations within the same namespace, provided the behavior is deterministic and documented.
+
+Reusing otherwise inactive bits is encouraged to improve variation, but does not by itself guarantee unique output for every hash.
+
+### Independence and Dependencies
+
+Namespace partitioning separates entropy ownership from visual dependencies.
+
+For example:
+
+* The Mountains namespace may use the Global namespace's selected theme to choose appropriate mountain geometry.
+* The Trees namespace may use terrain information from the Hills namespace to position trees.
+* The Fog namespace may use the scene's layer depths to determine atmospheric effects.
+* The Celestial namespace may use the Sky namespace's lighting mode to select a compatible sun or moon.
+
+These dependencies must not involve reading another namespace's raw hash bits.
+
+The generation order and permitted dependencies must be specified before V0 is frozen.
+
+### Uniqueness Considerations
+
+A namespace containing $n$ bits has at most $2^n$ independent input states.
+
+A deterministic PRNG may expand these bits into an arbitrary sequence of values, but cannot create additional independent information.
+
+Partitioning all 256 bits ensures that every input bit has an assigned owner. It does not guarantee that every bit affects the rendered scene or that every distinct hash produces a distinct SVG.
+
+Strict hash-to-image uniqueness remains a design objective, not a V0 guarantee.
+
+### Verification Requirements
+
+Before V0 is frozen, automated tests must verify that:
+
+* Top-level namespace widths sum to exactly 256 bits.
+* Every bit belongs to exactly one namespace.
+* Subnamespace widths sum to their parent namespace's width.
+* No bit ranges overlap or extend beyond their parent.
+* Bit extraction produces identical results in native C++ and WebAssembly.
+* Optional-feature handling follows the specified allocation rules.
+* All namespace and subnamespace definitions are versioned.
+* Golden test vectors produce identical canonical scenes and SVG bytes across supported platforms.
+
+### V0 Freeze Requirements
+
+The following must be finalized before V0 is frozen:
+
+* Top-level namespace boundaries.
+* All subnamespace allocations.
+* Bit interpretation and expansion algorithms.
+* Optional-feature presence rules.
+* Cross-namespace dependencies.
+* Generation order.
+* Parameter ranges and distributions.
+* Tests validating partition integrity and deterministic output.
+
+**Status:** The top-level allocation is proposed. Subnamespace layouts and interpretation rules remain open design decisions.
 
 ## Visual Composition
 
