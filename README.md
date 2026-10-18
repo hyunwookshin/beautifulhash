@@ -51,189 +51,131 @@ Each sha256 hash should map to a unique landscape image.
 But it is not a guarantee that two inputs generate two unique hash,
 although it would be an astronomically rare event.
 
+#### Collision considerations
 
-7.4 Collision considerations
-
-Even if the generator can represent at least (2^{256}) different parameter combinations, that alone does not guarantee that all hashes map to different images.
+Even if the generator can represent at least $2^{256}$ different parameter combinations, that alone does not guarantee that all hashes map to different images.
 
 The mapping must be injective to provide such a guarantee.
 
 The number of available combinations and the uniqueness of the mapping are different mathematical questions.
 
-8. Implementation Architecture
+### Implementation Architecture
 
-8.1 Proposed technology
+#### Proposed technology
 
-Component
+| Component | Technology |
+|---|---|
+| Core scene generator | C++ |
+| Browser compilation | WebAssembly |
+| Website interface | TypeScript |
+| Preview rendering | SVG or Canvas |
+| Native generation | C++ executable |
+| High-resolution export | SVG or raster export |
 
-Technology
-
-Core scene generator
-
-C++
-
-Browser compilation
-
-WebAssembly
-
-Website interface
-
-TypeScript
-
-Preview rendering
-
-SVG or Canvas
-
-Native generation
-
-C++ executable
-
-High-resolution export
-
-SVG or raster export
-
-8.2 Core boundaries
+#### Core boundaries
 
 The C++ generator should not depend on:
 
-Browser APIs
-
-DOM or Canvas
-
-Platform-specific random number generators
-
-System time
-
-Network access
-
-Operating-system locale
-
-Display resolution
+* Browser APIs
+* DOM or Canvas
+* Platform-specific random number generators
+* System time
+* Network access
+* Operating-system locale
+* Display resolution
 
 Its responsibility is to produce a canonical scene description from an input hash.
 
-8.3 Suggested API
+#### Suggested API
 
+```cpp
 Scene generate_scene(
     const Hash256& hash,
     AlgorithmVersion version
 );
+```
 
 The renderer consumes the scene separately.
 
-9. Versioning and Immutability
+### Versioning and Immutability
 
 Every generated artwork is associated with an algorithm version.
 
 Example:
 
+```
 BeautifulHash V0
 SHA-256: <64-character hexadecimal hash>
+```
 
 Once V0 is frozen:
 
-PRNG behavior cannot change.
-
-Hash-to-scene mapping cannot change.
-
-Theme selection rules cannot change.
-
-Layer-generation algorithms cannot change.
-
-Default palettes and geometry rules cannot change.
-
-Scene serialization rules must remain compatible.
+* PRNG behavior cannot change.
+* Hash-to-scene mapping cannot change.
+* Theme selection rules cannot change.
+* Layer-generation algorithms cannot change.
+* Default palettes and geometry rules cannot change.
+* Scene serialization rules must remain compatible.
 
 Bug fixes that alter scene output require a new algorithm version.
 
 Presentation-only changes may be made separately, but any change that alters the promised final visual output must be versioned.
 
-10. Verification
+### Verification
 
 Before freezing V0, create golden test vectors.
 
 Each test vector should include:
 
-Input string
-
-SHA-256 digest
-
-Algorithm version
-
-Canonical scene digest
-
-Reference rendering, if pixel reproducibility is required
+* Input string
+* SHA-256 digest
+* Algorithm version
+* Canonical scene digest
+* Reference rendering, if pixel reproducibility is required
 
 Test categories should include:
 
-Empty string
-
-ASCII input
-
-Unicode input
-
-Korean characters
-
-Emoji
-
-Long strings
-
-Inputs differing by one character
-
-Optional-layer combinations
-
-Every environmental theme
+* Empty string
+* ASCII input
+* Unicode input
+* Korean characters
+* Emoji
+* Long strings
+* Inputs differing by one character
+* Optional-layer combinations
+* Every environmental theme
 
 Native and WebAssembly implementations must generate identical canonical scenes for the same test vectors.
 
-11. Open Design Decisions
+### Open Design Decisions
 
 The following remain unresolved and should not be treated as finalized V0 requirements:
 
-Unicode normalization policy
+* Unicode normalization policy
+* PRNG algorithm and stream derivation
+* Theme-selection distribution
+* Exact mountain and hill geometry algorithms
+* Tree branching and vegetation generation algorithms
+* Palette definitions
+* Fog model
+* Canonical scene serialization format
+* Whether pixel-level uniqueness is required
+* Whether pixel-identical rendering across platforms is required
+* Final logical canvas dimensions
+* SVG versus Canvas rendering
+* Whether the first release includes print ordering
 
-PRNG algorithm and stream derivation
-
-Theme-selection distribution
-
-Exact mountain and hill geometry algorithms
-
-Tree branching and vegetation generation algorithms
-
-Palette definitions
-
-Fog model
-
-Canonical scene serialization format
-
-Whether pixel-level uniqueness is required
-
-Whether pixel-identical rendering across platforms is required
-
-Final logical canvas dimensions
-
-SVG versus Canvas rendering
-
-Whether the first release includes print ordering
-
-12. V0 Completion Criteria
+### V0 Completion Criteria
 
 V0 is ready to freeze when:
 
-All five themes can produce aesthetically acceptable landscapes.
-
-All required and optional layers function.
-
-Identical inputs produce identical scenes.
-
-Native C++ and WebAssembly scene outputs match.
-
-Scene composition is independent of export resolution.
-
-Golden tests cover the core generator.
-
-The visual output has been reviewed across a representative sample of hashes.
-
-All algorithm-affecting implementation decisions are documented.
+* All five themes can produce aesthetically acceptable landscapes.
+* All required and optional layers function.
+* Identical inputs produce identical scenes.
+* Native C++ and WebAssembly scene outputs match.
+* Scene composition is independent of export resolution.
+* Golden tests cover the core generator.
+* The visual output has been reviewed across a representative sample of hashes.
+* All algorithm-affecting implementation decisions are documented.
 
 Guiding principle: BeautifulHash should produce artwork worth keeping, not merely demonstrate that SHA-256 can generate a large number of pictures.
