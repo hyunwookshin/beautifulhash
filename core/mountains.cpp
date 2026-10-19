@@ -499,7 +499,11 @@ std::vector<Ridge> generate(const Config& config, const Hash256& hash) {
         Ridge r;
         r.points = pl.shape;
         for (Point& q : r.points) q.h = q.h + pl.offset;
-        r.rgb = palette(config.params.theme, ridges[i].palette)[v.ridges[i].color];
+        r.rgb = palette(config.params.theme, config.params.season, ridges[i].palette)[v.ridges[i].color];
+        if (role(v.three_ridge, static_cast<int>(i)) == 0 && front_gradient(config.params.theme, config.params.season)) {
+            r.gradient = true;
+            r.rgb_bottom = gradient_bottom(config.params.theme, config.params.season)[v.ridges[i].color];
+        }
         placed.push_back(r);
     }
 
@@ -628,25 +632,68 @@ std::vector<Point> add_conifers(const std::vector<Point>& pts, const Params& p, 
     return out;
 }
 
-std::vector<Point> add_canopy(const std::vector<Point>& pts, const Params& p, const std::vector<Point>& density) {
-    // One rounded bump per segment: a semicircle-like arc of seven points
-    // sqrt(1 - (2f - 1)^2) at f = k/8, from a constant table (no square root at
-    // run time). The arc covers 65-100% of the segment and its height varies
-    // from 0.55x to 1.3x of canopy_height, scaled by the local tree factor.
-    // Seven points per segment add three levels of structure, so bit-driven
-    // points keep known indices.
-    static const double kArc[7] = {0.6614378277661477, 0.8660254037844386, 0.9682458365518543, 1.0,
-                                   0.9682458365518543, 0.8660254037844386, 0.6614378277661477};
+// Semicircle-like canopy arc sqrt(1 - (2f - 1)^2) at f = k/16, k = 1..15, as a
+// constant table so no square root is computed at run time.
+static const double kArc[15] = {
+    0.4841229182759271, 0.6614378277661477, 0.7806247497997998, 0.8660254037844386, 0.9270248108869579,
+    0.9682458365518543, 0.9921567416492215, 1.0,                0.9921567416492215, 0.9682458365518543,
+    0.9270248108869579, 0.8660254037844386, 0.7806247497997998, 0.6614378277661477, 0.4841229182759271};
+
+std::vector<Point> add_bare_canopy(const std::vector<Point>& pts, const Params& p, const std::vector<Point>& density) {
+    // Winter: leafless. Fifteen points per segment carve a negative fractal
+    // into the ridge: k = 0 mod 4 stays on the rounded crown outline, k = 2
+    // mod 4 cuts 40% of bare_depth below the silhouette, and k odd cuts deep
+    // needles (50-100% of bare_depth, by a fixed pattern). Cuts only remove
+    // ridge area, so the ceiling and visibility guarantees are unaffected.
+    // Fifteen points add four levels of structure.
     std::vector<Point> base = split(pts, p.canopy_subdivisions);
     std::vector<Point> out;
-    out.reserve(8 * base.size() - 7);
+    out.reserve(16 * base.size() - 15);
     for (size_t j = 0; j + 1 < base.size(); ++j) {
         uint32_t k = static_cast<uint32_t>(j);
         double w = 0.65 + 0.35 * jitter(k, 3);
         double g = tree_factor(density, lerp_at(base[j], base[j + 1], w / 2.0, 0.0).x, p);
         double h = p.canopy_height * (0.55 + 0.75 * jitter(k, 4)) * g;
         out.push_back(base[j]);
-        for (int i = 0; i < 7; ++i) out.push_back(lerp_at(base[j], base[j + 1], w * (i + 1) / 8.0, h * kArc[i]));
+        double d = p.bare_depth * g;
+        for (int i = 1; i <= 15; ++i) {
+            double lift;
+            if (i % 4 == 0) {
+                lift = h * kArc[i - 1];
+            } else if (i % 2 == 0) {
+                lift = -0.4 * d;
+            } else {
+                lift = -d * (0.5 + 0.5 * jitter(k * 16u + static_cast<uint32_t>(i), 8));
+            }
+            out.push_back(lerp_at(base[j], base[j + 1], w * i / 16.0, lift));
+        }
+    }
+    out.push_back(base.back());
+    return out;
+}
+
+std::vector<Point> add_canopy(const std::vector<Point>& pts, const Params& p, const std::vector<Point>& density) {
+    if (p.season == Season::kWinter) return add_bare_canopy(pts, p, density);
+    // One rounded, leafy bump per segment: fifteen points on the canopy arc.
+    // The arc covers 65-100% of the segment and its height varies from 0.55x
+    // to 1.3x of canopy_height, scaled by the local tree factor. Tiny
+    // cavities texture the crown: k = 0 mod 4 is on the arc, k = 2 mod 4 at
+    // 80%, and k odd dips to 10-50% (fixed pattern), staying inside the
+    // canopy. Fifteen points add four levels of structure, so bit-driven
+    // points keep known indices.
+    std::vector<Point> base = split(pts, p.canopy_subdivisions);
+    std::vector<Point> out;
+    out.reserve(16 * base.size() - 15);
+    for (size_t j = 0; j + 1 < base.size(); ++j) {
+        uint32_t k = static_cast<uint32_t>(j);
+        double w = 0.65 + 0.35 * jitter(k, 3);
+        double g = tree_factor(density, lerp_at(base[j], base[j + 1], w / 2.0, 0.0).x, p);
+        double h = p.canopy_height * (0.55 + 0.75 * jitter(k, 4)) * g;
+        out.push_back(base[j]);
+        for (int i = 1; i <= 15; ++i) {
+            double fill = i % 4 == 0 ? 1.0 : (i % 2 == 0 ? 0.8 : 0.10 + 0.40 * jitter(k * 16u + static_cast<uint32_t>(i), 9));
+            out.push_back(lerp_at(base[j], base[j + 1], w * i / 16.0, h * kArc[i - 1] * fill));
+        }
     }
     out.push_back(base.back());
     return out;
@@ -726,7 +773,7 @@ int styled_depth(const Params& p, bool three_ridge, int index) {
     int depth = ridge_params(p, three_ridge, index).resolution;
     if (role(three_ridge, index) == 0) {
         if (p.theme == Theme::kAlpine) depth += p.conifer_subdivisions + 2;
-        if (p.theme == Theme::kTemperate) depth += p.canopy_subdivisions + 3;
+        if (p.theme == Theme::kTemperate) depth += p.canopy_subdivisions + 4;
     }
     return depth;
 }
@@ -735,7 +782,9 @@ double texture_min_fraction(const Params& p, bool three_ridge, int index) {
     if (role(three_ridge, index) != 0) return 1.0;
     // Narrowest conifer piece: tip to valley, at least 0.45 - 0.30 = 0.15.
     if (p.theme == Theme::kAlpine) return 0.15 / std::pow(2.0, p.conifer_subdivisions);
-    if (p.theme == Theme::kTemperate) return (0.65 / 8.0) / std::pow(2.0, p.canopy_subdivisions);
+    if (p.theme == Theme::kTemperate) {
+        return (0.65 / 16.0) / std::pow(2.0, p.canopy_subdivisions);
+    }
     return 1.0;
 }
 

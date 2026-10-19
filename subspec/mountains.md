@@ -660,20 +660,32 @@ heights are $18 \cdot (0.6\text{–}1.2) \cdot g$. All edges are straight, so pe
 and valleys are both sharp.
 
 **Temperate canopy.** Each front-ridge segment (about 64 units) becomes one
-rounded bump: seven points on a semicircle-like arc
-$\sqrt{1 - (2f - 1)^2}$ at $f = k/8$, taken from a constant table, so no square
-root is computed at run time. The arc covers 65–100% of the segment, and its
-height is $16 \cdot (0.55\text{–}1.3) \cdot g$.
+rounded bump: fifteen points at $f = k/16$ on a semicircle-like arc
+$\sqrt{1 - (2f - 1)^2}$, taken from a constant table, so no square root is
+computed at run time. The arc covers 65–100% of the segment, and its height is
+$h = 16 \cdot (0.55\text{–}1.3) \cdot g$. The points carve a fractal texture
+into the crown, which depends on the season:
+
+| Point $k$ | Spring, summer, fall (leafy) | Winter (bare) |
+|---|---|---|
+| $k \equiv 0 \pmod 4$ | on the arc | on the arc |
+| $k \equiv 2 \pmod 4$ | 80% of the arc | cut $0.4\,d$ below the silhouette |
+| $k$ odd | 10–50% of the arc (tiny cavities) | cut $(0.5\text{–}1.0)\,d$ below the silhouette (needles) |
+
+where $d = 100 \cdot g$ is the bare depth. Leafy cavities stay inside the canopy.
+Winter's needles cut deep into the ridge, like a leafless forest against the
+sky; cuts only remove ridge area, so the ceiling and visibility guarantees are
+unaffected. Ranges marked with a dash vary by the fixed pattern.
 
 **Properties:**
 
-* **Decoding:** both textures add exactly three levels of fixed structure.
-  Conifers add one straight split plus three points per segment; the canopy
-  adds seven points per segment. Original vertices never move, so the
-  bit-driven points sit at known indices of a ridge with total depth 8
-  (257 points).
+* **Decoding:** conifers add three levels of fixed structure (one straight
+  split plus three points per segment), giving total depth 8 (257 points). The
+  canopy adds four levels (fifteen points per segment), giving total depth 9
+  (513 points), in every season. Original vertices never move, so the
+  bit-driven points sit at known indices.
 * **Monotonic:** every inserted point lies strictly between its neighbors in
-  $x$. The narrowest serialized segment is 0.07 px (Alpine) and 0.08 px
+  $x$. The narrowest serialized segment is 0.07 px (Alpine) and 0.04 px
   (Temperate) at 1024 × 768, above the 0.01 quantum.
 * **Ceiling:** the tallest texture is about 22 (conifers $18 \times 1.2$, canopy
   $16 \times 1.3 = 20.8$). It is smaller than the reserves kept behind the front
@@ -693,20 +705,33 @@ For mountains it changes only the Temperate palette:
 Each entry is a thematic color family realized as a palette of coordinated
 shades, not a single color.
 
-| Season | Temperate mountain palette |
-|---|---|
-| Winter | Shades of bluish gray instead of bluish teal |
-| Spring | Unchanged (bluish teal) |
-| Summer | Unchanged (bluish teal) |
-| Fall | Shades of yellowish orange instead of bluish teal |
+| Season | Front hues | Middle hues | Far hues | Chroma (front, middle, far) | Look |
+|---|---|---|---|---|---|
+| Winter | 195–255° | 200–260° | 205–265° | 0.7, 0.7, 0.7 | Bluish gray |
+| Spring | 175–205° | 188–232° | 210–240° | 1.0, 1.0, 1.0 | Unchanged (bluish teal) |
+| Summer | 175–205° | 188–232° | 210–240° | 1.0, 1.0, 1.0 | Unchanged (bluish teal) |
+| Fall | 30–60° | 188–232° | 210–240° | 1.35, 1.0, 1.0 | Orange front ridge; distant ridges keep the cool summer blues |
+
+**Fall front-ridge gradient.** In fall, the front ridge fills with a vertical
+gradient over its bounding box, from its palette color (orange) at the peak to a
+paired golden shade at the canvas bottom. The golden shade uses the same index
+grid as the front palette, with hue moved to 72–92° and lightness raised by 0.10.
+The gradient is emitted as a `linearGradient` just before the ridge path. Its
+top stop is the palette entry itself, and all 256 are distinct, so the ridge's
+color bits are still recoverable from the SVG.
+
+The front-ridge canopy texture also changes in winter (bare needles instead of
+leafy cavities; see Front-ridge trees above).
 
 Alpine, Tundra, and Desert mountains are the same in every season. Alpine snow
 caps and tree textures are present in every season.
 
-A seasonal palette is a separate color family. It keeps the same structure as
-the biome palettes (per-role lightness bands, 256 + 256 + 16 entries), and every
-entry must serialize to a distinct `#RRGGBB`, checked per (biome, season). The
-seasonal families are not yet implemented in the reference renderer.
+Every seasonal palette keeps the structure of the biome palettes (per-role
+lightness bands, 256 + 256 + 16 entries), and every entry serializes to a
+distinct `#RRGGBB`, checked for every (biome, season) pair by `make verify`.
+Tuning found collisions in both new families, both fixed: winter at chroma 0.55
+merged low-chroma grays, and fall with narrow hue ranges (35–70°) merged dark,
+low-chroma oranges.
 
 ### Bit layouts (provisional)
 
@@ -1045,8 +1070,8 @@ and off.
 * Biome styling parameters: snowline fraction (1/3), snowline wave amplitude and
   decay (36, 0.85), tree threshold (0.35), conifer height and valley cut (18, 8),
   canopy height (16), texture spacing.
-* Seasonal Temperate palettes: exact hue ranges for winter (bluish gray) and
-  fall (yellowish orange).
+* Seasonal Temperate palettes and the fall gradient's golden shades.
+* Canopy texture depths: leafy cavities (10–50%) and winter bare depth (100).
 * Whether mountains should carry a subtle seasonal tint in every biome, so all
   four seasons render distinctly (see SPECIFICATIONS.md, Seasons).
 * Jagged detail parameters: decay $\lambda$ (0.75), floor $f$ (0.35), and the depth of

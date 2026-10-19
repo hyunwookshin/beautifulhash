@@ -37,19 +37,29 @@ double lerp(double a, double b, int i, int n) { return a + (b - a) * i / (n - 1)
 // Hue ranges are per depth band (front, middle, far), so a biome can shift hue
 // with distance; most biomes use one range for all bands.
 struct Family {
-    double hue_low[3], hue_high[3], chroma;
+    double hue_low[3], hue_high[3], chroma[3];
 };
 
 Family uniform(double low, double high, double chroma) {
-    return {{low, low, low}, {high, high, high}, chroma};
+    return {{low, low, low}, {high, high, high}, {chroma, chroma, chroma}};
 }
 
-Family family(Theme t) {
+Family family(Theme t, Season season) {
+    // Seasons change only the Temperate mountain palette (SPECIFICATIONS.md,
+    // Seasons). Other biomes keep their family in every season.
+    if (t == Theme::kTemperate && season == Season::kWinter) {
+        return {{195.0, 200.0, 205.0}, {255.0, 260.0, 265.0}, {0.7, 0.7, 0.7}};  // bluish gray
+    }
+    if (t == Theme::kTemperate && season == Season::kFall) {
+        // Orange front ridge (its fill fades to gold, see gradient_bottom); the
+        // distant ridges keep the cool summer blues.
+        return {{30.0, 188.0, 210.0}, {60.0, 232.0, 240.0}, {1.35, 1.0, 1.0}};
+    }
     switch (t) {
         case Theme::kAlpine: return uniform(215.0, 275.0, 1.0);  // cool slate blue
         // Bluish teal in front, shifting to soft blue with distance (aerial
         // perspective). Less violet than alpine's slate.
-        case Theme::kTemperate: return {{175.0, 188.0, 210.0}, {205.0, 232.0, 240.0}, 1.0};
+        case Theme::kTemperate: return {{175.0, 188.0, 210.0}, {205.0, 232.0, 240.0}, {1.0, 1.0, 1.0}};
         case Theme::kTundra: return uniform(285.0, 325.0, 0.9);  // muted purple, cool lavender
         case Theme::kDesert: return uniform(50.0, 85.0, 1.2);    // warm golden, ochre, sand
     }
@@ -62,7 +72,7 @@ std::vector<uint32_t> shades256(const Family& f, int band, double l0, double l1,
     for (int li = 0; li < 8; ++li)
         for (int hi = 0; hi < 8; ++hi)
             for (int ci = 0; ci < 4; ++ci)
-                out.push_back(oklch(lerp(l0, l1, li, 8), f.chroma * lerp(c0, c1, ci, 4), lerp(f.hue_low[band], f.hue_high[band], hi, 8)));
+                out.push_back(oklch(lerp(l0, l1, li, 8), f.chroma[band] * lerp(c0, c1, ci, 4), lerp(f.hue_low[band], f.hue_high[band], hi, 8)));
     return out;
 }
 
@@ -71,7 +81,7 @@ std::vector<uint32_t> shades16(const Family& f, int band, double l0, double l1, 
     std::vector<uint32_t> out;
     for (int li = 0; li < 4; ++li)
         for (int hi = 0; hi < 4; ++hi)
-            out.push_back(oklch(lerp(l0, l1, li, 4), f.chroma * c, lerp(f.hue_low[band], f.hue_high[band], hi, 4)));
+            out.push_back(oklch(lerp(l0, l1, li, 4), f.chroma[band] * c, lerp(f.hue_low[band], f.hue_high[band], hi, 4)));
     return out;
 }
 
@@ -83,8 +93,8 @@ struct Tables {
     std::vector<uint32_t> ids[3];
 };
 
-Tables make_tables(Theme t) {
-    Family f = family(t);
+Tables make_tables(Theme t, Season s) {
+    Family f = family(t, s);
     return {{
         shades256(f, 0, 0.30, 0.48, 0.030, 0.075),  // front: darkest band
         shades256(f, 1, 0.51, 0.65, 0.025, 0.065),  // middle
@@ -94,12 +104,34 @@ Tables make_tables(Theme t) {
 
 }  // namespace
 
-const std::vector<uint32_t>& palette(Theme theme, int id) {
-    static const Tables tables[4] = {
-        make_tables(Theme::kAlpine), make_tables(Theme::kTemperate), make_tables(Theme::kTundra),
-        make_tables(Theme::kDesert),
-    };
-    return tables[static_cast<int>(theme)].ids[id];
+const std::vector<uint32_t>& palette(Theme theme, Season season, int id) {
+    static const std::vector<Tables> tables = [] {
+        std::vector<Tables> out;
+        for (Theme t : kThemes)
+            for (Season s : kSeasons) out.push_back(make_tables(t, s));
+        return out;
+    }();
+    return tables[static_cast<size_t>(theme) * 4 + static_cast<size_t>(season)].ids[id];
+}
+
+bool front_gradient(Theme theme, Season season) {
+    return theme == Theme::kTemperate && season == Season::kFall;
+}
+
+const std::vector<uint32_t>& gradient_bottom(Theme theme, Season season) {
+    // Paired golden shades for the fall front ridge: same index grid as the
+    // front palette, hue moved from orange (30-60) to gold (72-92), slightly lighter.
+    static const std::vector<uint32_t> fall = [] {
+        std::vector<uint32_t> out;
+        for (int li = 0; li < 8; ++li)
+            for (int hi = 0; hi < 8; ++hi)
+                for (int ci = 0; ci < 4; ++ci)
+                    out.push_back(oklch(lerp(0.30, 0.48, li, 8) + 0.10, 1.35 * lerp(0.030, 0.075, ci, 4),
+                                        lerp(72.0, 92.0, hi, 8)));
+        return out;
+    }();
+    static const std::vector<uint32_t> none;
+    return front_gradient(theme, season) ? fall : none;
 }
 
 }  // namespace bh

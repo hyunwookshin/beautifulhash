@@ -80,10 +80,27 @@ std::string render_svg(const Scene& scene, uint32_t width, uint32_t height) {
     // rewrites a ridge's fill; farther ridges accumulate more haze.
     for (size_t n = scene.ridges.size(); n-- > 0;) {
         const Ridge& r = scene.ridges[n];
+        if (r.gradient) {
+            // Vertical gradient over the ridge's bounding box: rgb at its top
+            // (the peak) to rgb_bottom at the canvas bottom.
+            out += "<linearGradient id=\"ridge-";
+            append_uint(out, static_cast<uint32_t>(n + 1));
+            out += "-fill\" x1=\"0\" y1=\"0\" x2=\"0\" y2=\"1\"><stop offset=\"0\" stop-color=\"";
+            append_hex(out, r.rgb);
+            out += "\"/><stop offset=\"1\" stop-color=\"";
+            append_hex(out, r.rgb_bottom);
+            out += "\"/></linearGradient>\n";
+        }
         out += "<path class=\"ridge\" id=\"ridge-";
         append_uint(out, static_cast<uint32_t>(n + 1));
         out += "\" fill=\"";
-        append_hex(out, r.rgb);
+        if (r.gradient) {
+            out += "url(#ridge-";
+            append_uint(out, static_cast<uint32_t>(n + 1));
+            out += "-fill)";
+        } else {
+            append_hex(out, r.rgb);
+        }
         out += "\" d=\"";
         for (size_t i = 0; i < r.points.size(); ++i) {
             out += i == 0 ? "M" : " L";

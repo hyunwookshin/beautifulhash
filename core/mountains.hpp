@@ -72,12 +72,14 @@ struct Params {
     // Biome styling. Applied after placement, so it never changes placement or
     // the hash-derived geometry. Provisional; tuned from rendered samples.
     Theme theme = Theme::kAlpine;
+    Season season = Season::kSummer;  // context from Global; changes only Temperate mountain colors
     int conifer_subdivisions = 1;     // alpine front ridge: straight subdivisions per segment
     double conifer_height = 18.0;     // alpine front ridge: nominal tooth height (varies 0.6-1.2x)
     double conifer_depth = 8.0;       // alpine front ridge: valley cut below the silhouette
     int canopy_subdivisions = 0;      // temperate front ridge: straight subdivisions per segment
     double canopy_height = 16.0;      // temperate front ridge: nominal bump height (varies 0.55-1.3x)
     double tree_threshold = 0.35;     // tree density score below which the front ridge is flat
+    double bare_depth = 100.0;        // temperate winter: deepest needle cut below the silhouette
     double snow_fraction = 1.0 / 3.0; // alpine back ridge: snowline this far down from the peak
     double snow_wave = 36.0;          // alpine back ridge: snowline wave amplitude, logical units
     int snow_levels = 5;              // alpine back ridge: snowline subdivision levels (33 knots)

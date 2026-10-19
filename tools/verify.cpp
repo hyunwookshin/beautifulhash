@@ -162,14 +162,19 @@ void check_separation(const mt::Config& c, bool verbose) {
 // ---- 4. Palettes -----------------------------------------------------------
 
 void check_palettes() {
-    std::printf("== Palettes (one color family per biome)\n");
+    std::printf("== Palettes (one color family per biome and season)\n");
     for (Theme t : kThemes) {
-        for (int id : {kPaletteFront, kPaletteMiddle, kPaletteFar}) {
-            const auto& pal = palette(t, id);
-            std::set<uint32_t> distinct(pal.begin(), pal.end());
-            std::printf("  %-7s palette %d: %zu entries, %zu distinct #RRGGBB values\n", theme_name(t), id,
-                        pal.size(), distinct.size());
-            check(distinct.size() == pal.size(), "palette has duplicate colors");
+        for (Season s : kSeasons) {
+            size_t entries = 0, distinct_total = 0;
+            for (int id : {kPaletteFront, kPaletteMiddle, kPaletteFar}) {
+                const auto& pal = palette(t, s, id);
+                std::set<uint32_t> distinct(pal.begin(), pal.end());
+                entries += pal.size();
+                distinct_total += distinct.size();
+                check(distinct.size() == pal.size(), "palette has duplicate colors");
+            }
+            std::printf("  %-9s %-6s: %zu entries, %zu distinct #RRGGBB values\n", theme_name(t), season_name(s),
+                        entries, distinct_total);
         }
     }
 }
@@ -186,7 +191,14 @@ std::vector<ParsedRidge> parse_ridges(const std::string& svg) {
     size_t pos = 0;
     while ((pos = svg.find("<path class=\"ridge\"", pos)) != std::string::npos) {
         ParsedRidge r;
-        size_t f = svg.find("fill=\"#", pos) + 7;
+        // A gradient fill (url(#...)) carries the palette color as its top stop.
+        size_t f = svg.find("fill=\"", pos) + 6;
+        if (svg.compare(f, 4, "url(") == 0) {
+            size_t g = svg.rfind("<linearGradient id=\"ridge-", pos);
+            f = svg.find("stop-color=\"#", g) + 13;
+        } else {
+            f += 1;  // skip '#'
+        }
         r.fill = static_cast<uint32_t>(std::strtoul(svg.substr(f, 6).c_str(), nullptr, 16));
         size_t d = svg.find(" d=\"", pos) + 4;
         size_t end = svg.find('"', d);
@@ -322,7 +334,7 @@ bool round_trip(const mt::Config& c, const Hash256& hash, uint32_t width, uint32
             return std::fabs(pr.ys[0] - (kCanvasHeight - offset) * sc);
         }, st);
 
-        const auto& pal = palette(c.params.theme, l.palette);
+        const auto& pal = palette(c.params.theme, c.params.season, l.palette);
         auto it = std::find(pal.begin(), pal.end(), pr.fill);
         if (it == pal.end()) return false;
         rv.color = static_cast<uint32_t>(it - pal.begin());

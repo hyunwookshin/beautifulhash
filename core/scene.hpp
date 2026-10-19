@@ -19,6 +19,11 @@ struct Ridge {
     std::vector<Point> points;  // strictly increasing x, from x = 0 to x = 2048
     uint32_t rgb;               // 0xRRGGBB, resolved from the theme palette
 
+    // When set, the ridge fills with a vertical gradient from rgb at its top to
+    // rgb_bottom at the canvas bottom (Temperate fall front ridge).
+    bool gradient = false;
+    uint32_t rgb_bottom = 0;
+
     // Biome styling drawn over the ridge: closed polygons above the snowline.
     std::vector<std::vector<Point>> snow;
     uint32_t snow_rgb = 0;
