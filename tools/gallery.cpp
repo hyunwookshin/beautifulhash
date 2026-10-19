@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "generate.hpp"
+#include "hills.hpp"
 #include "mountains.hpp"
 #include "partition.hpp"
 #include "variants.hpp"
@@ -77,6 +78,7 @@ int main(int argc, char** argv) {
             for (size_t v : members) {
                 Scene scene;
                 scene.ridges = mt::generate(configs[v], hashes[i]);
+                scene.hills = hills::generate(hashes[i], configs[v].params.theme, configs[v].params.season);
                 std::string base = "v" + std::to_string(v) + "_h" + std::to_string(i);
                 scene.fog.enabled = false;
                 write_file(dir + "/" + base + "_clear.svg", render_svg(scene, 1024, 768));

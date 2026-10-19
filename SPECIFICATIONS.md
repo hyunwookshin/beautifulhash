@@ -132,15 +132,16 @@ The season cascades through every layer it affects:
 
 | Season | Mountains | Hills | Trees | Foreground vegetation |
 |---|---|---|---|---|
-| Winter | Temperate: shades of bluish gray instead of the usual palette. Other biomes unchanged. | Shades of white, in every biome | Temperate broadleaf trees are bare, with occasional white (snow) spots | Shades of white, in every biome |
+| Winter | Temperate: shades of bluish gray instead of the usual palette. Other biomes unchanged. | Snowy tints in every biome (pale blue-whites to lavender-whites), still varied by the color bits | Temperate broadleaf trees are bare, with occasional white (snow) spots | Shades of white, in every biome |
 | Spring | Unchanged | Green | Unchanged | Temperate and Tundra: varied flower colors (yellow, pink, blue). Not Alpine. |
 | Summer | Unchanged (the baseline palettes) | Green | Unchanged | Green |
 | Fall | Temperate: shades of yellowish orange instead of the usual palette. Other biomes unchanged. | Green | Unchanged | Green |
 
 Rules:
 
-* **Winter overrides the biome** for hills and vegetation: they are shades of
-  white whatever the biome's own palette is.
+* **Winter overrides the biome** for hills and vegetation: they use snowy tints
+  (pale blue-whites to lavender-whites, not plain white) whatever the biome's
+  own palette is, still varied by their color bits so hashes stay distinct.
 * **Summer is the baseline:** it uses each biome's standard palettes and
   textures as specified in the subspecs.
 * **Biome styling still applies** unless a season rule above replaces it. For
@@ -404,7 +405,7 @@ Namespace partitioning separates entropy ownership from visual dependencies.
 For example:
 
 * The Mountains namespace may use the Global namespace's selected theme to choose mountain colors and textures.
-* The Trees namespace may use the landscape's depth model to place trees at a consistent depth.
+* The Trees and Vegetation namespaces plant on hills using the hill profiles advertised by Hills (crest, edge heights, and shape), so Hills is generated before them.
 * The Fog namespace may use the scene's layer depths to determine atmospheric effects.
 * The Celestial namespace may use the Sky namespace's lighting mode to select a compatible sun or moon.
 

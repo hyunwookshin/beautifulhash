@@ -135,3 +135,65 @@ const std::vector<uint32_t>& gradient_bottom(Theme theme, Season season) {
 }
 
 }  // namespace bh
+
+namespace bh {
+
+namespace {
+
+// Hill color family for a biome and season. Spring, summer, and fall are green
+// families tinted by the biome; winter is snowy tints (pale blue-whites and
+// lavender-whites), still varied by the color bits.
+struct HillFamily {
+    double hue_low, hue_high, chroma;
+    double light[3][2];  // lightness range per palette: single, front, back
+};
+
+HillFamily hill_family(Theme t, Season s) {
+    if (s == Season::kWinter) return {195.0, 290.0, 0.6, {{0.80, 0.94}, {0.79, 0.85}, {0.87, 0.94}}};
+    double light[3][2] = {{0.30, 0.46}, {0.26, 0.34}, {0.36, 0.46}};
+    HillFamily f{110.0, 150.0, 1.0, {}};
+    switch (t) {
+        case Theme::kAlpine: f = {140.0, 175.0, 1.0, {}}; break;     // blue-green
+        case Theme::kTemperate: f = {100.0, 170.0, 1.0, {}}; break;  // fresh green
+        case Theme::kTundra: f = {95.0, 135.0, 0.7, {}}; break;      // muted olive-green
+        case Theme::kDesert: f = {70.0, 125.0, 0.9, {}}; break;      // olive
+    }
+    for (int i = 0; i < 3; ++i) {
+        f.light[i][0] = light[i][0];
+        f.light[i][1] = light[i][1];
+    }
+    return f;
+}
+
+std::vector<uint32_t> hill_grid(const HillFamily& f, int id, int nl, int nh, int nc) {
+    std::vector<uint32_t> out;
+    for (int li = 0; li < nl; ++li)
+        for (int hi = 0; hi < nh; ++hi)
+            for (int ci = 0; ci < nc; ++ci) {
+                double c = nc == 1 ? 0.070 : lerp(0.045, 0.105, ci, nc);
+                out.push_back(oklch(lerp(f.light[id][0], f.light[id][1], li, nl), f.chroma * c,
+                                    lerp(f.hue_low, f.hue_high, hi, nh)));
+            }
+    return out;
+}
+
+struct HillTables {
+    std::vector<uint32_t> ids[3];
+};
+
+}  // namespace
+
+const std::vector<uint32_t>& hill_palette(Theme theme, Season season, int id) {
+    static const std::vector<HillTables> tables = [] {
+        std::vector<HillTables> out;
+        for (Theme t : kThemes)
+            for (Season s : kSeasons) {
+                HillFamily f = hill_family(t, s);
+                out.push_back({{hill_grid(f, 0, 8, 8, 4), hill_grid(f, 1, 2, 2, 1), hill_grid(f, 2, 4, 4, 1)}});
+            }
+        return out;
+    }();
+    return tables[static_cast<size_t>(theme) * 4 + static_cast<size_t>(season)].ids[id];
+}
+
+}  // namespace bh

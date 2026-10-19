@@ -4,6 +4,7 @@
 #include <cstdlib>
 
 #include "format.hpp"
+#include "hills.hpp"
 #include "mountains.hpp"
 
 namespace bh {
@@ -50,7 +51,11 @@ Scene generate_scene(const Hash256& hash, int version) {
     }
     Scene scene;
     scene.version = version;
-    scene.ridges = mountains::generate(mountains::default_config(), hash);
+    const mountains::Config& config = mountains::default_config();
+    scene.ridges = mountains::generate(config, hash);
+    // Hills are generated after Mountains and before Trees and Vegetation,
+    // which will plant on them using the advertised hill profiles.
+    scene.hills = hills::generate(hash, config.params.theme, config.params.season);
     return scene;
 }
 
@@ -143,6 +148,37 @@ std::string render_svg(const Scene& scene, uint32_t width, uint32_t height) {
             out += kHazeOpacity;
             out += "\"/>\n";
         }
+    }
+    // Hills: in front of every ridge, behind the (future) trees and vegetation.
+    if (!scene.hills.empty() && scene.fog.enabled) {
+        out += "<rect class=\"fog\" ";
+        append_full_rect(out, width, height);
+        out += " fill=\"";
+        out += kHaze;
+        out += "\" fill-opacity=\"";
+        out += kHazeOpacity;
+        out += "\"/>\n";
+    }
+    for (size_t n = scene.hills.size(); n-- > 0;) {
+        const Hill& h = scene.hills[n];
+        out += "<path class=\"hill\" id=\"hill-";
+        append_uint(out, static_cast<uint32_t>(n + 1));
+        out += "\" fill=\"";
+        append_hex(out, h.rgb);
+        out += "\" d=\"";
+        for (size_t i = 0; i < h.points.size(); ++i) {
+            out += i == 0 ? "M" : " L";
+            append_fixed2(out, h.points[i].x * scale);
+            out += ",";
+            append_fixed2(out, (kCanvasHeight - h.points[i].h) * scale);
+        }
+        out += " L";
+        append_uint(out, width);
+        out += ",";
+        append_uint(out, height);
+        out += " L0,";
+        append_uint(out, height);
+        out += " Z\"/>\n";
     }
     out += "</svg>\n";
     return out;

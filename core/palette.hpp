@@ -26,4 +26,13 @@ bool front_gradient(Theme theme, Season season);
 // the front ridge has no gradient. The top color is the palette entry itself.
 const std::vector<uint32_t>& gradient_bottom(Theme theme, Season season);
 
+// Hill palettes (subspec/hills.md, Color). id: 0 = single hill (256 entries),
+// 1 = front hill (4 entries), 2 = back hill (16 entries).
+enum HillPaletteId {
+    kHillSingle = 0,
+    kHillFront = 1,
+    kHillBack = 2,
+};
+const std::vector<uint32_t>& hill_palette(Theme theme, Season season, int id);
+
 }  // namespace bh

@@ -31,8 +31,9 @@ Colors are thematic families of coordinated shades, not single hex values
 
 ### Dependencies
 
-* Consumes: the theme and season from Global, and the landscape's depth model.
-  Trees does not depend on Hills.
+* Consumes: the theme and season from Global, the landscape's depth model, and
+  the hill profiles advertised by Hills (subspec/hills.md), so trees can be
+  planted on hills. Hills is generated first.
 * Provides: tree placements and depths, used by Fog and for occlusion.
 
 ### Status

@@ -4,7 +4,7 @@
 
 *Alpine biome, three-ridge mode, rendered by the reference implementation from
 hash `84229c574f649ea55d9bedbdfb4bfa7439a87f611f01c32af4d6e15c59fd5e79`.
-Only the Mountains namespace is implemented so far.*
+This image shows the Mountains namespace only; Hills is now implemented too.*
 
 The project is to turn any input (strings, numbers, pdfs) into a beautiful,
 distinctive, and repeatable landscape imagery in SVG format.

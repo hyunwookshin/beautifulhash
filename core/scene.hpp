@@ -29,6 +29,20 @@ struct Ridge {
     uint32_t snow_rgb = 0;
 };
 
+// A hill's defining points and shape, advertised as context to the namespaces
+// that plant on hills (Trees, Vegetation). Logical coordinates.
+struct HillProfile {
+    double crest_x, crest_h;  // the single peak
+    double left_h, right_h;   // where the hill meets the left (x = 0) and right (x = 2048) edges
+    int exponent;             // shape: 1 tent, 2 dome, 3 sigmoid, 4 W
+};
+
+struct Hill {
+    std::vector<Point> points;  // sampled curve, strictly increasing x, from x = 0 to x = 2048
+    uint32_t rgb;
+    HillProfile profile;
+};
+
 struct Fog {
     bool enabled = false;
 };
@@ -36,6 +50,7 @@ struct Fog {
 struct Scene {
     int version = 0;
     std::vector<Ridge> ridges;  // front to back: ridges[0] is Ridge 1
+    std::vector<Hill> hills;    // front to back: hills[0] is the front (or only) hill
     Fog fog;
 };
 

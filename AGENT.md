@@ -9,8 +9,8 @@ The algorithm is treated like a protocol: once a version is frozen, its output
 must never change.
 
 * `SPECIFICATIONS.md`: top-level spec (input contract, namespaces, guarantees).
-* `subspec/*.md`: one spec per namespace. `subspec/mountains.md` is the only
-  namespace that is fully specified and implemented.
+* `subspec/*.md`: one spec per namespace. `subspec/mountains.md` and
+  `subspec/hills.md` are fully specified and implemented.
 * `core/`: C++ reference implementation (`generate_scene`, `render_svg`).
 * `tools/verify.cpp`: correctness checks. `tools/gallery.cpp`: sample gallery.
   `tools/variants.hpp`: configurations both tools run.

@@ -28,7 +28,9 @@ Colors are thematic families of coordinated shades, not single hex values
 
 ### Dependencies
 
-* Consumes: the theme and season from Global.
+* Consumes: the theme and season from Global, and the hill profiles advertised
+  by Hills (subspec/hills.md), so vegetation can be planted on hills. Hills is
+  generated first.
 * Provides: the foreground layer, the front edge of the depth model.
 
 ### Status

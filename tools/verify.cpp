@@ -17,6 +17,7 @@
 #include <vector>
 
 #include "generate.hpp"
+#include "hills.hpp"
 #include "mountains.hpp"
 #include "palette.hpp"
 #include "partition.hpp"
@@ -398,6 +399,169 @@ void check_round_trip(const mt::Config& c, int samples, bool verbose) {
     }
 }
 
+// ---- 6. Hills -------------------------------------------------------------
+
+bool same_hill_bits(const Hash256& a, const Hash256& b) {
+    for (int i = kHills.begin; i < kHills.begin + kHills.width; ++i) {
+        if (a.bit(i) != b.bit(i)) return false;
+    }
+    return true;
+}
+
+std::vector<ParsedRidge> parse_hills(const std::string& svg) {
+    std::vector<ParsedRidge> out;
+    size_t pos = 0;
+    while ((pos = svg.find("<path class=\"hill\"", pos)) != std::string::npos) {
+        ParsedRidge r;
+        size_t f = svg.find("fill=\"#", pos) + 7;
+        r.fill = static_cast<uint32_t>(std::strtoul(svg.substr(f, 6).c_str(), nullptr, 16));
+        size_t d = svg.find(" d=\"", pos) + 4;
+        size_t end = svg.find('"', d);
+        const char* c = svg.c_str() + d;
+        const char* stop = svg.c_str() + end;
+        while (c < stop) {
+            if (*c == 'M' || *c == 'L') {
+                char* next;
+                double x = std::strtod(c + 1, &next);
+                double y = std::strtod(next + 1, &next);
+                r.xs.push_back(x);
+                r.ys.push_back(y);
+                c = next;
+            } else {
+                ++c;
+            }
+        }
+        r.xs.resize(r.xs.size() - 2);
+        r.ys.resize(r.ys.size() - 2);
+        out.push_back(r);
+        pos = end;
+    }
+    std::reverse(out.begin(), out.end());  // SVG is back to front
+    return out;
+}
+
+void check_hills(int samples) {
+    namespace hl = bh::hills;
+    const hl::Params& p = hl::default_params();
+    std::printf("== Hills\n");
+    for (bool two : {false, true}) {
+        int total = 1;
+        for (const auto& l : hl::layout(two)) total += l.x + l.crest + l.left + l.right + l.shape + l.color;
+        std::printf("  %s-hill total: %d bits\n", two ? "two" : "one", total);
+        check(total == kHills.width, "hill layout does not consume exactly 40 bits");
+    }
+    std::mt19937_64 rng(11);
+    for (int i = 0; i < 10000; ++i) {
+        Hash256 h = random_hash(rng, 0);
+        Hash256 back;
+        hl::encode(hl::decode(h), back);
+        if (!same_hill_bits(h, back)) {
+            check(false, "hill decode/encode does not round-trip");
+            break;
+        }
+    }
+
+    // Static guarantees: the back hill's interval is never empty, and every
+    // mountain silhouette stays above every hill.
+    const mt::Params& mp = mt::default_config().params;
+    std::printf("  cap %.1f; front max %.1f + exposure %.1f = %.1f; mountain ground %.1f\n", p.cap, p.front_max,
+                p.exposure, p.front_max + p.exposure, mp.ground);
+    check(p.front_max + p.exposure < p.cap, "back hill crest interval can be empty");
+    check(mp.ground > p.cap, "hills can reach the mountains' lowest silhouette");
+
+    for (Theme t : kThemes) {
+        for (Season s : kSeasons) {
+            for (int id : {kHillSingle, kHillFront, kHillBack}) {
+                const auto& pal = hill_palette(t, s, id);
+                std::set<uint32_t> distinct(pal.begin(), pal.end());
+                if (distinct.size() != pal.size()) {
+                    std::printf("  %s %s hill palette %d: %zu of %zu distinct\n", theme_name(t), season_name(s), id,
+                                distinct.size(), pal.size());
+                    check(false, "hill palette has duplicate colors");
+                }
+            }
+        }
+    }
+
+    // Round trip through SVG text for every biome and season.
+    double min_margin = kInf, min_exposure = kInf, max_back = -kInf, max_front = -kInf, min_h = kInf;
+    int bad = 0;
+    for (Theme t : kThemes) {
+        for (Season s : kSeasons) {
+            for (int i = 0; i < samples; ++i) {
+                Hash256 hash = random_hash(rng, 0);
+                Scene scene;
+                scene.hills = hl::generate(hash, t, s);
+                std::vector<ParsedRidge> parsed = parse_hills(render_svg(scene, 1024, 768));
+                hl::Values v;
+                v.two = parsed.size() == 2;
+                const auto& layout = hl::layout(v.two);
+                std::vector<Hill> front;
+                double sc = 0.5;
+                for (size_t k = 0; k < layout.size(); ++k) {
+                    const hl::HillLayout& l = layout[k];
+                    const ParsedRidge& pr = parsed[k];
+                    size_t crest = static_cast<size_t>(p.samples), last = pr.xs.size() - 1;
+                    auto y_at = [&](const Hill& h, size_t j) { return (kCanvasHeight - h.points[j].h) * sc; };
+                    hl::HillValues hv;
+                    Stats st;
+                    auto field = [&](uint32_t& slot, int bits, auto dist) {
+                        slot = pick(bits, [&](uint32_t c) {
+                            slot = c;
+                            return dist(hl::build(p, v.two, static_cast<int>(k), hv, front, t, s));
+                        }, st);
+                    };
+                    field(hv.x, l.x, [&](const Hill& h) { return std::fabs(pr.xs[crest] - h.points[crest].x * sc); });
+                    field(hv.crest, l.crest, [&](const Hill& h) { return std::fabs(pr.ys[crest] - y_at(h, crest)); });
+                    field(hv.left, l.left, [&](const Hill& h) { return std::fabs(pr.ys[0] - y_at(h, 0)); });
+                    field(hv.right, l.right, [&](const Hill& h) { return std::fabs(pr.ys[last] - y_at(h, last)); });
+                    field(hv.shape, l.shape, [&](const Hill& h) {
+                        double worst = 0.0;
+                        for (size_t j = 0; j <= last; ++j) worst = std::max(worst, std::fabs(pr.ys[j] - y_at(h, j)));
+                        return worst;
+                    });
+                    const auto& pal = hill_palette(t, s, l.palette);
+                    auto it = std::find(pal.begin(), pal.end(), pr.fill);
+                    if (it == pal.end()) {
+                        ++bad;
+                        break;
+                    }
+                    hv.color = static_cast<uint32_t>(it - pal.begin());
+                    min_margin = std::min(min_margin, st.min_margin);
+
+                    Hill h = hl::build(p, v.two, static_cast<int>(k), hv, front, t, s);
+                    double top = -kInf;
+                    for (const Point& q : h.points) {
+                        top = std::max(top, q.h);
+                        min_h = std::min(min_h, q.h);
+                    }
+                    bool back = !v.two || k == 1;
+                    if (back) max_back = std::max(max_back, top);
+                    else max_front = std::max(max_front, top);
+                    if (v.two && k == 1) {
+                        min_exposure = std::min(min_exposure, h.profile.crest_h -
+                                                                   mt::height_at(front[0].points, h.profile.crest_x));
+                    }
+                    front.push_back(h);
+                    v.hills.push_back(hv);
+                }
+                Hash256 back_hash;
+                hl::encode(v, back_hash);
+                if (!same_hill_bits(hash, back_hash)) ++bad;
+            }
+        }
+    }
+    std::printf("  round trip (%d hashes x 16 biome/season pairs): %d mismatches; min decode margin %.3f px\n",
+                samples, bad, min_margin);
+    std::printf("  highest back hill %.2f (cap %.1f); highest front hill %.2f; lowest point %.2f; "
+                "min back crest exposure %.2f\n", max_back, p.cap, max_front, min_h, min_exposure);
+    check(bad == 0, "hill round trip mismatch");
+    check(max_back <= p.cap, "back hill above cap");
+    check(max_front <= p.front_max, "front hill above its range");
+    check(min_h >= 0.0, "hill below the canvas bottom");
+    check(min_exposure >= p.exposure - 1e-9, "back hill less exposed than required");
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -422,6 +586,8 @@ int main(int argc, char** argv) {
         check_separation(c, false);
         check_round_trip(c, variant_samples, false);
     }
+
+    check_hills(std::max(1, samples / 20));
 
     std::printf(failures == 0 ? "\nALL CHECKS PASSED\n" : "\n%d CHECK(S) FAILED\n", failures);
     return failures == 0 ? 0 : 1;

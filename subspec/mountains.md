@@ -391,6 +391,11 @@ $$
 T_1 = G - \min_x s Q_1(x)
 $$
 
+Every visible mountain silhouette therefore lies at or above $G$: Ridge 1's
+lowest point is at least $G$, and any part of a farther ridge below Ridge 1 is
+hidden behind it. Since $G$ is above the hill cap of 230.4 (subspec/hills.md),
+hills never hide a mountain silhouette.
+
 **Ridges 2 and 3.** Let $F(x)$ be the upper envelope of all ridges already
 placed in front, at their final output positions:
 
