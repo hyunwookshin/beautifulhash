@@ -58,7 +58,7 @@ double perspective(Group g, bool two) {
 const double kSizeClass[4] = {0.8, 0.95, 1.1, 1.25};
 const int kLongCounts[4] = {1, 8, 9, 10};  // counts with 4-bit codes
 constexpr double kTan22_5 = 0.41421356237309515;  // tan(22.5 degrees): a 45-degree fork
-constexpr size_t kMaxForks = 127;
+constexpr size_t kMaxForks = 511;
 constexpr size_t kMaxConiferForks = 127;
 
 double unit_of(uint32_t v, int bits) { return bits == 0 ? 0.5 : v / static_cast<double>((1u << bits) - 1u); }
@@ -145,6 +145,14 @@ TreeShape quad(Point s, Point e, Point d, double w0, double w1, uint32_t rgb) {
 }
 
 TreeShape circle(Point c, double r, uint32_t rgb) { return {{}, c, r, rgb}; }
+
+// A leaf: a slightly oval ellipse whose long axis points along `axis`.
+TreeShape leaf(Point c, Point axis, double along, double across) {
+    TreeShape s{{}, c, along, 0};
+    s.ry = across;
+    s.axis = axis;
+    return s;
+}
 
 void append_point(std::string& out, Point p, double scale) {
     append_fixed2(out, p.x * scale);
@@ -513,6 +521,14 @@ Tree build(const Values& v, const Plan& p, int index, const std::vector<Hill>& h
                 }
             } else {
                 b.length = parent.length * (0.5 + 0.35 * share) * (0.85 + 0.3 * lv);
+                if (sp == Species::kDeciduous) {
+                    // Thinner branches fork more often: a segment's length follows its
+                    // own girth relative to the trunk, not its parent's length. A main
+                    // limb thins slowly, so it keeps its reach while its forks come
+                    // closer together; thin side shoots stay short and bushy.
+                    double thin = parent.girth * (0.35 + 0.65 * share) / trunk.girth;
+                    b.length = trunk.length * (0.08 + 0.5 * thin) * (0.85 + 0.3 * lv);
+                }
             }
             if (sp == Species::kJoshua) {
                 b.girth = parent.girth;
@@ -618,7 +634,7 @@ Tree build(const Values& v, const Plan& p, int index, const std::vector<Hill>& h
     // forks, with tips in the tree's left-to-right order: depth-first,
     // leftmost child first. paint_leaves colors them.
     if (sp == Species::kDeciduous && leafy(theme, season)) {
-        double radius = 1.6 * scale, offset = 3.2 * scale;
+        double along = 3.4 * scale, across = 2.6 * scale, offset = 6.0 * scale;
         // Tip layouts by dot count, left to right, as (cos, sin) of the angle
         // from the branch direction; (0, 0) puts the dot on the tip itself.
         struct Dir {
@@ -642,7 +658,8 @@ Tree build(const Values& v, const Plan& p, int index, const std::vector<Hill>& h
                 const std::vector<Dir>& layout = kTipLayout[tip++ % 4];
                 for (const Dir& a : layout) {
                     Point d{a.c * b.dir.x + a.s * n.x, a.c * b.dir.h + a.s * n.h};
-                    tree.shapes.push_back(circle(add(b.end, d, offset), radius, 0));
+                    bool on_tip = a.c == 0.0 && a.s == 0.0;
+                    tree.shapes.push_back(leaf(add(b.end, d, offset), on_tip ? b.dir : d, along, across));
                 }
                 tree.leaves += static_cast<int>(layout.size());
                 continue;
@@ -661,7 +678,7 @@ Tree build(const Values& v, const Plan& p, int index, const std::vector<Hill>& h
                 std::vector<Point> where = dots == 1 ? std::vector<Point>{b.dir}
                                            : dots == 2 ? std::vector<Point>{left, right}
                                                        : std::vector<Point>{left, b.dir, right};
-                for (const Point& d : where) tree.shapes.push_back(circle(add(b.end, d, 3.6 * scale), radius, 0));
+                for (const Point& d : where) tree.shapes.push_back(leaf(add(b.end, d, 6.8 * scale), d, along, across));
                 tree.leaves += dots;
             }
             std::vector<size_t> order = kids[i];
@@ -705,7 +722,24 @@ std::string tree_svg(const Tree& tree, int index, double scale) {
     while (len > 0) out.push_back(digits[--len]);
     out += "\">\n";
     for (const TreeShape& s : tree.shapes) {
-        if (s.poly.empty()) {
+        if (s.poly.empty() && s.ry > 0.0) {
+            // The rotation is an exact matrix from the axis direction (SVG y
+            // points down), so no angle or trigonometry is needed.
+            double ux = s.axis.x, uy = -s.axis.h;
+            out += "<ellipse fill=\"";
+            append_hex(out, s.rgb);
+            out += "\" rx=\"";
+            append_fixed2(out, s.radius * scale);
+            out += "\" ry=\"";
+            append_fixed2(out, s.ry * scale);
+            out += "\" transform=\"matrix(";
+            const double m[6] = {ux, uy, -uy, ux, s.center.x * scale, (kCanvasHeight - s.center.h) * scale};
+            for (int q = 0; q < 6; ++q) {
+                if (q > 0) out += " ";
+                append_fixed2(out, m[q]);
+            }
+            out += ")\"/>\n";
+        } else if (s.poly.empty()) {
             out += "<circle fill=\"";
             append_hex(out, s.rgb);
             out += "\" cx=\"";

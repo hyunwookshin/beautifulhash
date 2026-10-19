@@ -49,6 +49,10 @@ struct TreeShape {
     Point center{0, 0};
     double radius = 0;
     uint32_t rgb = 0;
+    // Ellipse (leaves) when ry > 0: radius is the half-axis along `axis` (a unit
+    // direction), ry the half-axis across it.
+    double ry = 0;
+    Point axis{1, 0};
 };
 
 struct Tree {

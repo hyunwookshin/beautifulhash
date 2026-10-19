@@ -204,7 +204,7 @@ full:
 | Species | Fork cap |
 |---|---:|
 | Conifer | 127 |
-| Deciduous | 127 |
+| Deciduous | 511 |
 | Joshua tree | 7 |
 | Cactus | 3 |
 
@@ -266,7 +266,7 @@ With the length value $\ell$:
 
 | Species | Child | Length factor | Girth factor |
 |---|---|---|---|
-| Deciduous | both | $(0.5 + 0.35\,\text{share})(0.85 + 0.3\ell)$ | $0.35 + 0.65\,\text{share}$ |
+| Deciduous | both | $L_0 \cdot (0.08 + 0.5\,\gamma)(0.85 + 0.3\ell)$, not relative to the parent | $0.35 + 0.65\,\text{share}$ |
 | Cactus | both | $(0.5 + 0.35\,\text{share})(0.85 + 0.3\ell)$ | $0.75 + 0.25\,\text{share}$ |
 | Joshua tree | both | $(0.5 + 0.35\,\text{share})(0.85 + 0.3\ell)$ | 1 (keeps the trunk's girth) |
 | Conifer | stem, bit fork | $(0.62 + 0.2\,\text{share})(0.85 + 0.3\ell)$ | taper |
@@ -274,7 +274,11 @@ With the length value $\ell$:
 | Conifer | side branch off the stem | $(0.7 + 0.6\,\text{share})(0.85 + 0.3\ell)$ | taper $\cdot (0.35 + 0.65\,\text{share})$ |
 | Conifer | deeper branch | $(0.45 + 0.35\,\text{share})(0.85 + 0.3\ell)$ | taper $\cdot (0.35 + 0.65\,\text{share})$ for twigs, taper for the continuation |
 
-Factors multiply the parent's length and girth. Conifer stems and branches
+Factors multiply the parent's length and girth. The deciduous length is the exception:
+it follows the child's thinness $\gamma$ = (its girth) / (the trunk's girth), so thinner
+branches fork more often. A main limb thins by only about 10% per fork, so it
+keeps its reach while its forks come closer together; thin side shoots stay
+short and bushy, which fills the canopy. Conifer stems and branches
 continue at the parent's end width, so they thin continuously. The short
 internodes give many tiers, and the silhouette tapers into a cone.
 
@@ -324,10 +328,15 @@ darker than their hill and follow its biome and season:
 ### Leaves
 
 Deciduous trees in spring, summer, and fall carry leaves. The crown is meant
-to read as 3D, so leaves float inside it as well as at its edge:
+to read as 3D, so leaves float inside it as well as at its edge.
 
-* **Tips:** 2 to 5 small dots at every branch tip (radius $1.6s$, centered
-  $3.2s$ from the tip, where $s$ is the tree's scale, or on the tip itself).
+Each leaf is a slightly oval ellipse with half-axes $3.4s$ along and $2.6s$
+across, where $s$ is the tree's scale. Its long axis points outward, along the
+leaf's direction from its tip or fork (along the branch for a leaf on the tip
+itself).
+
+* **Tips:** 2 to 5 leaves at every branch tip, centered $6.0s$ from the tip or
+  on the tip itself.
   The count cycles 2, 3, 4, 5 along the tree's tips in left-to-right order, so
   clusters vary in density. Angles are from the branch direction, left to
   right:
@@ -338,7 +347,7 @@ to read as 3D, so leaves float inside it as well as at its edge:
   | 3 | 120°, 0°, −120° |
   | 4 | 120°, 0°, on the tip, −120° |
   | 5 | 120°, 60°, on the tip, −60°, −120° |
-* **Forks:** 0–3 dots floating around each fork point, centered $3.6s$ from it.
+* **Forks:** 0–3 leaves floating around each fork point, centered $6.8s$ from it.
   The fork's ratio sets the count, with more dots for more even splits:
   3 for $r < 0.69$, 2 below 0.76, 1 below 0.83, and none above. One dot sits
   beyond the fork; two sit up-left and up-right (60° from the branch
@@ -382,7 +391,9 @@ per line, in this order:
 1. the trunk and every branch, breadth-first (a cactus arm is two paths),
 2. conifer feathers, in branch order,
 3. foliage on terminal branches, in branch order (paths, and circles for cacti),
-4. deciduous leaf dots (forks and tips), in the tree's left-to-right order.
+4. deciduous leaves (forks and tips), in the tree's left-to-right order, as
+   `<ellipse>` elements rotated by an exact `matrix(...)` built from the leaf's
+   axis direction, so no angle or trigonometry is computed.
 
 ### Injectivity
 
