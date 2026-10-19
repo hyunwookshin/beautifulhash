@@ -1,11 +1,12 @@
 ## BeautifulHash
 
-![An Alpine BeautifulHash landscape: three layered slate-blue ridges, a snow-capped back peak, and a conifer tree line along the front ridge](docs/scenery.svg)
+![A Temperate autumn BeautifulHash landscape: a large bare-limbed tree with orange and gold leaf dots in front, smaller trees along a dark green hill, and three layered ridges in brown and hazy blue](docs/scenery.svg)
 
-*Alpine biome, three-ridge mode, rendered by the reference implementation from
-hash `84229c574f649ea55d9bedbdfb4bfa7439a87f611f01c32af4d6e15c59fd5e79`.
-This image shows the Mountains namespace only. Hills and Trees are now
-implemented too; `make gallery` renders full scenes in every biome and season.*
+*Temperate biome in fall, three-ridge mode, rendered by the reference
+implementation from hash
+`1fa0ed512778d2cc6b1ebbb6bd191b6cf5c5c4989e0567a8520d8e8eac3fc1c6`, with
+Mountains, Hills, and Trees. The biome and season are set by hand until the
+Global namespace is implemented. `make gallery` renders every biome and season.*
 
 The project is to turn any input (strings, numbers, pdfs) into a beautiful,
 distinctive, and repeatable landscape imagery in SVG format.

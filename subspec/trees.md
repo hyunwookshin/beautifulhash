@@ -326,14 +326,16 @@ darker than their hill and follow its biome and season:
 Deciduous trees in spring, summer, and fall carry leaves. The crown is meant
 to read as 3D, so leaves float inside it as well as at its edge:
 
-* **Tips:** three small dots around every branch tip (radius $1.6s$, centered $2.4s$ from the tip, where $s$ is
-the tree's scale). The dots sit left of the tip, beyond it, and right of it, at
-120° steps from the branch direction.
+* **Tips:** five small dots fanned around every branch tip (radius $1.6s$,
+  centered $3.2s$ from the tip, where $s$ is the tree's scale), at 120°, 60°, 0°,
+  −60°, and −120° from the branch direction. At that distance, neighboring
+  dots just touch.
 * **Forks:** 0–3 dots floating around each fork point, centered $3.6s$ from it.
   The fork's ratio sets the count, with more dots for more even splits:
   3 for $r < 0.69$, 2 below 0.76, 1 below 0.83, and none above. One dot sits
   beyond the fork; two sit up-left and up-right (60° from the branch
   direction); three do all of these, left to right.
+
 **Colors come from the leaf palette bits.** Each palette has six colors, built
 from an OKLCH grid. Palette $p$ has hue step $a = \lfloor p / 4 \rfloor$ and
 lightness step $b = p \bmod 4$. Color $j$ (0–5) has
@@ -358,8 +360,8 @@ first colors.
 **Order.** Trees are taken from left to right by position (ties by index). Each
 tree is traversed left to right: depth-first from the trunk, visiting the child
 with the smaller direction $x$ first. A fork's dots come before its children's;
-each tip's three dots are left, beyond, then right. Dots take the six colors in turn, cycling continuously
-across all trees.
+each tip's five dots run from left to right. Dots take the six colors in turn,
+cycling continuously across all trees.
 
 Winter trees are bare and the scene reads no leaf bits, so no bit is spent
 without an effect.

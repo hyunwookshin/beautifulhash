@@ -614,11 +614,11 @@ Tree build(const Values& v, const Plan& p, int index, const std::vector<Hill>& h
         }
     }
 
-    // Deciduous leaves: three small dots around every branch tip (left of it,
-    // beyond it, and right of it), with tips in the tree's left-to-right order:
+    // Deciduous leaves: five small dots around every branch tip and a few at
+    // forks, with tips in the tree's left-to-right order:
     // depth-first, leftmost child first. paint_leaves colors them.
     if (sp == Species::kDeciduous && leafy(theme, season)) {
-        double radius = 1.6 * scale, offset = 2.4 * scale;
+        double radius = 1.6 * scale, offset = 3.2 * scale;
         std::vector<size_t> todo = {0};
         while (!todo.empty()) {
             size_t i = todo.back();
@@ -626,11 +626,15 @@ Tree build(const Values& v, const Plan& p, int index, const std::vector<Hill>& h
             if (kids[i].empty()) {
                 const Branch& b = open[i];
                 Point n{-b.dir.h, b.dir.x};  // to the branch's left
-                const Point around[3] = {{-0.5 * b.dir.x + 0.8660254037844386 * n.x, -0.5 * b.dir.h + 0.8660254037844386 * n.h},
-                                         b.dir,
-                                         {-0.5 * b.dir.x - 0.8660254037844386 * n.x, -0.5 * b.dir.h - 0.8660254037844386 * n.h}};
-                for (const Point& d : around) tree.shapes.push_back(circle(add(b.end, d, offset), radius, 0));
-                tree.leaves += 3;
+                // Five dots fanned around the tip, left to right: 120, 60, 0, -60,
+                // and -120 degrees from the branch direction.
+                static const double kCos[5] = {-0.5, 0.5, 1.0, 0.5, -0.5};
+                static const double kSin[5] = {0.8660254037844386, 0.8660254037844386, 0.0, -0.8660254037844386, -0.8660254037844386};
+                for (int a = 0; a < 5; ++a) {
+                    Point d{kCos[a] * b.dir.x + kSin[a] * n.x, kCos[a] * b.dir.h + kSin[a] * n.h};
+                    tree.shapes.push_back(circle(add(b.end, d, offset), radius, 0));
+                }
+                tree.leaves += 5;
                 continue;
             }
             // A fork also holds leaves floating around it, since the crown is
@@ -647,7 +651,7 @@ Tree build(const Values& v, const Plan& p, int index, const std::vector<Hill>& h
                 std::vector<Point> where = dots == 1 ? std::vector<Point>{b.dir}
                                            : dots == 2 ? std::vector<Point>{left, right}
                                                        : std::vector<Point>{left, b.dir, right};
-                for (const Point& d : where) tree.shapes.push_back(circle(add(b.end, d, 1.5 * offset), radius, 0));
+                for (const Point& d : where) tree.shapes.push_back(circle(add(b.end, d, 3.6 * scale), radius, 0));
                 tree.leaves += dots;
             }
             std::vector<size_t> order = kids[i];
