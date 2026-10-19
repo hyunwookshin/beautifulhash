@@ -681,12 +681,15 @@ into the crown, which depends on the season:
 |---|---|---|
 | $k \equiv 0 \pmod 4$ | on the arc | on the arc |
 | $k \equiv 2 \pmod 4$ | 80% of the arc | cut $0.4\,d$ below the silhouette |
-| $k$ odd | 10–50% of the arc (tiny cavities) | cut $(0.5\text{–}1.0)\,d$ below the silhouette (needles) |
+| $k = 1, 15$ (crown edges) | groove cut $(0.6\text{–}1.0)\,c$ below the silhouette | cut $(0.5\text{–}1.0)\,d$ below the silhouette (needles) |
+| other odd $k$ | cavity cut $(0.3\text{–}1.0)\,c$ below the silhouette where the pattern value $r < 0.4$; otherwise 10–50% of the arc | cut $(0.5\text{–}1.0)\,d$ below the silhouette (needles) |
 
-where $d = 100 \cdot g$ is the bare depth. Leafy cavities stay inside the canopy.
-Winter's needles cut deep into the ridge, like a leafless forest against the
-sky; cuts only remove ridge area, so the ceiling and visibility guarantees are
-unaffected. Ranges marked with a dash vary by the fixed pattern.
+where $c = 45 \cdot g$ is the canopy depth and $d = 100 \cdot g$ the bare depth.
+Leafy crowns stay rounded on top, but grooves separate neighboring crowns and
+deep cavities break up each crown, so the ridge reads as a rugged deciduous
+forest edge rather than a smooth band. Winter's needles cut deeper, like a
+leafless forest against the sky. All cuts only remove ridge area, so the
+ceiling and visibility guarantees are unaffected. Ranges marked with a dash vary by the fixed pattern.
 
 **Properties:**
 
@@ -1082,7 +1085,7 @@ and off.
   decay (36, 0.85), tree threshold (0.35), conifer height and valley cut (18, 60),
   canopy height (16), texture spacing.
 * Seasonal Temperate palettes and the fall gradient's golden shades.
-* Canopy texture depths: leafy cavities (10–50%) and winter bare depth (100).
+* Canopy texture depths: leafy canopy depth (45) and winter bare depth (100).
 * Whether mountains should carry a subtle seasonal tint in every biome, so all
   four seasons render distinctly (see SPECIFICATIONS.md, Seasons).
 * Jagged detail parameters: decay $\lambda$ (0.75), floor $f$ (0.35), and the depth of

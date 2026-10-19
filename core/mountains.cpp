@@ -682,11 +682,14 @@ std::vector<Point> add_canopy(const std::vector<Point>& pts, const Params& p, co
     if (p.season == Season::kWinter) return add_bare_canopy(pts, p, density);
     // One rounded, leafy bump per segment: fifteen points on the canopy arc.
     // The arc covers 65-100% of the segment and its height varies from 0.55x
-    // to 1.3x of canopy_height, scaled by the local tree factor. Tiny
-    // cavities texture the crown: k = 0 mod 4 is on the arc, k = 2 mod 4 at
-    // 80%, and k odd dips to 10-50% (fixed pattern), staying inside the
-    // canopy. Fifteen points add four levels of structure, so bit-driven
-    // points keep known indices.
+    // to 1.3x of canopy_height, scaled by the local tree factor. k = 0 mod 4
+    // is on the arc and k = 2 mod 4 at 80%. Odd k carve the crown: the two
+    // edge points (k = 1, 15) cut grooves 60-100% of canopy_depth below the
+    // silhouette, separating neighboring crowns; inner odd points cut a deep
+    // cavity (30-100% of canopy_depth) where a fixed pattern falls below 0.4,
+    // and otherwise dip to 10-50% of the arc. Cuts only remove ridge area.
+    // Fifteen points add four levels of structure, so bit-driven points keep
+    // known indices.
     std::vector<Point> base = split(pts, p.canopy_subdivisions);
     std::vector<Point> out;
     out.reserve(16 * base.size() - 15);
@@ -695,10 +698,23 @@ std::vector<Point> add_canopy(const std::vector<Point>& pts, const Params& p, co
         double w = 0.65 + 0.35 * jitter(k, 3);
         double g = tree_factor(density, lerp_at(base[j], base[j + 1], w / 2.0, 0.0).x, p);
         double h = p.canopy_height * (0.55 + 0.75 * jitter(k, 4)) * g;
+        double d = p.canopy_depth * g;
         out.push_back(base[j]);
         for (int i = 1; i <= 15; ++i) {
-            double fill = i % 4 == 0 ? 1.0 : (i % 2 == 0 ? 0.8 : 0.10 + 0.40 * jitter(k * 16u + static_cast<uint32_t>(i), 9));
-            out.push_back(lerp_at(base[j], base[j + 1], w * i / 16.0, h * kArc[i - 1] * fill));
+            double lift;
+            if (i % 2 == 0) {
+                lift = h * kArc[i - 1] * (i % 4 == 0 ? 1.0 : 0.8);
+            } else {
+                double r = jitter(k * 16u + static_cast<uint32_t>(i), 9);
+                if (i == 1 || i == 15) {
+                    lift = -d * (0.6 + 0.4 * r);
+                } else if (r < 0.4) {
+                    lift = -d * (0.3 + 0.7 * r / 0.4);
+                } else {
+                    lift = h * kArc[i - 1] * (0.10 + 0.40 * r);
+                }
+            }
+            out.push_back(lerp_at(base[j], base[j + 1], w * i / 16.0, lift));
         }
     }
     out.push_back(base.back());

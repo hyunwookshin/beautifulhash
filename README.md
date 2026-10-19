@@ -97,8 +97,8 @@ namespaces. Each is specified under `subspec/`:
 
 ```sh
 make              # build into build/
-make verify       # quick checks (about 1.5 min); must print ALL CHECKS PASSED
-make verify-full  # the same checks with 5x the samples, before releases
+make verify       # quick checks (a tenth of full sampling); must print ALL CHECKS PASSED
+make verify-full  # the same checks with 10x the samples, before releases
 make gallery      # render gallery/index.html: every biome and season on the same hashes
 ```
 

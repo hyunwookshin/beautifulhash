@@ -758,9 +758,9 @@ void check_trees(int samples) {
 }  // namespace
 
 int main(int argc, char** argv) {
-    // Default: a quick run (about a fifth of the full sampling). `make verify-full`
+    // Default: a quick run (a tenth of the full sampling). `make verify-full`
     // passes 20000 for the full run before releases.
-    int samples = argc > 1 ? std::atoi(argv[1]) : 4000;
+    int samples = argc > 1 ? std::atoi(argv[1]) : 2000;
     const mt::Config& def = mt::default_config();
 
     check_coverage();

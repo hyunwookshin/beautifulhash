@@ -354,22 +354,32 @@ itself).
   direction); three do all of these, left to right.
 
 **Colors come from the leaf palette bits.** Each palette has six colors, built
-from an OKLCH grid. Palette $p$ has hue step $a = \lfloor p / 4 \rfloor$ and
-lightness step $b = p \bmod 4$. Color $j$ (0–5) has
+from an OKLCH grid. Each palette spans nearly the season's whole hue range with
+strong lightness and chroma contrast, interleaved so that neighboring leaves
+differ: a crown reads as many leaves, not one color. Palette $p$ has hue step
+$a = \lfloor p / 4 \rfloor$ and lightness step $b = p \bmod 4$. Color $j$ (0–5) has
 
 $$
-\text{hue} = h_0 + (h_1 - h_0)\left(0.6\,\frac{j}{5} + 0.4\,\frac{a}{3}\right),
+\text{hue} = h_0 + (h_1 - h_0)\left(0.85\,\eta_j + 0.15\,\frac{a}{3}\right),
 \qquad
-L = L_0 + 0.12\,\frac{b}{3} + 0.05\,[j \text{ odd}],
+L = L_0 + \Delta L \cdot \lambda_j + 0.08\,\frac{b}{3},
 \qquad
-C = C_0 \cdot (0.85, 1.0, 1.15)_{j \bmod 3}
+C = C_0 \cdot \kappa_j
 $$
 
-| Season | Hue $h_0$–$h_1$ | $L_0$ | $C_0$ | Look |
-|---|---|---:|---:|---|
-| Spring | 105–135 | 0.62 | 0.15 | Fresh yellow-greens |
-| Summer | 125–155 | 0.48 | 0.13 | Deep greens |
-| Fall | 45–95 | 0.62 | 0.15 | Oranges to yellows |
+with the fixed interleaving tables
+
+| $j$ | 0 | 1 | 2 | 3 | 4 | 5 |
+|---|---:|---:|---:|---:|---:|---:|
+| $\eta_j$ (hue) | 0 | 0.6 | 0.2 | 1.0 | 0.4 | 0.8 |
+| $\lambda_j$ (lightness) | 0.35 | 0.9 | 0 | 0.6 | 1.0 | 0.2 |
+| $\kappa_j$ (chroma) | 0.85 | 1.2 | 1.0 | 0.8 | 1.15 | 0.95 |
+
+| Season | Hue $h_0$–$h_1$ | $L_0$ | $\Delta L$ | $C_0$ | Look |
+|---|---|---:|---:|---:|---|
+| Spring | 90–145 | 0.55 | 0.25 | 0.15 | Yellow-green to fresh green |
+| Summer | 110–165 | 0.36 | 0.27 | 0.13 | Olive to deep blue-green |
+| Fall | 25–105 | 0.48 | 0.30 | 0.17 | Red, orange, gold, and olive |
 
 All six colors in a palette are distinct, and the 16 palettes have distinct
 first colors.

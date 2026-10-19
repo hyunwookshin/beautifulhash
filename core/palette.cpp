@@ -201,23 +201,29 @@ const std::vector<uint32_t>& hill_palette(Theme theme, Season season, int id) {
 namespace bh {
 
 const std::vector<uint32_t>& leaf_palette(Season season, int id) {
-    // {hue low, hue high, lightness low, chroma} per season; winter is bare.
+    // Per season: hue range, lightness range, and chroma; winter is bare. Each
+    // palette spans nearly the whole hue range with strong lightness and
+    // chroma contrast, interleaved so neighboring leaves differ: a crown reads
+    // as many leaves, not one color.
     struct LeafFamily {
-        double hue_low, hue_high, light, chroma;
+        double hue_low, hue_high, light_low, light_span, chroma;
     };
+    static const double kHueStep[6] = {0.0, 0.6, 0.2, 1.0, 0.4, 0.8};
+    static const double kLightStep[6] = {0.35, 0.9, 0.0, 0.6, 1.0, 0.2};
+    static const double kChromaStep[6] = {0.85, 1.2, 1.0, 0.8, 1.15, 0.95};
     static const std::vector<std::vector<uint32_t>> tables = [] {
         std::vector<std::vector<uint32_t>> out;
         for (Season s : kSeasons) {
-            LeafFamily f{125.0, 155.0, 0.48, 0.13};  // summer: deep greens
-            if (s == Season::kSpring) f = {105.0, 135.0, 0.62, 0.15};  // fresh yellow-greens
-            if (s == Season::kFall) f = {45.0, 95.0, 0.62, 0.15};      // oranges to yellows
+            LeafFamily f{110.0, 165.0, 0.36, 0.27, 0.13};                      // summer: olive to deep blue-green
+            if (s == Season::kSpring) f = {90.0, 145.0, 0.55, 0.25, 0.15};    // yellow-green to fresh green
+            if (s == Season::kFall) f = {25.0, 105.0, 0.48, 0.30, 0.17};      // red, orange, gold, olive
             for (int p = 0; p < kLeafPalettes; ++p) {
                 int a = p >> 2, b = p & 3;
                 std::vector<uint32_t> colors;
                 for (int j = 0; j < 6; ++j) {
-                    double hue = f.hue_low + (f.hue_high - f.hue_low) * (0.6 * j / 5.0 + 0.4 * a / 3.0);
-                    double light = f.light + 0.12 * b / 3.0 + (j % 2 == 1 ? 0.05 : 0.0);
-                    double chroma = f.chroma * (j % 3 == 0 ? 0.85 : j % 3 == 1 ? 1.0 : 1.15);
+                    double hue = f.hue_low + (f.hue_high - f.hue_low) * (0.85 * kHueStep[j] + 0.15 * a / 3.0);
+                    double light = f.light_low + f.light_span * kLightStep[j] + 0.08 * b / 3.0;
+                    double chroma = f.chroma * kChromaStep[j];
                     colors.push_back(oklch(light, chroma, hue));
                 }
                 out.push_back(colors);

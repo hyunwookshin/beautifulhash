@@ -78,6 +78,7 @@ struct Params {
     double conifer_depth = 60.0;      // alpine front ridge: deepest valley cut below the silhouette (varies 0.5-1x)
     int canopy_subdivisions = 0;      // temperate front ridge: straight subdivisions per segment
     double canopy_height = 16.0;      // temperate front ridge: nominal bump height (varies 0.55-1.3x)
+    double canopy_depth = 45.0;       // temperate front ridge: grooves and cavities below the silhouette
     double tree_threshold = 0.35;     // tree density score below which the front ridge is flat
     double bare_depth = 100.0;        // temperate winter: deepest needle cut below the silhouette
     double snow_fraction = 1.0 / 3.0; // alpine back ridge: snowline this far down from the peak
