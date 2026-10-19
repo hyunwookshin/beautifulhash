@@ -11,6 +11,7 @@
 
 #include "generate.hpp"
 #include "hills.hpp"
+#include "trees.hpp"
 #include "mountains.hpp"
 #include "partition.hpp"
 #include "variants.hpp"
@@ -23,6 +24,18 @@ namespace {
 void write_file(const std::string& path, const std::string& text) {
     std::ofstream f(path, std::ios::binary);
     f << text;
+}
+
+// Gallery only: rewrites the Trees count code so a column shows a fixed count.
+void force_tree_count(Hash256& h, int n) {
+    BitWriter w(h, kTrees.begin, kTrees.width);
+    if (n >= 2 && n <= 7) {
+        w.write(3, static_cast<uint32_t>(n - 2));
+    } else {
+        int idx = n == 1 ? 0 : n - 7;
+        w.write(3, static_cast<uint32_t>(6 + idx / 2));
+        w.write(1, static_cast<uint32_t>(idx % 2));
+    }
 }
 
 }  // namespace
@@ -79,6 +92,9 @@ int main(int argc, char** argv) {
                 Scene scene;
                 scene.ridges = mt::generate(configs[v], hashes[i]);
                 scene.hills = hills::generate(hashes[i], configs[v].params.theme, configs[v].params.season);
+                Hash256 th = hashes[i];
+                if (all[v].trees > 0) force_tree_count(th, all[v].trees);
+                scene.trees = trees::generate(th, scene.hills, configs[v].params.theme, configs[v].params.season);
                 std::string base = "v" + std::to_string(v) + "_h" + std::to_string(i);
                 scene.fog.enabled = false;
                 write_file(dir + "/" + base + "_clear.svg", render_svg(scene, 1024, 768));

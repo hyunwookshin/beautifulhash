@@ -13,6 +13,7 @@ struct Variant {
     std::string group;
     std::string label;
     mountains::Params params;
+    int trees = 0;  // gallery only: force this tree count (0 = use the hash)
 };
 
 struct Group {
@@ -21,26 +22,24 @@ struct Group {
 };
 
 inline std::vector<Group> variant_groups() {
-    return {
-        {"all", "Temperate in winter, summer, and fall, then the other biomes (summer), on identical "
-                "hashes. Geometry and placement are identical across columns. Spring is omitted: its "
-                "mountains match summer. Alpine, Tundra, and Desert mountains are the same in every season."},
-    };
+    std::vector<Group> out;
+    for (Theme t : kThemes) {
+        out.push_back({theme_name(t), std::string(theme_name(t)) +
+                                          " (summer): 1, 3, 6, and 10 trees on identical hashes. Only the tree "
+                                          "count is forced; everything else comes from the hash."});
+    }
+    return out;
 }
 
 inline std::vector<Variant> variants() {
     std::vector<Variant> out;
-    for (Season s : {Season::kWinter, Season::kSummer, Season::kFall}) {
-        mountains::Params p;
-        p.theme = Theme::kTemperate;
-        p.season = s;
-        out.push_back({"all", std::string("temperate, ") + season_name(s), p});
-    }
-    for (Theme t : {Theme::kAlpine, Theme::kTundra, Theme::kDesert}) {
-        mountains::Params p;
-        p.theme = t;
-        p.season = Season::kSummer;
-        out.push_back({"all", theme_name(t), p});
+    for (Theme t : kThemes) {
+        for (int n : {1, 3, 6, 10}) {
+            mountains::Params p;
+            p.theme = t;
+            p.season = Season::kSummer;
+            out.push_back({theme_name(t), std::to_string(n) + (n == 1 ? " tree" : " trees"), p, n});
+        }
     }
     return out;
 }

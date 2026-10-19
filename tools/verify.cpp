@@ -18,6 +18,7 @@
 
 #include "generate.hpp"
 #include "hills.hpp"
+#include "trees.hpp"
 #include "mountains.hpp"
 #include "palette.hpp"
 #include "partition.hpp"
@@ -562,6 +563,156 @@ void check_hills(int samples) {
     check(min_exposure >= p.exposure - 1e-9, "back hill less exposed than required");
 }
 
+// ---- 7. Trees -------------------------------------------------------------
+
+bool same_tree_bits(const Hash256& a, const Hash256& b) {
+    for (int i = kTrees.begin; i < kTrees.begin + kTrees.width; ++i) {
+        if (a.bit(i) != b.bit(i)) return false;
+    }
+    return true;
+}
+
+std::vector<std::string> split_lines(const std::string& s) {
+    std::vector<std::string> out;
+    size_t start = 0, nl;
+    while ((nl = s.find('\n', start)) != std::string::npos) {
+        out.push_back(s.substr(start, nl - start));
+        start = nl + 1;
+    }
+    return out;
+}
+
+// Each tree's fragment from the SVG, by its index.
+std::vector<std::vector<std::string>> parse_trees(const std::string& svg) {
+    std::vector<std::pair<int, std::vector<std::string>>> found;
+    size_t pos = 0;
+    while ((pos = svg.find("<g class=\"tree\" id=\"tree-", pos)) != std::string::npos) {
+        int id = std::atoi(svg.c_str() + pos + 25);
+        size_t end = svg.find("</g>\n", pos) + 5;
+        found.push_back({id - 1, split_lines(svg.substr(pos, end - pos))});
+        pos = end;
+    }
+    std::vector<std::vector<std::string>> out(found.size());
+    for (auto& f : found) out[static_cast<size_t>(f.first)] = f.second;
+    return out;
+}
+
+bool prefix_equal(const std::vector<std::string>& a, const std::vector<std::string>& b, size_t n) {
+    if (a.size() < n || b.size() < n) return false;
+    for (size_t i = 0; i < n; ++i) {
+        if (a[i] != b[i]) return false;
+    }
+    return true;
+}
+
+// Decodes every tree field by exact comparison of SVG lines. Returns the
+// number of (arrangement, size) pairs that reproduce the trees exactly; the
+// decoded values are left in `out` for the last match.
+int decode_trees(const std::vector<std::vector<std::string>>& frags, const std::vector<Hill>& hills, Theme t,
+                 Season s, double sc, bh::trees::Values& out) {
+    namespace tr = bh::trees;
+    bool two = hills.size() == 2;
+    int n = static_cast<int>(frags.size());
+    int matches = 0;
+    for (uint32_t a = 0; a < 4; ++a) {
+        for (uint32_t z = 0; z < 4; ++z) {
+            tr::Values v;
+            v.count = n;
+            v.arrangement = a;
+            v.size = z;
+            tr::Plan p = tr::plan(n, a, kTrees.width - tr::count_code_bits(n) - 4, two);
+            for (int i = 0; i < n; ++i) v.trees.push_back(tr::tree_fields(p.bits[i]));
+            bool ok = true;
+            for (int i = 0; i < n && ok; ++i) {
+                tr::TreeValues& tv = v.trees[static_cast<size_t>(i)];
+                auto lines = [&]() { return split_lines(tr::tree_svg(tr::build(v, p, i, hills, t, s), i, sc)); };
+                bool cactus = tr::species_of(t, i, a) == tr::Species::kCactus;
+                size_t per_fork = cactus ? 4 : 2;
+                // Girth and height together set the trunk (line 1).
+                bool found = false;
+                for (uint32_t g = 0; g < (1u << tv.girth_bits) && !found; ++g) {
+                    for (uint32_t h = 0; h < (1u << tv.height_bits) && !found; ++h) {
+                        tv.girth = g;
+                        tv.height = h;
+                        found = prefix_equal(lines(), frags[static_cast<size_t>(i)], 2);
+                    }
+                }
+                ok = found;
+                for (size_t k = 0; k < tv.forks.size() && ok; ++k) {
+                    tr::Fork& f = tv.forks[k];
+                    found = false;
+                    for (uint32_t r = 0; r < (1u << f.ratio_bits) && !found; ++r) {
+                        for (uint32_t l = 0; l < (1u << f.length_bits) && !found; ++l) {
+                            f.ratio = r;
+                            f.length = l;
+                            found = prefix_equal(lines(), frags[static_cast<size_t>(i)], 2 + per_fork * (k + 1));
+                        }
+                    }
+                    ok = found;
+                }
+                ok = ok && lines() == frags[static_cast<size_t>(i)];
+            }
+            if (ok) {
+                ++matches;
+                out = v;
+            }
+        }
+    }
+    return matches;
+}
+
+void check_trees(int samples) {
+    namespace tr = bh::trees;
+    std::printf("== Trees\n");
+    std::mt19937_64 rng(13);
+    for (bool two : {false, true}) {
+        for (int i = 0; i < 5000; ++i) {
+            Hash256 h = random_hash(rng, 0);
+            Hash256 back;
+            tr::encode(tr::decode(h, two), two, back);
+            if (!same_tree_bits(h, back)) {
+                check(false, "tree decode/encode does not round-trip");
+                break;
+            }
+        }
+        for (int n = 1; n <= 10; ++n) {
+            for (uint32_t a = 0; a < 4; ++a) {
+                int remaining = kTrees.width - tr::count_code_bits(n) - 4;
+                tr::Plan p = tr::plan(n, a, remaining, two);
+                int sum = 0;
+                for (int b : p.bits) sum += b;
+                check(sum == remaining, "tree plan does not allocate every bit");
+            }
+        }
+    }
+    int bad = 0, ambiguous = 0, trees_seen = 0;
+    for (Theme t : kThemes) {
+        for (Season s : kSeasons) {
+            for (int i = 0; i < samples; ++i) {
+                Hash256 hash = random_hash(rng, 0);
+                Scene scene;
+                scene.hills = bh::hills::generate(hash, t, s);
+                scene.trees = tr::generate(hash, scene.hills, t, s);
+                trees_seen += static_cast<int>(scene.trees.size());
+                std::string svg = render_svg(scene, 1024, 768);
+                tr::Values v;
+                int m = decode_trees(parse_trees(svg), scene.hills, t, s, 0.5, v);
+                if (m != 1) {
+                    if (m > 1) ++ambiguous;
+                    ++bad;
+                    continue;
+                }
+                Hash256 back;
+                tr::encode(v, scene.hills.size() == 2, back);
+                if (!same_tree_bits(hash, back)) ++bad;
+            }
+        }
+    }
+    std::printf("  round trip (%d hashes x 16 biome/season pairs, %d trees): %d mismatches (%d ambiguous)\n",
+                samples, trees_seen, bad, ambiguous);
+    check(bad == 0, "tree round trip mismatch");
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -588,6 +739,7 @@ int main(int argc, char** argv) {
     }
 
     check_hills(std::max(1, samples / 20));
+    check_trees(std::max(1, samples / 100));
 
     std::printf(failures == 0 ? "\nALL CHECKS PASSED\n" : "\n%d CHECK(S) FAILED\n", failures);
     return failures == 0 ? 0 : 1;

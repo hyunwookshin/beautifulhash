@@ -6,6 +6,7 @@
 #include "format.hpp"
 #include "hills.hpp"
 #include "mountains.hpp"
+#include "trees.hpp"
 
 namespace bh {
 
@@ -56,6 +57,7 @@ Scene generate_scene(const Hash256& hash, int version) {
     // Hills are generated after Mountains and before Trees and Vegetation,
     // which will plant on them using the advertised hill profiles.
     scene.hills = hills::generate(hash, config.params.theme, config.params.season);
+    scene.trees = trees::generate(hash, scene.hills, config.params.theme, config.params.season);
     return scene;
 }
 
@@ -179,6 +181,10 @@ std::string render_svg(const Scene& scene, uint32_t width, uint32_t height) {
         out += " L0,";
         append_uint(out, height);
         out += " Z\"/>\n";
+        // Trees standing on this hill, drawn right after it.
+        for (size_t t = 0; t < scene.trees.size(); ++t) {
+            if (scene.trees[t].hill == static_cast<int>(n)) out += trees::tree_svg(scene.trees[t], static_cast<int>(t), scale);
+        }
     }
     out += "</svg>\n";
     return out;

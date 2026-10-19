@@ -6,36 +6,338 @@
 
 ### Overview
 
-The Trees namespace owns all tree generation in V0. It places and grows the branched trees independently of the other layers: where they stand,
-how large they are, and how they branch. Tree species must suit the theme,
-for example conifers in Alpine scenes and broadleaf trees in Temperate
-scenes.
+The Trees namespace plants 1 to 10 fractal trees on the hills. Each tree grows
+from a trunk by recursive forks. Its first forks are driven by its bits. After
+the bits run out, branching continues with derived forks that reuse the
+decoded values, which adds detail but no entropy. Fewer trees means more bits,
+and richer branching, per tree. Species follow the biome:
 
-A primary group of trees is always present, and an additional arrangement is
-optional. When the additional trees are absent, their bits must be
-redistributed within the namespace.
+| Biome | Species |
+|---|---|
+| Alpine, Tundra | Conifers |
+| Temperate | Deciduous trees |
+| Desert | Cactus and Joshua trees, alternating |
 
-### Seasons
+Trees consume the hill profiles and colors advertised by Hills
+(subspec/hills.md), so Hills is generated first.
 
-Colors are thematic families of coordinated shades, not single hex values
-(SPECIFICATIONS.md, Seasons).
+### Header fields
 
-* **Winter:** Temperate broadleaf trees are bare, with no leaves, and
-  occasionally carry white snow spots. Conifers keep their foliage.
-* **Spring, summer, and fall:** trees keep their foliage.
+The namespace starts with three header fields, then the trees' own bits.
 
-### Subnamespaces (conceptual)
+**Count (3 or 4 bits): a complete prefix code for 1–10 trees.** Every bit
+string decodes to exactly one count, so no codes are wasted, and the bits left
+over go to the trees:
 
-* Primary Trees
-* Additional Trees (optional)
+| First 3 bits | Extra bit | Count |
+|---|---|---|
+| 0–5 | — | 2–7 |
+| 6 | 0 / 1 | 1 / 8 |
+| 7 | 0 / 1 | 9 / 10 |
+
+At least one tree is always present, so every bit draws something.
+
+**Arrangement (2 bits)** picks one of four group sequences. Each tree stands in
+one of four groups: front rim, back rim, front interior, back interior. Rim
+trees stand on a hill's silhouette. Interior trees stand on its slope, below
+the rim and nearer the viewer. The sequences spread the first trees across
+depths, and groups repeat once the count exceeds four:
+
+| Arrangement | Sequence (trees 1–10) |
+|---:|---|
+| 0 | FR, BR, FI, FR, BI, FI, BR, FR, FI, BR |
+| 1 | BR, FR, FI, BR, FR, BI, FI, FR, BR, FI |
+| 2 | FI, FR, BR, FI, BI, FR, BR, FI, FR, BI |
+| 3 | FR, FI, BR, BI, FR, FI, BR, FR, BI, FI |
+
+In one-hill mode, rim groups become the hill's rim and interior groups its
+slope.
+
+**Size (2 bits)** picks a global scale class: 0.8, 0.95, 1.1, or 1.25.
+
+### Composition
+
+The count and arrangement fix a composition on each hill, using no further
+bits. The trees on a hill, taken in index order, are given roles:
+
+| Role | Who | Position | Prominence | Role weight |
+|---|---|---|---:|---:|
+| Isolated | The last tree on the hill (or the only one) | $c \pm 0.38W$, on the far side from the grove (at $c$ when alone) | 1.0 | 5 |
+| Straggler | The second-to-last tree, when the hill has 5 or more | $c \mp 0.2W$, on the other side of the grove | 0.6 | 2 |
+| Leader | The first remaining tree | $c$ | 1.2 | 6 |
+| Member | The other remaining trees | $c + \text{spacing} \cdot o_k$ | $0.65 + 0.2\,\{\varphi(i+1)\}$ | 3 |
+
+Here:
+
+* The grove center is $c = W \cdot (0.2 + 0.6\,\{0.37 + 0.29a + 0.41h\})$, where
+  $a$ is the arrangement, $h$ is 0 for the front (or only) hill and 1 for the
+  back hill, and $\{\cdot\}$ is the fractional part.
+* The isolated tree goes right of the grove when $c < W/2$, and left otherwise.
+* Member offsets $o_k$ cycle through $0, 0.9, -0.8, 1.7, -1.5, 0.45, -0.35, 2.4$,
+  with the leader at $k = 0$. Spacing is $0.025W$ on the back hill and $0.035W$
+  otherwise.
+* $\varphi = 0.6180339887498949$ and $i$ is the tree's index.
+* Every position is then limited to $[0.04W, 0.96W]$.
+
+The result is one grove of overlapping trees, one medium tree standing apart,
+a straggler once there are enough trees, and open hillside elsewhere.
+
+**Height on the hill.** Rim trees stand on the hill's curve. Interior trees
+stand $0.30 + 0.35\,\{7\phi_i\}$ of the way down from the rim toward the floor,
+where $\phi_i = \{\varphi(i + 1) + 0.25a\}$. The floor is the canvas bottom, or the
+front hill for a back-hill tree. A back interior tree needs the back hill to
+rise at least 24 above the front hill at its position. Otherwise it stands on
+the back rim.
+
+**Drawing order:** back hill, its trees, front hill, its trees. Within a hill,
+trees are drawn in index order.
+
+### Bit allocation
+
+The remaining $R = 48 - c_b - 4$ bits, where $c_b$ is the count code length (3
+or 4), are split among the trees in proportion to group weight times role
+weight. Nearer and more prominent trees get more branching detail:
+
+| Group | Group weight | Perspective scale |
+|---|---:|---:|
+| Front interior | 8 | 1.0 |
+| Front rim | 6 | 0.8 |
+| Back interior | 4 | 0.55 |
+| Back rim | 3 | 0.45 |
+
+(One-hill mode: interior weight 8 and scale 0.9; rim weight 6 and scale 0.7.)
+
+Each tree first gets $\lfloor R \cdot w_i / \sum w \rfloor$ bits. Leftover bits go
+one at a time to the heaviest trees (ties by index), so every bit is used. The
+header fully determines the allocation, so it is known before any tree bits are
+read.
+
+### Tree fields
+
+A tree's bits are read in this order:
+
+| Field | Bits | Meaning |
+|---|---:|---|
+| Girth | 2 | Trunk width |
+| Height | 2 | Trunk length |
+| Fork 1, 2, … | 3 each (ratio 2, length 1) | Breadth-first forks |
+
+Leftover bits (1 or 2) extend the last fork's ratio precision. Fields with
+fewer bits than listed use what is available, and a field with no bits takes
+its midpoint. A value $v$ in a $b$-bit field becomes $u = v / (2^b - 1)$.
+
+### Trunk
+
+The tree's scale is $s = \text{size} \cdot \text{perspective} \cdot
+\text{prominence}$. With girth value $g$ and height value $h$:
+
+$$
+L_0 = s \cdot 130 \cdot (0.6 + 0.8h) \cdot k_L,
+\qquad
+G_0 = s \cdot G_{\text{base}} \cdot (1 + 1.5g)
+$$
+
+| Species | $G_{\text{base}}$ | Taper per segment | $k_L$ |
+|---|---:|---:|---:|
+| Conifer | 9 | 0.82 | 0.38 |
+| Deciduous | 11 | 0.7 | 1 |
+| Cactus | 14 | 1.0 | 1 |
+| Joshua tree | 13 | 1.0 | 1 |
+
+A conifer's trunk is only its first stem segment, so it is short. The stem
+keeps growing through its forks.
+
+Every branch is drawn as a quadrilateral that narrows from its start girth to
+girth × taper at its end.
+
+### Forks
+
+Forks are applied to branches in breadth-first order. A fork splits a branch
+into a large child (the continuation) and a small child. The ratio value $u$
+chooses the large child's share $r$ within a range per species:
+
+| Species | Range of $r$ |
+|---|---|
+| Conifer | 0.85–0.97 (a strong stem with side branches) |
+| Deciduous | 0.62–0.90 (no near-even splits, which would tile into a Y lattice) |
+| Cactus | 0.60–0.90 |
+| Joshua tree | 0.60–0.85 |
+
+**Derived forks.** After the bit forks, branching continues. Derived fork $k$
+reuses the bit fork $(k - n) \bmod n$, where $n$ is the number of bit forks, and
+shifts its values by fixed irrational steps:
+
+$$
+u_r = \{u_{\text{ratio}} + 0.6180339887498949\,(k+1)\},
+\qquad
+u_\ell = \{u_{\text{length}} + 0.3819660112501051\,(k+1)\}
+$$
+
+A tree with no bit forks uses 0.5 for both base values. Derived forks skip
+branches shorter than a minimum: 12% of the trunk for conifers, 6% otherwise.
+The total number of forks is capped per species, but bit forks always run in
+full:
+
+| Species | Fork cap |
+|---|---:|
+| Conifer | 127 |
+| Deciduous | 63 |
+| Joshua tree | 7 |
+| Cactus | 3 |
+
+### Branch angles
+
+All rotations are exact, with no trigonometry or square root at run time.
+Ratio-driven angles use the rational half-angle form
+
+$$
+(c, s) = \left(\frac{1 - t^2}{1 + t^2},\ \frac{2t}{1 + t^2}\right),
+\qquad
+t_{\text{large}} = \tan 22.5^\circ \cdot 2(1 - r),
+\qquad
+t_{\text{small}} = 1 - (1 - \tan 22.5^\circ) \cdot 2(1 - r)
+$$
+
+and fixed angles use constant $(\cos, \sin)$ pairs.
+
+**Deciduous, cactus, and Joshua trees: angles come from the ratio.** The large
+child tilts by about $90^\circ(1 - r)$ and the small one by about $90^\circ r$, to
+opposite sides. Both are 45° at $r = 0.5$; at $r = 0.95$ they are about 5° and 87°.
+The large child's side follows a fixed irregular pattern, positive when
+$\{0.7548776662466927\,(k+1)\} < 0.5$. The pattern does not alternate strictly,
+so the crown does not tile regularly.
+
+**Deciduous winner rule.** The large child of a deciduous fork bends only half
+as much ($t = t_{\text{large}} / 2$) and always turns back toward vertical. If the
+parent leans right, it turns left, and the reverse. The small child turns the
+other way. The main trunk therefore keeps growing upward while the side limbs
+spread out.
+
+**Cactus arms** leave at the fork angle for 30% of their length, then turn
+straight up, drawn as two segments.
+
+**Conifers use fixed angles.**
+
+* The main stem continues straight up.
+* Side branches off the stem leave at an angle from vertical that droops lower
+  down the tree. With $\rho$ = (height of the fork above the trunk base) / $4L_0$,
+  limited to $[0, 1]$, the half-angle tangent is
+  $t = \sqrt 3 + 2.6(1 - \rho) + w$, where the wobble $w$ is $+0.35$ at odd depths
+  and $-0.15$ at even ones. That is about 115° from vertical near the top and
+  about 156° near the base, so successive tiers vary around the trend instead of
+  forming a regular fish bone.
+* Successive stem forks put the large child's side on alternate sides by
+  depth. Derived forks on the stem grow a full whorl: a side branch on each side
+  (three children). Bit forks always have exactly two children.
+* **Droop past the stem.** Every fork off the stem sags. The continuation bends
+  10° toward the ground. Twigs leave the sagged continuation at 30° and hang a
+  further 10°. A direction that already points more than about 35° below
+  horizontal ($\sin 35^\circ = 0.574$) does not bend further. Boughs therefore arc
+  downward instead of piercing straight out.
+
+### Branch lengths and girths
+
+With the length value $\ell$:
+
+| Species | Child | Length factor | Girth factor |
+|---|---|---|---|
+| Deciduous | both | $(0.5 + 0.35\,\text{share})(0.85 + 0.3\ell)$ | $0.35 + 0.65\,\text{share}$ |
+| Cactus | both | $(0.5 + 0.35\,\text{share})(0.85 + 0.3\ell)$ | $0.75 + 0.25\,\text{share}$ |
+| Joshua tree | both | $(0.5 + 0.35\,\text{share})(0.85 + 0.3\ell)$ | 1 (keeps the trunk's girth) |
+| Conifer | stem, bit fork | $(0.62 + 0.2\,\text{share})(0.85 + 0.3\ell)$ | taper |
+| Conifer | stem, derived whorl | $0.80\,(0.85 + 0.3\ell)$ | taper |
+| Conifer | side branch off the stem | $(0.7 + 0.6\,\text{share})(0.85 + 0.3\ell)$ | taper $\cdot (0.35 + 0.65\,\text{share})$ |
+| Conifer | deeper branch | $(0.45 + 0.35\,\text{share})(0.85 + 0.3\ell)$ | taper $\cdot (0.35 + 0.65\,\text{share})$ for twigs, taper for the continuation |
+
+Factors multiply the parent's length and girth. Conifer stems and branches
+continue at the parent's end width, so they thin continuously. The short
+internodes give many tiers, and the silhouette tapers into a cone.
+
+**Conifer bottom 10%.** The bottom 10% of a conifer stays clear of drooping
+branches, so the trunk shows beneath the crown. The tree's height is estimated
+as $4L_0$, giving a floor at $0.4L_0$ above the base. A downward branch is
+scaled by
+
+$$
+\max\left(\lambda,\ \min\left(1,\ \frac{\text{room}}{\text{longest}}\right)\right),
+\qquad
+\text{room} = \frac{h_{\text{start}} - h_{\text{floor}}}{1.25 \cdot (-d_h)}
+$$
+
+where longest is the largest length that branch's factor can give, so the scale
+depends only on where the branch starts and its direction, not on its own
+bits. Bit forks keep $\lambda = 0.3$, so their length bits still change the
+output. Derived forks carry no bits and use $\lambda = 0.02$.
+
+### Foliage and color
+
+**Colors use no bits.** They come from the color of the hill the tree stands on,
+darkened per channel in integers ($c \cdot n / 100$), so trees always read as
+darker than their hill and follow its biome and season:
+
+| Part | Darkened to |
+|---|---:|
+| Trunk and branches | 40% |
+| Foliage (by element index, cycling) | 52%, 58%, 48% |
+
+| Species | Foliage |
+|---|---|
+| Conifer | A straight feather of needles around every non-stem branch: a hexagon widest near the branch base (half-width $0.18L + G$) and tapering past the tip. Feathers shrink toward their branch to stay above the bottom-10% floor, or are dropped. The stem ends in a needle-sharp tip, at least three times its end width. |
+| Deciduous | None for now: trees are bare branch skeletons (canopy deferred). |
+| Cactus | A round cap (radius = girth / 2) on each arm, in the trunk color |
+| Joshua tree | A tuft of five spikes at each branch tip, at −60° to 60° from a constant table, of length $0.45L + 2G$ |
+
+### SVG
+
+Each tree is a `<g class="tree" id="tree-N">` group, numbered from 1. One element
+per line, in this order:
+
+1. the trunk and every branch, breadth-first (a cactus arm is two paths),
+2. conifer feathers, in branch order,
+3. foliage on terminal branches, in branch order (paths, and circles for cacti).
+
+### Injectivity
+
+For a fixed algorithm version, theme, season, target resolution, and hill
+context, the map from the 48 Trees bits to the trees' SVG output is injective:
+
+* The number of tree groups gives the count, which fixes the count code.
+* For each arrangement and size pair, the allocation is known. Each field
+  changes a known element: girth and height change the trunk, and bit fork $k$
+  changes its two child branches (four elements for a cactus). Derived forks
+  depend on the decoded values but add no bits of their own.
+
+`make verify` decodes every field by exact comparison of SVG lines, tries all 16
+arrangement and size pairs, and requires exactly one to reproduce the trees
+exactly, including all derived detail.
+
+Latest run: 200 hashes for each of the 16 biome and season pairs (16,463
+trees). 0 mismatches, and no ambiguous pairs.
 
 ### Dependencies
 
-* Consumes: the theme and season from Global, the landscape's depth model, and
-  the hill profiles advertised by Hills (subspec/hills.md), so trees can be
-  planted on hills. Hills is generated first.
+* Consumes: the theme from Global, and the hill profiles, surfaces, and colors
+  from Hills (generated first). The season reaches trees only through the hill
+  color.
 * Provides: tree placements and depths, used by Fog and for occlusion.
+
+### Open decisions
+
+* **Conifer droop is subtle at gallery size.** The first segment of each side
+  branch is still straight, so boughs can read as straight spikes. Next step:
+  draw each side branch as several segments that curve progressively downward.
+* **Deciduous canopy is deferred.** The season table in `SPECIFICATIONS.md`
+  (spring and summer greens, fall oranges, bare winter trees with snow spots)
+  is not yet implemented for trees.
+* Groves of 10 trees can get dense in the center. The member spacing may need
+  to widen.
+* With few bit forks, the lowest conifer whorl can be one-sided.
+* Positions are limited to $[0.04W, 0.96W]$. They depend only on the header, and
+  verify confirms injectivity, but the limit is a clamp and should become an
+  interval mapping.
+* Whether trees should be checked to stay below the canvas top. They currently
+  reach well under it, but there is no static bound yet.
 
 ### Status
 
-Subnamespace widths, the presence rule, and interpretation rules are not yet defined.
+Proposed and implemented in the reference renderer; visual tuning in progress.

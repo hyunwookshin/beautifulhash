@@ -43,6 +43,20 @@ struct Hill {
     HillProfile profile;
 };
 
+// One drawn part of a tree: a polygon, or a circle when `poly` is empty.
+struct TreeShape {
+    std::vector<Point> poly;
+    Point center{0, 0};
+    double radius = 0;
+    uint32_t rgb = 0;
+};
+
+struct Tree {
+    std::vector<TreeShape> shapes;  // branches breadth-first, then foliage
+    int hill = 0;                   // index into Scene::hills it stands on
+    int group = 0;                  // trees::Group
+};
+
 struct Fog {
     bool enabled = false;
 };
@@ -51,6 +65,7 @@ struct Scene {
     int version = 0;
     std::vector<Ridge> ridges;  // front to back: ridges[0] is Ridge 1
     std::vector<Hill> hills;    // front to back: hills[0] is the front (or only) hill
+    std::vector<Tree> trees;    // in drawing order within each hill
     Fog fog;
 };
 
