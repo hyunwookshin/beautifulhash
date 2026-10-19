@@ -4,7 +4,8 @@
 
 *Alpine biome, three-ridge mode, rendered by the reference implementation from
 hash `84229c574f649ea55d9bedbdfb4bfa7439a87f611f01c32af4d6e15c59fd5e79`.
-This image shows the Mountains namespace only; Hills is now implemented too.*
+This image shows the Mountains namespace only. Hills and Trees are now
+implemented too; `make gallery` renders full scenes in every biome and season.*
 
 The project is to turn any input (strings, numbers, pdfs) into a beautiful,
 distinctive, and repeatable landscape imagery in SVG format.
@@ -59,9 +60,12 @@ directly. The hash is then mapped to an image that depicts a beautiful landscape
 
 Strict uniqueness, where every SHA-256 hash maps to a different landscape, is a
 design objective, not a guarantee. V0 aims to preserve all 256 bits of the hash
-in its SVG output, which requires an injective hash-to-SVG mapping. That mapping
-has not been designed yet, and it must be proven rather than just tested (see
-collision considerations below).
+in its SVG output, which requires an injective hash-to-SVG mapping. The
+Mountains, Hills, and Trees namespaces are designed to be injective, and
+`make verify` checks this by decoding their bits back from rendered SVG text.
+The remaining namespaces are not designed yet, and the mapping must
+ultimately be proven rather than just tested (see collision considerations
+below).
 
 Separately, two different inputs are not guaranteed to produce different hashes,
 although a SHA-256 collision would be an astronomically rare event.
@@ -73,6 +77,29 @@ Even if the generator can represent at least $2^{256}$ different parameter combi
 The mapping must be injective to provide such a guarantee.
 
 The number of available combinations and the uniqueness of the mapping are different mathematical questions.
+
+### Current Status
+
+The reference implementation in `core/` (C++17) draws three of the eight
+namespaces. Each is specified under `subspec/`:
+
+| Namespace | Status |
+|---|---|
+| Mountains | Implemented: two or three layered ridges, biome styling (snow caps, conifer and canopy tree lines), and seasonal palettes |
+| Hills | Implemented: one or two smooth hills below the mountains |
+| Trees | Implemented, visual tuning in progress: 1 to 10 fractal trees per scene (conifers, deciduous trees with seasonal leaves, cacti, Joshua trees) |
+| Global, Sky, Celestial, Vegetation, Fog | Not yet implemented. Theme and season are fixed per gallery configuration until Global is built |
+
+### Building
+
+```sh
+make              # build into build/
+make verify       # quick checks (about 1.5 min); must print ALL CHECKS PASSED
+make verify-full  # the same checks with 5x the samples, before releases
+make gallery      # render gallery/index.html: every biome and season on the same hashes
+```
+
+The build needs only a C++17 compiler.
 
 ### Implementation Architecture
 
@@ -181,10 +208,8 @@ Native and WebAssembly builds must produce identical canonical scene digests and
 The following remain unresolved and should not be treated as finalized V0 requirements:
 
 * Unicode normalization policy for the string wrapper
-* PRNG algorithm and stream derivation
 * Theme-selection distribution
-* Exact mountain and hill geometry algorithms
-* Tree branching and vegetation generation algorithms
+* Final tuning of the tree algorithms, and the vegetation algorithm
 * Palette definitions
 * Fog model
 * Canonical scene serialization format
