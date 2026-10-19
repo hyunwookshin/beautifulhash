@@ -15,6 +15,15 @@ A primary group of trees is always present, and an additional arrangement is
 optional. When the additional trees are absent, their bits must be
 redistributed within the namespace.
 
+### Seasons
+
+Colors are thematic families of coordinated shades, not single hex values
+(SPECIFICATIONS.md, Seasons).
+
+* **Winter:** Temperate broadleaf trees are bare, with no leaves, and
+  occasionally carry white snow spots. Conifers keep their foliage.
+* **Spring, summer, and fall:** trees keep their foliage.
+
 ### Subnamespaces (conceptual)
 
 * Primary Trees
@@ -22,7 +31,8 @@ redistributed within the namespace.
 
 ### Dependencies
 
-* Consumes: the theme from Global and the landscape's depth model. Trees does not depend on Hills.
+* Consumes: the theme and season from Global, and the landscape's depth model.
+  Trees does not depend on Hills.
 * Provides: tree placements and depths, used by Fog and for occlusion.
 
 ### Status

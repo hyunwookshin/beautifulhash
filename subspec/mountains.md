@@ -685,6 +685,29 @@ height is $16 \cdot (0.55\text{–}1.3) \cdot g$.
 
 Palette only; no textures or overlays.
 
+#### Seasons
+
+The season (SPECIFICATIONS.md, Seasons) is context from Global, like the biome.
+For mountains it changes only the Temperate palette:
+
+Each entry is a thematic color family realized as a palette of coordinated
+shades, not a single color.
+
+| Season | Temperate mountain palette |
+|---|---|
+| Winter | Shades of bluish gray instead of bluish teal |
+| Spring | Unchanged (bluish teal) |
+| Summer | Unchanged (bluish teal) |
+| Fall | Shades of yellowish orange instead of bluish teal |
+
+Alpine, Tundra, and Desert mountains are the same in every season. Alpine snow
+caps and tree textures are present in every season.
+
+A seasonal palette is a separate color family. It keeps the same structure as
+the biome palettes (per-role lightness bands, 256 + 256 + 16 entries), and every
+entry must serialize to a distinct `#RRGGBB`, checked per (biome, season). The
+seasonal families are not yet implemented in the reference renderer.
+
 ### Bit layouts (provisional)
 
 Within each ridge, bits are consumed in this order: left anchor, right anchor,
@@ -913,7 +936,7 @@ level, rather than a quarter, so real steps are usually much larger.
 
 ### Injectivity of the 88-bit mapping
 
-**Claim.** For a fixed algorithm version, theme, and target resolution, the map
+**Claim.** For a fixed algorithm version, theme, season, and target resolution, the map
 from the 88 Mountains bits to the Mountains SVG fragment is injective.
 
 **Output structure.** The fragment is a sequence of ridge elements with fixed
@@ -994,9 +1017,9 @@ and off.
 
 ### Dependencies
 
-* Consumes: the theme (biome) and broad composition constraints from Global
-  (roughness, vertical scale, color palettes, foreground level) and the lighting
-  mode from Sky.
+* Consumes: the theme (biome), season, and broad composition constraints from
+  Global (roughness, vertical scale, color palettes, foreground level) and the
+  lighting mode from Sky.
 * Internal: each ridge's placement depends on the already placed ridges in
   front of it. This uses their decoded geometry, never their raw bits.
 * Provides: ridge silhouettes, colors, and depths, used by Fog and for occlusion.
@@ -1022,6 +1045,10 @@ and off.
 * Biome styling parameters: snowline fraction (1/3), snowline wave amplitude and
   decay (36, 0.85), tree threshold (0.35), conifer height and valley cut (18, 8),
   canopy height (16), texture spacing.
+* Seasonal Temperate palettes: exact hue ranges for winter (bluish gray) and
+  fall (yellowish orange).
+* Whether mountains should carry a subtle seasonal tint in every biome, so all
+  four seasons render distinctly (see SPECIFICATIONS.md, Seasons).
 * Jagged detail parameters: decay $\lambda$ (0.75), floor $f$ (0.35), and the depth of
   middle and back ridges (6).
 * Whether tree density should stay tied to the terrain's own values or come from

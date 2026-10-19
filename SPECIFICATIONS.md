@@ -114,6 +114,46 @@ A theme changes styling only: color palettes, textures, and overlays such as sno
 
 Themes share the same underlying generation framework while providing distinct visual characteristics. Per-namespace effects are specified in each subspec; see [subspec/mountains.md](subspec/mountains.md), Biome styling.
 
+## Seasons
+
+Two bits of the Global namespace select one of four seasons: winter, spring,
+summer, or fall. Like the theme, the season is context: Global decides it, and
+other namespaces consume it without reading Global's bits. A season changes
+styling only, never hash-derived geometry or placement.
+
+Color names below describe thematic color families, not literal hex values.
+"Green" means a palette of coordinated natural greens (sage, moss, deep
+forest), "white" means snowy whites and pale blue-grays, and "yellowish orange"
+means autumnal golds, ambers, and rusts. Each family is realized as a palette of
+many distinct shades, chosen by hash bits and constrained by the biome, in the
+same way as the mountain palettes (subspec/mountains.md, Ridge color).
+
+The season cascades through every layer it affects:
+
+| Season | Mountains | Hills | Trees | Foreground vegetation |
+|---|---|---|---|---|
+| Winter | Temperate: shades of bluish gray instead of the usual palette. Other biomes unchanged. | Shades of white, in every biome | Temperate broadleaf trees are bare, with occasional white (snow) spots | Shades of white, in every biome |
+| Spring | Unchanged | Green | Unchanged | Temperate and Tundra: varied flower colors (yellow, pink, blue). Not Alpine. |
+| Summer | Unchanged (the baseline palettes) | Green | Unchanged | Green |
+| Fall | Temperate: shades of yellowish orange instead of the usual palette. Other biomes unchanged. | Green | Unchanged | Green |
+
+Rules:
+
+* **Winter overrides the biome** for hills and vegetation: they are shades of
+  white whatever the biome's own palette is.
+* **Summer is the baseline:** it uses each biome's standard palettes and
+  textures as specified in the subspecs.
+* **Biome styling still applies** unless a season rule above replaces it. For
+  example, Alpine snow caps and conifer textures are present in every season.
+* **Distinct output per season:** under the 256-bit entropy preservation
+  objective, the two season bits must change the SVG in every biome, so all
+  four seasons must render differently. The rules above do not yet guarantee
+  this. Spring, summer, and fall render identically in Alpine and Desert, and
+  summer and fall render identically in Tundra. These gaps must be closed
+  before V0 is frozen, for example with a subtle seasonal tint per biome.
+
+Per-namespace details are in each subspec.
+
 ## Deterministic Scene Generation
 
 ### Architecture
@@ -220,7 +260,7 @@ The proposed V0 allocation is:
 
 | Namespace | Bit range | Width | Responsibility |
 |---|---|---:|---|
-| Global | 0–15 | 16 | Theme selection and overall composition |
+| Global | 0–15 | 16 | Theme, season, and overall composition |
 | Sky | 16–39 | 24 | Sky colors, clouds, atmospheric conditions |
 | Celestial | 40–47 | 8 | Sun, moon, position, and lighting |
 | Mountains | 48–135 | 88 | Mountain ridges and their geometry |
@@ -241,6 +281,7 @@ SHA-256 (256 bits)
 │
 ├── Global (16 bits)
 │   ├── Theme
+│   ├── Season
 │   └── Composition
 │
 ├── Sky (24 bits)

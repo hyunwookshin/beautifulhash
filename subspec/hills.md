@@ -17,6 +17,15 @@ namespace. Hillside trees may be introduced in a later version.
 When the secondary hill is absent, its bits must be redistributed within the
 namespace.
 
+### Seasons
+
+Colors are thematic families of coordinated shades, not single hex values
+(SPECIFICATIONS.md, Seasons).
+
+* **Winter:** hill surfaces are shades of white, in every biome. This overrides
+  the biome's own hill palette.
+* **Spring, summer, and fall:** hill surfaces are green.
+
 ### Subnamespaces (conceptual)
 
 * Primary Hill
@@ -24,7 +33,7 @@ namespace.
 
 ### Dependencies
 
-* Consumes: the theme from Global.
+* Consumes: the theme and season from Global.
 * Provides: hill silhouettes and depths, used by Fog and for occlusion.
 
 ### Status
