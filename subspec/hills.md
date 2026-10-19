@@ -113,8 +113,8 @@ selected by the color bits. They follow the biome and season
 
 | Season | Family |
 |---|---|
-| Spring, summer, fall | Green, tinted by biome: Alpine blue-green (140–175°), Temperate fresh green (100–170°), Tundra muted olive-green (95–135°, chroma ×0.7), Desert olive (70–125°, chroma ×0.9) |
-| Winter | Snowy tints in every biome: pale blue-whites through lavender-whites (195–290°), very light and low in chroma, still varied by the color bits |
+| Spring, summer, fall | Green, tinted by biome: Alpine muted sage green (130–160°, chroma ×0.7), Temperate olive to moss green (95–150°, chroma ×0.75), Tundra muted olive-green (95–135°, chroma ×0.7), Desert olive (70–125°, chroma ×0.9) |
+| Winter | Snowy tints in every biome: pale blue-whites through lavender-whites (220–290°, chroma ×0.5), very light and low in chroma. Hues below 220° read as pure cyan and are avoided, still varied by the color bits |
 
 | Palette | Entries | Lightness (non-winter) | Lightness (winter) |
 |---|---:|---|---|

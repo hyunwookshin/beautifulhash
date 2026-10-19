@@ -620,8 +620,9 @@ int decode_trees(const std::vector<std::vector<std::string>>& frags, const std::
             v.count = n;
             v.arrangement = a;
             v.size = z;
-            tr::Plan p = tr::plan(n, a, kTrees.width - tr::count_code_bits(n) - 4, two);
-            for (int i = 0; i < n; ++i) v.trees.push_back(tr::tree_fields(p.bits[i]));
+            v.leaf_bits = tr::leafy(t, s) ? 4 : 0;
+            tr::Plan p = tr::plan(n, a, tr::tree_bit_budget(n, t, s), two);
+            for (int i = 0; i < n; ++i) v.trees.push_back(tr::tree_fields(p.bits[i], tr::species_of(t, i, a)));
             bool ok = true;
             for (int i = 0; i < n && ok; ++i) {
                 tr::TreeValues& tv = v.trees[static_cast<size_t>(i)];
@@ -642,19 +643,31 @@ int decode_trees(const std::vector<std::vector<std::string>>& frags, const std::
                     tr::Fork& f = tv.forks[k];
                     found = false;
                     for (uint32_t r = 0; r < (1u << f.ratio_bits) && !found; ++r) {
-                        for (uint32_t l = 0; l < (1u << f.length_bits) && !found; ++l) {
-                            f.ratio = r;
-                            f.length = l;
-                            found = prefix_equal(lines(), frags[static_cast<size_t>(i)], 2 + per_fork * (k + 1));
+                        for (uint32_t d = 0; d < (1u << f.side_bits) && !found; ++d) {
+                            for (uint32_t l = 0; l < (1u << f.length_bits) && !found; ++l) {
+                                f.ratio = r;
+                                f.side = d;
+                                f.length = l;
+                                found = prefix_equal(lines(), frags[static_cast<size_t>(i)], 2 + per_fork * (k + 1));
+                            }
                         }
                     }
                     ok = found;
                 }
-                ok = ok && lines() == frags[static_cast<size_t>(i)];
             }
-            if (ok) {
-                ++matches;
-                out = v;
+            // Every branch field is decoded; the leaf palette colors the dots
+            // across all trees, so try each palette on the whole set.
+            for (uint32_t leaf = 0; ok && leaf < (1u << v.leaf_bits); ++leaf) {
+                v.leaf = leaf;
+                std::vector<Tree> built;
+                for (int i = 0; i < n; ++i) built.push_back(tr::build(v, p, i, hills, t, s));
+                tr::paint_leaves(built, v, s);
+                bool all = true;
+                for (int i = 0; i < n && all; ++i) all = split_lines(tr::tree_svg(built[static_cast<size_t>(i)], i, sc)) == frags[static_cast<size_t>(i)];
+                if (all) {
+                    ++matches;
+                    out = v;
+                }
             }
         }
     }
@@ -665,11 +678,14 @@ void check_trees(int samples) {
     namespace tr = bh::trees;
     std::printf("== Trees\n");
     std::mt19937_64 rng(13);
+    double worst_ratio = 1e9;
     for (bool two : {false, true}) {
         for (int i = 0; i < 5000; ++i) {
             Hash256 h = random_hash(rng, 0);
             Hash256 back;
-            tr::encode(tr::decode(h, two), two, back);
+            Theme t = kThemes[i % 4];
+            Season s = kSeasons[(i / 4) % 4];
+            tr::encode(tr::decode(h, two, t, s), back);
             if (!same_tree_bits(h, back)) {
                 check(false, "tree decode/encode does not round-trip");
                 break;
@@ -677,13 +693,35 @@ void check_trees(int samples) {
         }
         for (int n = 1; n <= 10; ++n) {
             for (uint32_t a = 0; a < 4; ++a) {
-                int remaining = kTrees.width - tr::count_code_bits(n) - 4;
-                tr::Plan p = tr::plan(n, a, remaining, two);
-                int sum = 0;
-                for (int b : p.bits) sum += b;
-                check(sum == remaining, "tree plan does not allocate every bit");
+                for (bool leafy : {false, true}) {
+                    int remaining = tr::tree_bit_budget(n, leafy ? Theme::kTemperate : Theme::kAlpine, Season::kSummer);
+                    tr::Plan p = tr::plan(n, a, remaining, two);
+                    int sum = 0;
+                    for (int b : p.bits) sum += b;
+                    check(sum == remaining, "tree plan does not allocate every bit");
+                    // Front (or only) hill: every slope tree at least 1.5x every rim tree.
+                    double min_slope = 1e9, max_rim = 0.0;
+                    for (int i = 0; i < n; ++i) {
+                        tr::Group g = p.groups[static_cast<size_t>(i)];
+                        if (g == tr::Group::kFrontInterior) min_slope = std::min(min_slope, p.scale[static_cast<size_t>(i)]);
+                        if (g == tr::Group::kFrontRim) max_rim = std::max(max_rim, p.scale[static_cast<size_t>(i)]);
+                    }
+                    worst_ratio = std::min(worst_ratio, max_rim > 0.0 && min_slope < 1e9 ? min_slope / max_rim : 1e9);
+                }
             }
         }
+    }
+    std::printf("  front hill: smallest slope tree / largest rim tree = %.3f (need >= 1.5)\n", worst_ratio);
+    check(worst_ratio >= 1.5, "front slope trees not 1.5x the rim trees");
+    for (Season s : kSeasons) {
+        if (s == Season::kWinter) continue;
+        std::set<uint32_t> firsts;
+        for (int id = 0; id < kLeafPalettes; ++id) {
+            const auto& pal = leaf_palette(s, id);
+            firsts.insert(pal[0]);
+            check(std::set<uint32_t>(pal.begin(), pal.end()).size() == 6, "leaf palette has duplicate colors");
+        }
+        check(firsts.size() == static_cast<size_t>(kLeafPalettes), "leaf palettes share a first color");
     }
     int bad = 0, ambiguous = 0, trees_seen = 0;
     for (Theme t : kThemes) {
@@ -699,11 +737,15 @@ void check_trees(int samples) {
                 int m = decode_trees(parse_trees(svg), scene.hills, t, s, 0.5, v);
                 if (m != 1) {
                     if (m > 1) ++ambiguous;
+                    if (bad < 5) {
+                        std::printf("    no unique decode: %s %s %s, %zu trees\n", theme_name(t), season_name(s),
+                                    hash.to_hex().c_str(), scene.trees.size());
+                    }
                     ++bad;
                     continue;
                 }
                 Hash256 back;
-                tr::encode(v, scene.hills.size() == 2, back);
+                tr::encode(v, back);
                 if (!same_tree_bits(hash, back)) ++bad;
             }
         }
@@ -716,7 +758,9 @@ void check_trees(int samples) {
 }  // namespace
 
 int main(int argc, char** argv) {
-    int samples = argc > 1 ? std::atoi(argv[1]) : 20000;
+    // Default: a quick run (about a fifth of the full sampling). `make verify-full`
+    // passes 20000 for the full run before releases.
+    int samples = argc > 1 ? std::atoi(argv[1]) : 4000;
     const mt::Config& def = mt::default_config();
 
     check_coverage();

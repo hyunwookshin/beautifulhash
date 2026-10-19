@@ -38,6 +38,8 @@ void force_tree_count(Hash256& h, int n) {
     }
 }
 
+std::string tree_count_label(int n) { return std::to_string(n) + (n == 1 ? " tree" : " trees"); }
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -63,16 +65,16 @@ int main(int argc, char** argv) {
     for (const Variant& v : all) configs.push_back(mt::make_config(v.params));
 
     std::string html =
-        "<!doctype html><meta charset=\"utf-8\"><title>Mountain Gallery</title>\n"
+        "<!doctype html><meta charset=\"utf-8\"><title>BeautifulHash Gallery</title>\n"
         "<style>body{font:14px system-ui,sans-serif;margin:24px;background:#f4f4f2;color:#222}"
         "h2{margin-top:40px}table{border-collapse:separate;border-spacing:8px}"
         "th{font-weight:600;text-align:center}td.h{font:11px monospace;color:#888;max-width:90px;word-break:break-all}"
         "img{width:400px;display:block;border-radius:4px;box-shadow:0 1px 3px #0003}"
         "label{position:sticky;top:0;background:#f4f4f2;display:block;padding:8px 0;z-index:1}</style>\n"
-        "<h1>Mountain Gallery</h1>\n"
-        "<p>Seed " + std::to_string(seed) + ". Every column within a sweep uses the same hashes; only one "
-        "parameter changes. Ground level G = 340 for all variants. Only the Mountains namespace "
-        "(bits 48&ndash;135) is used.</p>\n"
+        "<h1>BeautifulHash Gallery</h1>\n"
+        "<p>Seed " + std::to_string(seed) + ". One table per biome, one column per season. Every cell in a "
+        "row uses the same hash, so only the biome and season change. Mountains, hills, and trees all come "
+        "from the hash.</p>\n"
         "<label><input type=\"checkbox\" id=\"fog\" checked> Fog</label>\n";
 
     for (const Group& g : variant_groups()) {
@@ -87,6 +89,7 @@ int main(int argc, char** argv) {
         html += "</tr>\n";
         for (size_t i = 0; i < hashes.size(); ++i) {
             html += "<tr><td class=\"h\">" + std::string(i < static_cast<size_t>(per_mode) ? "2 ridges" : "3 ridges") +
+                    "<br>" + tree_count_label(trees::decode(hashes[i], false, Theme::kAlpine, Season::kSummer).count) +
                     "<br>" + hashes[i].to_hex().substr(12, 22) + "&hellip;</td>";
             for (size_t v : members) {
                 Scene scene;

@@ -55,6 +55,8 @@ struct Tree {
     std::vector<TreeShape> shapes;  // branches breadth-first, then foliage
     int hill = 0;                   // index into Scene::hills it stands on
     int group = 0;                  // trees::Group
+    double x = 0.0;                 // base position, for left-to-right leaf order
+    int leaves = 0;                 // leaf dots: the last `leaves` shapes, left to right
 };
 
 struct Fog {

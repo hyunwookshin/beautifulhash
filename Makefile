@@ -22,10 +22,13 @@ gallery: $(BUILD)/gallery
 verify: $(BUILD)/verify
 	./$(BUILD)/verify
 
+verify-full: $(BUILD)/verify
+	./$(BUILD)/verify 20000
+
 clean:
 	rm -rf $(BUILD) gallery
 
-.PHONY: all gallery verify clean
+.PHONY: all gallery verify verify-full clean
 
 # Keep object files (otherwise make deletes them as intermediates).
 .SECONDARY:

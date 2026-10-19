@@ -25,8 +25,8 @@ inline std::vector<Group> variant_groups() {
     std::vector<Group> out;
     for (Theme t : kThemes) {
         out.push_back({theme_name(t), std::string(theme_name(t)) +
-                                          " (summer): 1, 3, 6, and 10 trees on identical hashes. Only the tree "
-                                          "count is forced; everything else comes from the hash."});
+                                          ": all four seasons on identical hashes. Everything, including the "
+                                          "tree count, comes from the hash."});
     }
     return out;
 }
@@ -34,11 +34,11 @@ inline std::vector<Group> variant_groups() {
 inline std::vector<Variant> variants() {
     std::vector<Variant> out;
     for (Theme t : kThemes) {
-        for (int n : {1, 3, 6, 10}) {
+        for (Season s : kSeasons) {
             mountains::Params p;
             p.theme = t;
-            p.season = Season::kSummer;
-            out.push_back({theme_name(t), std::to_string(n) + (n == 1 ? " tree" : " trees"), p, n});
+            p.season = s;
+            out.push_back({theme_name(t), season_name(s), p, 0});
         }
     }
     return out;

@@ -18,8 +18,8 @@ enum class Species { kConifer, kDeciduous, kCactus, kJoshua };
 enum class Group { kFrontRim, kBackRim, kFrontInterior, kBackInterior };
 
 struct Fork {
-    int ratio_bits = 0, length_bits = 0;
-    uint32_t ratio = 0, length = 0;
+    int ratio_bits = 0, side_bits = 0, length_bits = 0;
+    uint32_t ratio = 0, side = 0, length = 0;  // side: deciduous only
 };
 
 struct TreeValues {
@@ -32,6 +32,8 @@ struct Values {
     int count = 1;               // 1-10, prefix-coded
     uint32_t arrangement = 0;    // 2 bits: which group sequence
     uint32_t size = 0;           // 2 bits: global scale class
+    int leaf_bits = 0;           // 4 when leafy(), else 0
+    uint32_t leaf = 0;           // leaf palette
     std::vector<TreeValues> trees;
 };
 
@@ -45,11 +47,13 @@ struct Plan {
     std::vector<Role> roles;
     std::vector<double> x;           // position along the hill, logical units
     std::vector<double> prominence;  // size multiplier from the composition
+    std::vector<double> slope;       // interior trees: fraction of the way down from the rim (0 on the rim)
+    std::vector<double> scale;       // perspective, prominence, and slope depth (before the size class)
     std::vector<int> bits;
 };
 
 Plan plan(int count, uint32_t arrangement, int remaining, bool two_hills);
-TreeValues tree_fields(int bits);  // field widths for a tree with this many bits
+TreeValues tree_fields(int bits, Species species);  // field widths for a tree with this many bits
 
 // Species by biome: conifers in Alpine and Tundra, deciduous in Temperate, and
 // cactus or Joshua tree alternating in Desert (by index and arrangement).
@@ -58,11 +62,22 @@ Species species_of(Theme theme, int index, uint32_t arrangement);
 // Prefix code for the count: 2-7 use 3 bits, 1 and 8-10 use 4 bits.
 int count_code_bits(int count);
 
-Values decode(const Hash256& hash, bool two_hills);
-void encode(const Values& values, bool two_hills, Hash256& hash);
+// Whether deciduous leaves are drawn, and so whether the 4 leaf palette bits
+// are read: Temperate, except in winter.
+bool leafy(Theme theme, Season season);
+
+// Bits left for the trees after the header.
+int tree_bit_budget(int count, Theme theme, Season season);
+
+Values decode(const Hash256& hash, bool two_hills, Theme theme, Season season);
+void encode(const Values& values, Hash256& hash);
 
 // Builds tree `index` (needs the hills it stands on).
 Tree build(const Values& v, const Plan& plan, int index, const std::vector<Hill>& hills, Theme theme, Season season);
+
+// Colors the leaf dots of every tree: trees from left to right, each tree's
+// dots in its own left-to-right order, cycling through the six palette colors.
+void paint_leaves(std::vector<Tree>& trees, const Values& v, Season season);
 
 std::vector<Tree> generate(const Hash256& hash, const std::vector<Hill>& hills, Theme theme, Season season);
 

@@ -7,6 +7,7 @@
 
 #include "format.hpp"
 #include "mountains.hpp"
+#include "palette.hpp"
 #include "partition.hpp"
 
 namespace bh::trees {
@@ -38,14 +39,18 @@ int weight(Group g, bool two) {
     return 1;
 }
 
-// Perspective scale: a considerable jump between the back and front hills.
+// Perspective scale: a considerable jump between the back and front hills. On
+// the front (or only) hill, slope trees stand nearest the viewer: with the
+// role prominences (0.8-1.15), the smallest slope tree is still at least 1.5
+// times the largest rim tree (1.4 * 0.8 vs 0.6 * 1.15; one hill: 1.3 * 0.8 vs
+// 0.55 * 1.15).
 double perspective(Group g, bool two) {
-    if (!two) return is_interior(g) ? 0.9 : 0.7;
+    if (!two) return is_interior(g) ? 1.3 : 0.55;
     switch (g) {
-        case Group::kFrontInterior: return 1.0;
-        case Group::kFrontRim: return 0.8;
-        case Group::kBackInterior: return 0.55;
-        case Group::kBackRim: return 0.45;
+        case Group::kFrontInterior: return 1.4;
+        case Group::kFrontRim: return 0.6;
+        case Group::kBackInterior: return 0.45;
+        case Group::kBackRim: return 0.38;
     }
     return 1.0;
 }
@@ -53,7 +58,7 @@ double perspective(Group g, bool two) {
 const double kSizeClass[4] = {0.8, 0.95, 1.1, 1.25};
 const int kLongCounts[4] = {1, 8, 9, 10};  // counts with 4-bit codes
 constexpr double kTan22_5 = 0.41421356237309515;  // tan(22.5 degrees): a 45-degree fork
-constexpr size_t kMaxForks = 63;
+constexpr size_t kMaxForks = 127;
 constexpr size_t kMaxConiferForks = 127;
 
 double unit_of(uint32_t v, int bits) { return bits == 0 ? 0.5 : v / static_cast<double>((1u << bits) - 1u); }
@@ -209,11 +214,19 @@ Plan plan(int count, uint32_t arrangement, int remaining, bool two_hills) {
         p.x[i] = std::min(0.96 * kCanvasWidth, std::max(0.04 * kCanvasWidth, p.x[i]));
         int role_weight = 3;
         switch (p.roles[i]) {
-            case Role::kLeader: p.prominence[i] = 1.2; role_weight = 6; break;
-            case Role::kMember: p.prominence[i] = 0.65 + 0.2 * frac(0.6180339887498949 * (i + 1)); role_weight = 3; break;
+            case Role::kLeader: p.prominence[i] = 1.15; role_weight = 6; break;
+            case Role::kMember: p.prominence[i] = 0.8 + 0.15 * frac(0.6180339887498949 * (i + 1)); role_weight = 3; break;
             case Role::kIsolated: p.prominence[i] = 1.0; role_weight = 5; break;
-            case Role::kStraggler: p.prominence[i] = 0.6; role_weight = 2; break;
+            case Role::kStraggler: p.prominence[i] = 0.8; role_weight = 2; break;
         }
+        double phi = frac(0.6180339887498949 * (i + 1) + 0.25 * arrangement);
+        p.slope.push_back(is_interior(p.groups[i]) ? 0.30 + 0.35 * frac(phi * 7.0) : 0.0);
+        // Front (or only) hill slope trees grow with their depth below the
+        // rim: nearer the viewer, larger, from 1x at the shallowest to 1.6x at
+        // the deepest. The factor is at least 1, so the 1.5x rule over rim
+        // trees still holds.
+        double depth_scale = p.groups[i] == Group::kFrontInterior ? 1.0 + 0.6 * (p.slope[i] - 0.30) / 0.35 : 1.0;
+        p.scale.push_back(perspective(p.groups[i], two_hills) * p.prominence[i] * depth_scale);
         w[i] = weight(p.groups[i], two_hills) * role_weight;
         total += w[i];
     }
@@ -232,37 +245,46 @@ Plan plan(int count, uint32_t arrangement, int remaining, bool two_hills) {
     return p;
 }
 
-TreeValues tree_fields(int bits) {
+TreeValues tree_fields(int bits, Species species) {
+    // Deciduous forks also carry a side bit: which way the small branch turns.
+    bool sided = species == Species::kDeciduous;
+    int width = sided ? 4 : 3;
     TreeValues t;
     t.girth_bits = std::min(2, bits);
     t.height_bits = std::min(2, bits - t.girth_bits);
     int rest = bits - t.girth_bits - t.height_bits;
-    int forks = rest / 3, left = rest % 3;
-    for (int k = 0; k < forks; ++k) t.forks.push_back({2, 1, 0, 0});
-    if (left > 0) {
-        if (forks > 0) {
-            t.forks.back().ratio_bits += left;
-        } else {
-            t.forks.push_back({left, 0, 0, 0});
-        }
-    }
+    int forks = rest / width, left = rest % width;
+    for (int k = 0; k < forks; ++k) t.forks.push_back({2, sided ? 1 : 0, 1, 0, 0, 0});
+    // Leftover bits refine the trunk height: one step is over a pixel even
+    // on the smallest tree, while a finer ratio on a deep twig could round
+    // to the same SVG.
+    t.height_bits += left;
     return t;
 }
 
-Values decode(const Hash256& hash, bool two_hills) {
+bool leafy(Theme theme, Season season) { return theme == Theme::kTemperate && season != Season::kWinter; }
+
+int tree_bit_budget(int count, Theme theme, Season season) {
+    return kTrees.width - count_code_bits(count) - 4 - (leafy(theme, season) ? 4 : 0);
+}
+
+Values decode(const Hash256& hash, bool two_hills, Theme theme, Season season) {
     BitReader in(hash, kTrees.begin, kTrees.width);
     Values v;
     uint32_t c = in.read(3);
     v.count = c < 6 ? static_cast<int>(c) + 2 : kLongCounts[(c - 6) * 2 + in.read(1)];
     v.arrangement = in.read(2);
     v.size = in.read(2);
+    v.leaf_bits = leafy(theme, season) ? 4 : 0;
+    v.leaf = in.read(v.leaf_bits);
     Plan p = plan(v.count, v.arrangement, in.remaining(), two_hills);
     for (int i = 0; i < v.count; ++i) {
-        TreeValues t = tree_fields(p.bits[i]);
+        TreeValues t = tree_fields(p.bits[i], species_of(theme, i, v.arrangement));
         t.girth = in.read(t.girth_bits);
         t.height = in.read(t.height_bits);
         for (Fork& f : t.forks) {
             f.ratio = in.read(f.ratio_bits);
+            f.side = in.read(f.side_bits);
             f.length = in.read(f.length_bits);
         }
         v.trees.push_back(t);
@@ -274,8 +296,7 @@ Values decode(const Hash256& hash, bool two_hills) {
     return v;
 }
 
-void encode(const Values& v, bool two_hills, Hash256& hash) {
-    (void)two_hills;
+void encode(const Values& v, Hash256& hash) {
     BitWriter out(hash, kTrees.begin, kTrees.width);
     if (v.count >= 2 && v.count <= 7) {
         out.write(3, static_cast<uint32_t>(v.count - 2));
@@ -286,11 +307,13 @@ void encode(const Values& v, bool two_hills, Hash256& hash) {
     }
     out.write(2, v.arrangement);
     out.write(2, v.size);
+    out.write(v.leaf_bits, v.leaf);
     for (const TreeValues& t : v.trees) {
         out.write(t.girth_bits, t.girth);
         out.write(t.height_bits, t.height);
         for (const Fork& f : t.forks) {
             out.write(f.ratio_bits, f.ratio);
+            out.write(f.side_bits, f.side);
             out.write(f.length_bits, f.length);
         }
     }
@@ -302,11 +325,11 @@ Tree build(const Values& v, const Plan& p, int index, const std::vector<Hill>& h
     Tree tree;
     tree.group = static_cast<int>(g);
     tree.hill = two && is_back(g) ? 1 : 0;
+    tree.x = p.x[index];
     const std::vector<Point>& surface = hills[tree.hill].points;
 
     // Position comes from the composition plan (no bits).
     double x = p.x[index];
-    double phi = frac(0.6180339887498949 * (index + 1) + 0.25 * v.arrangement);
     bool interior = is_interior(g);
     if (interior && two && tree.hill == 1) {
         // A back-hill interior tree needs the back hill to rise visibly above
@@ -317,13 +340,12 @@ Tree build(const Values& v, const Plan& p, int index, const std::vector<Hill>& h
     double base_h = top;
     if (interior) {
         double floor = two && tree.hill == 1 ? mountains::height_at(hills[0].points, x) : 0.0;
-        base_h = top - (top - floor) * (0.30 + 0.35 * frac(phi * 7.0));
+        base_h = top - (top - floor) * p.slope[index];
     }
 
     Species sp = species_of(theme, index, v.arrangement);
     Colors col = hill_colors(hills[tree.hill].rgb);
-    (void)season;
-    double scale = kSizeClass[v.size] * perspective(g, two) * p.prominence[index];
+    double scale = kSizeClass[v.size] * p.scale[index];
     const TreeValues& tv = v.trees[index];
     double gv = unit_of(tv.girth, tv.girth_bits), hv = unit_of(tv.height, tv.height_bits);
     double girth_base = sp == Species::kCactus ? 14.0 : sp == Species::kJoshua ? 13.0 : sp == Species::kDeciduous ? 11.0 : 9.0;
@@ -351,8 +373,14 @@ Tree build(const Values& v, const Plan& p, int index, const std::vector<Hill>& h
     std::vector<bool> forked = {false};
     std::vector<bool> stem = {true};  // on the main stem (trunk, then each large child)
     std::vector<int> depth = {0};     // forks between the trunk and this branch
+    std::vector<std::vector<size_t>> kids = {{}};  // children of each branch
+    std::vector<double> split = {0.0};               // ratio of the fork at each branch's end
+    std::vector<double> reach = {0.0};  // conifers: path length from the stem to this branch's end
+    // Conifers: no bough reaches more than a third of the tree's height (about
+    // four trunk lengths) from the stem.
+    double max_reach = 4.0 * trunk.length / 3.0;
     size_t bit_forks = tv.forks.size();
-    double min_length = (sp == Species::kConifer ? 0.12 : 0.06) * trunk.length;
+    double min_length = (sp == Species::kConifer ? 0.12 : 0.03) * trunk.length;
     // Conifers: drooping branches stay above the bottom 10% of the tree, whose
     // height is estimated as four trunk lengths.
     double floor_h = trunk.start.h + 0.1 * 4.0 * trunk.length;
@@ -366,22 +394,32 @@ Tree build(const Values& v, const Plan& p, int index, const std::vector<Hill>& h
     for (size_t idx = 0; idx < open.size() && k < max_forks; ++idx) {
         Branch parent = open[idx];
         double ru, lv;
+        // Deciduous: which way the small branch turns, 1 = left. Bit forks read
+        // it; derived forks flip the source fork's bit by a fixed irregular
+        // (plastic-number) pattern.
+        uint32_t side_bit = 0;
+        double plastic = frac(0.7548776662466927 * static_cast<double>(k + 1));
         if (k < bit_forks) {
             ru = unit_of(tv.forks[k].ratio, tv.forks[k].ratio_bits);
             lv = unit_of(tv.forks[k].length, tv.forks[k].length_bits);
+            side_bit = tv.forks[k].side;
         } else {
             if (parent.length < min_length) continue;
             double base_r = 0.5, base_l = 0.5;
+            uint32_t base_s = 0;
             if (bit_forks > 0) {
                 const Fork& src = tv.forks[(k - bit_forks) % bit_forks];
                 base_r = unit_of(src.ratio, src.ratio_bits);
                 base_l = unit_of(src.length, src.length_bits);
+                base_s = src.side;
             }
             ru = frac(base_r + 0.6180339887498949 * static_cast<double>(k + 1));
             lv = frac(base_l + 0.3819660112501051 * static_cast<double>(k + 1));
+            side_bit = base_s ^ (plastic < 0.5 ? 1u : 0u);
         }
         forked[idx] = true;
         double r = rr.lo + (rr.hi - rr.lo) * ru;
+        split[idx] = r;
         double q = 2.0 * (1.0 - r);
         double t_big = kTan22_5 * q;
         double t_small = 1.0 - (1.0 - kTan22_5) * q;
@@ -393,7 +431,7 @@ Tree build(const Values& v, const Plan& p, int index, const std::vector<Hill>& h
         } else {
             // A fixed irregular pattern (plastic-number sequence), so forks do
             // not alternate strictly and the crown does not tile regularly.
-            side = frac(0.7548776662466927 * static_cast<double>(k + 1)) < 0.5 ? 1.0 : -1.0;
+            side = plastic < 0.5 ? 1.0 : -1.0;
         }
         // Derived forks on a conifer stem grow a full whorl: a side branch on
         // each side (a third child). Bit forks always have exactly two.
@@ -424,16 +462,18 @@ Tree build(const Values& v, const Plan& p, int index, const std::vector<Hill>& h
                     b.dir = sag(turn(sag(parent.dir), 0.8660254037844386, 0.5, -side));  // 30 degrees
                 }
             } else {
-                double s_big = side;
+                double s_big = side, s_small = -side;
                 double tb = t_big;
                 if (sp == Species::kDeciduous) {
-                    // The winner bends half as much and turns back toward
-                    // vertical, so the main trunk keeps growing upward.
+                    // The small branch turns left or right by its side bit. The
+                    // winner bends half as much and turns back toward vertical,
+                    // so the main trunk keeps growing upward; on a vertical
+                    // parent it leans away from the small branch.
+                    s_small = side_bit == 1 ? 1.0 : -1.0;
                     tb = 0.5 * t_big;
-                    if (parent.dir.x > 0.0) s_big = 1.0;
-                    if (parent.dir.x < 0.0) s_big = -1.0;
+                    s_big = parent.dir.x > 0.0 ? 1.0 : parent.dir.x < 0.0 ? -1.0 : -s_small;
                 }
-                b.dir = rotate(parent.dir, c == 0 ? tb : t_small, c == 0 ? s_big : -s_big);
+                b.dir = rotate(parent.dir, c == 0 ? tb : t_small, c == 0 ? s_big : s_small);
             }
             if (sp == Species::kConifer) {
                 // The stem shortens quickly and side branches stay moderate, so
@@ -460,6 +500,16 @@ Tree build(const Values& v, const Plan& p, int index, const std::vector<Hill>& h
                     double room = (b.start.h - floor_h) / (-b.dir.h * 1.25);
                     double lowest = k < bit_forks ? 0.3 : 0.02;
                     b.length *= std::max(lowest, std::min(1.0, room / longest));
+                }
+                if (!(stem[idx] && c == 0)) {
+                    // Bough reach: the same monotone scaling, against the reach left
+                    // before this branch. Derived branches with no reach left are
+                    // not grown at all.
+                    double before = stem[idx] ? 0.0 : reach[idx];
+                    double longest = parent.length * (c == 0 ? 0.82 : stem[idx] ? 0.79 : 0.80) * 1.15;
+                    double fit = (max_reach - before) / longest;
+                    if (k >= bit_forks && fit < 0.02) continue;
+                    b.length *= std::max(k < bit_forks ? 0.3 : 0.0, std::min(1.0, fit));
                 }
             } else {
                 b.length = parent.length * (0.5 + 0.35 * share) * (0.85 + 0.3 * lv);
@@ -488,6 +538,10 @@ Tree build(const Values& v, const Plan& p, int index, const std::vector<Hill>& h
                 b.end = add(b.start, b.dir, b.length);
                 tree.shapes.push_back(quad(b.start, b.end, b.dir, b.girth, b.girth * taper, col.trunk));
             }
+            kids[idx].push_back(open.size());
+            kids.push_back({});
+            split.push_back(0.0);
+            reach.push_back(stem[idx] && c == 0 ? 0.0 : (stem[idx] ? 0.0 : reach[idx]) + b.length);
             open.push_back(b);
             forked.push_back(false);
             stem.push_back(stem[idx] && c == 0);
@@ -496,16 +550,17 @@ Tree build(const Values& v, const Plan& p, int index, const std::vector<Hill>& h
         ++k;
     }
 
-    // Conifers: a straight feather of needles around every side branch, widest
+    // Conifers: a straight feather of needles around every branch, widest
     // near its base and tapering past its tip, so the branches read as pine
-    // boughs rather than bare sticks.
+    // boughs rather than bare sticks. Stem segments get narrower feathers, so
+    // the main trunk is clothed in needles too.
     if (sp == Species::kConifer) {
         for (size_t k = 0; k < open.size(); ++k) {
-            if (stem[k]) continue;
             const Branch& b = open[k];
             Point n{-b.dir.h, b.dir.x};
+            double kind_w = stem[k] ? 0.6 : 1.0;
             auto feather = [&](double scale_w) {
-                double w = (0.18 * b.length + b.girth) * scale_w;
+                double w = (0.18 * b.length + b.girth) * kind_w * scale_w;
                 return std::vector<Point>{b.start, add(add(b.start, b.dir, 0.25 * b.length), n, w),
                                           add(add(b.start, b.dir, 0.6 * b.length), n, 0.75 * w),
                                           add(b.end, b.dir, 0.12 * b.length * scale_w),
@@ -558,15 +613,73 @@ Tree build(const Values& v, const Plan& p, int index, const std::vector<Hill>& h
             }
         }
     }
+
+    // Deciduous leaves: three small dots around every branch tip (left of it,
+    // beyond it, and right of it), with tips in the tree's left-to-right order:
+    // depth-first, leftmost child first. paint_leaves colors them.
+    if (sp == Species::kDeciduous && leafy(theme, season)) {
+        double radius = 1.6 * scale, offset = 2.4 * scale;
+        std::vector<size_t> todo = {0};
+        while (!todo.empty()) {
+            size_t i = todo.back();
+            todo.pop_back();
+            if (kids[i].empty()) {
+                const Branch& b = open[i];
+                Point n{-b.dir.h, b.dir.x};  // to the branch's left
+                const Point around[3] = {{-0.5 * b.dir.x + 0.8660254037844386 * n.x, -0.5 * b.dir.h + 0.8660254037844386 * n.h},
+                                         b.dir,
+                                         {-0.5 * b.dir.x - 0.8660254037844386 * n.x, -0.5 * b.dir.h - 0.8660254037844386 * n.h}};
+                for (const Point& d : around) tree.shapes.push_back(circle(add(b.end, d, offset), radius, 0));
+                tree.leaves += 3;
+                continue;
+            }
+            // A fork also holds leaves floating around it, since the crown is
+            // 3D: more for even splits, none for the most lopsided. One dot
+            // floats beyond the fork; two flank it up-left and up-right; three
+            // do all of these, left to right.
+            double r = split[i];
+            int dots = r < 0.69 ? 3 : r < 0.76 ? 2 : r < 0.83 ? 1 : 0;
+            if (dots > 0) {
+                const Branch& b = open[i];
+                Point n{-b.dir.h, b.dir.x};
+                Point left{0.5 * b.dir.x + 0.8660254037844386 * n.x, 0.5 * b.dir.h + 0.8660254037844386 * n.h};
+                Point right{0.5 * b.dir.x - 0.8660254037844386 * n.x, 0.5 * b.dir.h - 0.8660254037844386 * n.h};
+                std::vector<Point> where = dots == 1 ? std::vector<Point>{b.dir}
+                                           : dots == 2 ? std::vector<Point>{left, right}
+                                                       : std::vector<Point>{left, b.dir, right};
+                for (const Point& d : where) tree.shapes.push_back(circle(add(b.end, d, 1.5 * offset), radius, 0));
+                tree.leaves += dots;
+            }
+            std::vector<size_t> order = kids[i];
+            std::stable_sort(order.begin(), order.end(), [&](size_t a, size_t c) { return open[a].dir.x < open[c].dir.x; });
+            for (size_t j = order.size(); j-- > 0;) todo.push_back(order[j]);
+        }
+    }
     return tree;
+}
+
+void paint_leaves(std::vector<Tree>& trees, const Values& v, Season season) {
+    if (v.leaf_bits == 0) return;
+    const std::vector<uint32_t>& colors = leaf_palette(season, static_cast<int>(v.leaf));
+    std::vector<size_t> order(trees.size());
+    for (size_t i = 0; i < order.size(); ++i) order[i] = i;
+    std::stable_sort(order.begin(), order.end(), [&](size_t a, size_t b) { return trees[a].x < trees[b].x; });
+    size_t next = 0;
+    for (size_t i : order) {
+        Tree& t = trees[i];
+        for (size_t s = t.shapes.size() - static_cast<size_t>(t.leaves); s < t.shapes.size(); ++s) {
+            t.shapes[s].rgb = colors[next++ % colors.size()];
+        }
+    }
 }
 
 std::vector<Tree> generate(const Hash256& hash, const std::vector<Hill>& hills, Theme theme, Season season) {
     bool two = hills.size() == 2;
-    Values v = decode(hash, two);
-    Plan p = plan(v.count, v.arrangement, kTrees.width - count_code_bits(v.count) - 4, two);
+    Values v = decode(hash, two, theme, season);
+    Plan p = plan(v.count, v.arrangement, tree_bit_budget(v.count, theme, season), two);
     std::vector<Tree> out;
     for (int i = 0; i < v.count; ++i) out.push_back(build(v, p, i, hills, theme, season));
+    paint_leaves(out, v, season);
     return out;
 }
 

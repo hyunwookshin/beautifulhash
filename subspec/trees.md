@@ -55,6 +55,10 @@ slope.
 
 **Size (2 bits)** picks a global scale class: 0.8, 0.95, 1.1, or 1.25.
 
+**Leaf palette (4 bits, Temperate except winter only)** picks one of 16
+six-color leaf palettes (see Leaves). In every other biome and in winter there
+are no leaves, so the field is absent and its bits go to the trees.
+
 ### Composition
 
 The count and arrangement fix a composition on each hill, using no further
@@ -63,9 +67,9 @@ bits. The trees on a hill, taken in index order, are given roles:
 | Role | Who | Position | Prominence | Role weight |
 |---|---|---|---:|---:|
 | Isolated | The last tree on the hill (or the only one) | $c \pm 0.38W$, on the far side from the grove (at $c$ when alone) | 1.0 | 5 |
-| Straggler | The second-to-last tree, when the hill has 5 or more | $c \mp 0.2W$, on the other side of the grove | 0.6 | 2 |
-| Leader | The first remaining tree | $c$ | 1.2 | 6 |
-| Member | The other remaining trees | $c + \text{spacing} \cdot o_k$ | $0.65 + 0.2\,\{\varphi(i+1)\}$ | 3 |
+| Straggler | The second-to-last tree, when the hill has 5 or more | $c \mp 0.2W$, on the other side of the grove | 0.8 | 2 |
+| Leader | The first remaining tree | $c$ | 1.15 | 6 |
+| Member | The other remaining trees | $c + \text{spacing} \cdot o_k$ | $0.8 + 0.15\,\{\varphi(i+1)\}$ | 3 |
 
 Here:
 
@@ -94,18 +98,33 @@ trees are drawn in index order.
 
 ### Bit allocation
 
-The remaining $R = 48 - c_b - 4$ bits, where $c_b$ is the count code length (3
-or 4), are split among the trees in proportion to group weight times role
+The remaining $R = 48 - c_b - 4 - \ell$ bits, where $c_b$ is the count code length (3
+or 4) and $\ell$ is the leaf palette width (4 or 0), are split among the trees in proportion to group weight times role
 weight. Nearer and more prominent trees get more branching detail:
 
 | Group | Group weight | Perspective scale |
 |---|---:|---:|
-| Front interior | 8 | 1.0 |
-| Front rim | 6 | 0.8 |
-| Back interior | 4 | 0.55 |
-| Back rim | 3 | 0.45 |
+| Front interior | 8 | 1.4 |
+| Front rim | 6 | 0.6 |
+| Back interior | 4 | 0.45 |
+| Back rim | 3 | 0.38 |
 
-(One-hill mode: interior weight 8 and scale 0.9; rim weight 6 and scale 0.7.)
+(One-hill mode: interior weight 8 and scale 1.3; rim weight 6 and scale 0.55.)
+
+A tree's composition scale is its perspective scale times its prominence,
+times a **depth factor** for slope trees on the front (or only) hill: the
+further down the slope, the nearer the viewer and the larger the tree. With
+$d$ the tree's fraction of the way down from the rim (0.30–0.65, see Height on
+the hill), the factor is $1 + 0.6\,(d - 0.30) / 0.35$, from 1 to 1.6.
+
+**Guarantee:** on the front (or only) hill, every slope tree's composition
+scale is at least 1.5 times every rim tree's: $1.4 \cdot 0.8 = 1.12 \geq 1.5 \cdot 0.6
+\cdot 1.15 = 1.035$, and in one-hill mode $1.3 \cdot 0.8 = 1.04 \geq 1.5 \cdot 0.55
+\cdot 1.15 = 0.949$. The depth factor is at least 1, so it only widens the gap.
+Slope trees stand nearest the viewer, so they read as
+substantially larger than the rim trees, and far larger than the back hill's.
+The per-tree height bits still vary the trunk on top of this scale. `make
+verify` checks the ratio for every count and arrangement (worst case 1.656).
 
 Each tree first gets $\lfloor R \cdot w_i / \sum w \rfloor$ bits. Leftover bits go
 one at a time to the heaviest trees (ties by index), so every bit is used. The
@@ -120,9 +139,11 @@ A tree's bits are read in this order:
 |---|---:|---|
 | Girth | 2 | Trunk width |
 | Height | 2 | Trunk length |
-| Fork 1, 2, … | 3 each (ratio 2, length 1) | Breadth-first forks |
+| Fork 1, 2, … | 3 each (ratio 2, length 1); deciduous 4 (ratio 2, side 1, length 1) | Breadth-first forks |
 
-Leftover bits (1 or 2) extend the last fork's ratio precision. Fields with
+Leftover bits (fewer than one fork) extend the height field. One height step
+moves the trunk by more than a pixel even on the smallest tree, while a finer
+ratio on a deep twig could round to the same SVG coordinates. Fields with
 fewer bits than listed use what is available, and a field with no bits takes
 its midpoint. A value $v$ in a $b$-bit field becomes $u = v / (2^b - 1)$.
 
@@ -173,15 +194,17 @@ u_r = \{u_{\text{ratio}} + 0.6180339887498949\,(k+1)\},
 u_\ell = \{u_{\text{length}} + 0.3819660112501051\,(k+1)\}
 $$
 
-A tree with no bit forks uses 0.5 for both base values. Derived forks skip
-branches shorter than a minimum: 12% of the trunk for conifers, 6% otherwise.
+A deciduous derived fork's side bit is the source fork's side bit, flipped when
+$\{0.7548776662466927\,(k+1)\} < 0.5$. A tree with no bit forks uses 0.5 for both
+base values and 0 for the side bit. Derived forks skip
+branches shorter than a minimum: 12% of the trunk for conifers, 3% otherwise.
 The total number of forks is capped per species, but bit forks always run in
 full:
 
 | Species | Fork cap |
 |---|---:|
 | Conifer | 127 |
-| Deciduous | 63 |
+| Deciduous | 127 |
 | Joshua tree | 7 |
 | Cactus | 3 |
 
@@ -200,17 +223,19 @@ $$
 
 and fixed angles use constant $(\cos, \sin)$ pairs.
 
-**Deciduous, cactus, and Joshua trees: angles come from the ratio.** The large
+**Angles come from the ratio** for deciduous trees, cacti, and Joshua trees. The large
 child tilts by about $90^\circ(1 - r)$ and the small one by about $90^\circ r$, to
 opposite sides. Both are 45° at $r = 0.5$; at $r = 0.95$ they are about 5° and 87°.
-The large child's side follows a fixed irregular pattern, positive when
-$\{0.7548776662466927\,(k+1)\} < 0.5$. The pattern does not alternate strictly,
-so the crown does not tile regularly.
+For cacti and Joshua trees, the large child's side follows a fixed irregular
+pattern, positive (counterclockwise) when $\{0.7548776662466927\,(k+1)\} < 0.5$.
+The pattern does not alternate strictly, so the crown does not tile regularly.
 
-**Deciduous winner rule.** The large child of a deciduous fork bends only half
-as much ($t = t_{\text{large}} / 2$) and always turns back toward vertical. If the
-parent leans right, it turns left, and the reverse. The small child turns the
-other way. The main trunk therefore keeps growing upward while the side limbs
+**Deciduous forks.** The side bit sets which way the small child turns: 1 turns
+it left (counterclockwise), 0 right, so limbs go both ways instead of all
+hanging to one side. The large child (the winner) bends only half as much
+($t = t_{\text{large}} / 2$) and turns back toward vertical: left if the parent leans
+right, and the reverse. On a vertical parent it leans away from the small
+child. The main trunk therefore keeps growing upward while the side limbs
 spread out.
 
 **Cactus arms** leave at the fork angle for 30% of their length, then turn
@@ -253,6 +278,15 @@ Factors multiply the parent's length and girth. Conifer stems and branches
 continue at the parent's end width, so they thin continuously. The short
 internodes give many tiers, and the silhouette tapers into a cone.
 
+**Conifer bough reach.** No bough reaches more than a third of the tree's
+height (estimated as $4L_0$) from the stem, measured along its branches. Every
+branch off the stem is scaled by $\max(\lambda, \min(1, (R - \text{before}) /
+\text{longest}))$, where $R = 4L_0 / 3$ and before is the reach already used by
+its parent. As for the floor, the scale does not depend on the branch's own
+bits. Bit forks keep $\lambda = 0.3$; derived branches use $\lambda = 0$, and a derived
+branch with less than 2% of its longest length left is not grown. Feathers
+may extend a little past a bough's tip.
+
 **Conifer bottom 10%.** The bottom 10% of a conifer stays clear of drooping
 branches, so the trunk shows beneath the crown. The tree's height is estimated
 as $4L_0$, giving a floor at $0.4L_0$ above the base. A downward branch is
@@ -282,10 +316,53 @@ darker than their hill and follow its biome and season:
 
 | Species | Foliage |
 |---|---|
-| Conifer | A straight feather of needles around every non-stem branch: a hexagon widest near the branch base (half-width $0.18L + G$) and tapering past the tip. Feathers shrink toward their branch to stay above the bottom-10% floor, or are dropped. The stem ends in a needle-sharp tip, at least three times its end width. |
-| Deciduous | None for now: trees are bare branch skeletons (canopy deferred). |
+| Conifer | A straight feather of needles around every branch: a hexagon widest near the branch base (half-width $0.18L + G$, times 0.6 on stem segments) and tapering past the tip. Stem feathers clothe the main trunk in needles; they use no bits. Feathers shrink toward their branch to stay above the bottom-10% floor, or are dropped. The stem ends in a needle-sharp tip, at least three times its end width. |
+| Deciduous | Leaf dots (see Leaves) in spring, summer, and fall; bare in winter |
 | Cactus | A round cap (radius = girth / 2) on each arm, in the trunk color |
 | Joshua tree | A tuft of five spikes at each branch tip, at −60° to 60° from a constant table, of length $0.45L + 2G$ |
+
+### Leaves
+
+Deciduous trees in spring, summer, and fall carry leaves. The crown is meant
+to read as 3D, so leaves float inside it as well as at its edge:
+
+* **Tips:** three small dots around every branch tip (radius $1.6s$, centered $2.4s$ from the tip, where $s$ is
+the tree's scale). The dots sit left of the tip, beyond it, and right of it, at
+120° steps from the branch direction.
+* **Forks:** 0–3 dots floating around each fork point, centered $3.6s$ from it.
+  The fork's ratio sets the count, with more dots for more even splits:
+  3 for $r < 0.69$, 2 below 0.76, 1 below 0.83, and none above. One dot sits
+  beyond the fork; two sit up-left and up-right (60° from the branch
+  direction); three do all of these, left to right.
+**Colors come from the leaf palette bits.** Each palette has six colors, built
+from an OKLCH grid. Palette $p$ has hue step $a = \lfloor p / 4 \rfloor$ and
+lightness step $b = p \bmod 4$. Color $j$ (0–5) has
+
+$$
+\text{hue} = h_0 + (h_1 - h_0)\left(0.6\,\frac{j}{5} + 0.4\,\frac{a}{3}\right),
+\qquad
+L = L_0 + 0.12\,\frac{b}{3} + 0.05\,[j \text{ odd}],
+\qquad
+C = C_0 \cdot (0.85, 1.0, 1.15)_{j \bmod 3}
+$$
+
+| Season | Hue $h_0$–$h_1$ | $L_0$ | $C_0$ | Look |
+|---|---|---:|---:|---|
+| Spring | 105–135 | 0.62 | 0.15 | Fresh yellow-greens |
+| Summer | 125–155 | 0.48 | 0.13 | Deep greens |
+| Fall | 45–95 | 0.62 | 0.15 | Oranges to yellows |
+
+All six colors in a palette are distinct, and the 16 palettes have distinct
+first colors.
+
+**Order.** Trees are taken from left to right by position (ties by index). Each
+tree is traversed left to right: depth-first from the trunk, visiting the child
+with the smaller direction $x$ first. A fork's dots come before its children's;
+each tip's three dots are left, beyond, then right. Dots take the six colors in turn, cycling continuously
+across all trees.
+
+Winter trees are bare and the scene reads no leaf bits, so no bit is spent
+without an effect.
 
 ### SVG
 
@@ -294,7 +371,8 @@ per line, in this order:
 
 1. the trunk and every branch, breadth-first (a cactus arm is two paths),
 2. conifer feathers, in branch order,
-3. foliage on terminal branches, in branch order (paths, and circles for cacti).
+3. foliage on terminal branches, in branch order (paths, and circles for cacti),
+4. deciduous leaf dots (forks and tips), in the tree's left-to-right order.
 
 ### Injectivity
 
@@ -306,18 +384,22 @@ context, the map from the 48 Trees bits to the trees' SVG output is injective:
   changes a known element: girth and height change the trunk, and bit fork $k$
   changes its two child branches (four elements for a cactus). Derived forks
   depend on the decoded values but add no bits of their own.
+* The leaf palette sets the dot colors, and every scene with leaves has at
+  least six dots, so all six colors appear.
 
 `make verify` decodes every field by exact comparison of SVG lines, tries all 16
-arrangement and size pairs, and requires exactly one to reproduce the trees
-exactly, including all derived detail.
+arrangement and size pairs, then tries every leaf palette on the whole set of
+trees. It requires exactly one combination to reproduce the trees exactly,
+including all derived detail and leaf colors.
 
 Latest run: 200 hashes for each of the 16 biome and season pairs (16,463
 trees). 0 mismatches, and no ambiguous pairs.
 
 ### Dependencies
 
-* Consumes: the theme from Global, and the hill profiles, surfaces, and colors
-  from Hills (generated first). The season reaches trees only through the hill
+* Consumes: the theme and season from Global, and the hill profiles, surfaces,
+  and colors from Hills (generated first). The season sets the leaf colors and
+  whether the leaf palette field exists; it also reaches trees through the hill
   color.
 * Provides: tree placements and depths, used by Fog and for occlusion.
 
@@ -326,17 +408,16 @@ trees). 0 mismatches, and no ambiguous pairs.
 * **Conifer droop is subtle at gallery size.** The first segment of each side
   branch is still straight, so boughs can read as straight spikes. Next step:
   draw each side branch as several segments that curve progressively downward.
-* **Deciduous canopy is deferred.** The season table in `SPECIFICATIONS.md`
-  (spring and summer greens, fall oranges, bare winter trees with snow spots)
-  is not yet implemented for trees.
+* Winter deciduous trees are bare. The snow spots in the `SPECIFICATIONS.md`
+  season table are not implemented.
 * Groves of 10 trees can get dense in the center. The member spacing may need
   to widen.
 * With few bit forks, the lowest conifer whorl can be one-sided.
 * Positions are limited to $[0.04W, 0.96W]$. They depend only on the header, and
   verify confirms injectivity, but the limit is a clamp and should become an
   interval mapping.
-* Whether trees should be checked to stay below the canvas top. They currently
-  reach well under it, but there is no static bound yet.
+* **Canvas top.** The larger slope trees can now reach the top of the canvas.
+  There is no static bound yet.
 
 ### Status
 

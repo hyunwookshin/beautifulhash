@@ -149,12 +149,12 @@ struct HillFamily {
 };
 
 HillFamily hill_family(Theme t, Season s) {
-    if (s == Season::kWinter) return {195.0, 290.0, 0.6, {{0.80, 0.94}, {0.79, 0.85}, {0.87, 0.94}}};
+    if (s == Season::kWinter) return {220.0, 290.0, 0.5, {{0.80, 0.94}, {0.79, 0.85}, {0.87, 0.94}}};
     double light[3][2] = {{0.30, 0.46}, {0.26, 0.34}, {0.36, 0.46}};
     HillFamily f{110.0, 150.0, 1.0, {}};
     switch (t) {
-        case Theme::kAlpine: f = {140.0, 175.0, 1.0, {}}; break;     // blue-green
-        case Theme::kTemperate: f = {100.0, 170.0, 1.0, {}}; break;  // fresh green
+        case Theme::kAlpine: f = {130.0, 160.0, 0.7, {}}; break;     // muted sage green, not teal
+        case Theme::kTemperate: f = {95.0, 150.0, 0.75, {}}; break;  // olive to moss, not grass green
         case Theme::kTundra: f = {95.0, 135.0, 0.7, {}}; break;      // muted olive-green
         case Theme::kDesert: f = {70.0, 125.0, 0.9, {}}; break;      // olive
     }
@@ -194,6 +194,38 @@ const std::vector<uint32_t>& hill_palette(Theme theme, Season season, int id) {
         return out;
     }();
     return tables[static_cast<size_t>(theme) * 4 + static_cast<size_t>(season)].ids[id];
+}
+
+}  // namespace bh
+
+namespace bh {
+
+const std::vector<uint32_t>& leaf_palette(Season season, int id) {
+    // {hue low, hue high, lightness low, chroma} per season; winter is bare.
+    struct LeafFamily {
+        double hue_low, hue_high, light, chroma;
+    };
+    static const std::vector<std::vector<uint32_t>> tables = [] {
+        std::vector<std::vector<uint32_t>> out;
+        for (Season s : kSeasons) {
+            LeafFamily f{125.0, 155.0, 0.48, 0.13};  // summer: deep greens
+            if (s == Season::kSpring) f = {105.0, 135.0, 0.62, 0.15};  // fresh yellow-greens
+            if (s == Season::kFall) f = {45.0, 95.0, 0.62, 0.15};      // oranges to yellows
+            for (int p = 0; p < kLeafPalettes; ++p) {
+                int a = p >> 2, b = p & 3;
+                std::vector<uint32_t> colors;
+                for (int j = 0; j < 6; ++j) {
+                    double hue = f.hue_low + (f.hue_high - f.hue_low) * (0.6 * j / 5.0 + 0.4 * a / 3.0);
+                    double light = f.light + 0.12 * b / 3.0 + (j % 2 == 1 ? 0.05 : 0.0);
+                    double chroma = f.chroma * (j % 3 == 0 ? 0.85 : j % 3 == 1 ? 1.0 : 1.15);
+                    colors.push_back(oklch(light, chroma, hue));
+                }
+                out.push_back(colors);
+            }
+        }
+        return out;
+    }();
+    return tables[static_cast<size_t>(season) * kLeafPalettes + static_cast<size_t>(id)];
 }
 
 }  // namespace bh

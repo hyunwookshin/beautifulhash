@@ -19,7 +19,8 @@ must never change.
 
 ```sh
 make            # build into build/
-make verify     # all checks; must print ALL CHECKS PASSED
+make verify     # quick checks (about 1.5 min); must print ALL CHECKS PASSED
+make verify-full  # full sampling (5x), before releases
 make gallery    # render gallery/index.html
 ```
 

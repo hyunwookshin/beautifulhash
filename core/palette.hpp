@@ -35,4 +35,10 @@ enum HillPaletteId {
 };
 const std::vector<uint32_t>& hill_palette(Theme theme, Season season, int id);
 
+// Deciduous leaf palettes (subspec/trees.md, Leaves): kLeafPalettes sets of six
+// colors per season, greens in spring and summer and oranges to yellows in
+// fall. Winter trees are bare and read no leaf bits.
+constexpr int kLeafPalettes = 16;
+const std::vector<uint32_t>& leaf_palette(Season season, int id);
+
 }  // namespace bh
