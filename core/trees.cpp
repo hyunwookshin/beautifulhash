@@ -614,11 +614,24 @@ Tree build(const Values& v, const Plan& p, int index, const std::vector<Hill>& h
         }
     }
 
-    // Deciduous leaves: five small dots around every branch tip and a few at
-    // forks, with tips in the tree's left-to-right order:
-    // depth-first, leftmost child first. paint_leaves colors them.
+    // Deciduous leaves: 2 to 5 small dots at every branch tip and a few at
+    // forks, with tips in the tree's left-to-right order: depth-first,
+    // leftmost child first. paint_leaves colors them.
     if (sp == Species::kDeciduous && leafy(theme, season)) {
         double radius = 1.6 * scale, offset = 3.2 * scale;
+        // Tip layouts by dot count, left to right, as (cos, sin) of the angle
+        // from the branch direction; (0, 0) puts the dot on the tip itself.
+        struct Dir {
+            double c, s;
+        };
+        constexpr double k = 0.8660254037844386;  // sin 60 = sin 120
+        static const std::vector<Dir> kTipLayout[4] = {
+            {{0.5, k}, {0.5, -k}},                                // 2: 60, -60
+            {{-0.5, k}, {1.0, 0.0}, {-0.5, -k}},                  // 3: 120, 0, -120
+            {{-0.5, k}, {1.0, 0.0}, {0.0, 0.0}, {-0.5, -k}},      // 4: 120, 0, tip, -120
+            {{-0.5, k}, {0.5, k}, {0.0, 0.0}, {0.5, -k}, {-0.5, -k}},  // 5: 120, 60, tip, -60, -120
+        };
+        size_t tip = 0;  // tips so far: the count cycles 2, 3, 4, 5
         std::vector<size_t> todo = {0};
         while (!todo.empty()) {
             size_t i = todo.back();
@@ -626,15 +639,12 @@ Tree build(const Values& v, const Plan& p, int index, const std::vector<Hill>& h
             if (kids[i].empty()) {
                 const Branch& b = open[i];
                 Point n{-b.dir.h, b.dir.x};  // to the branch's left
-                // Five dots fanned around the tip, left to right: 120, 60, 0, -60,
-                // and -120 degrees from the branch direction.
-                static const double kCos[5] = {-0.5, 0.5, 1.0, 0.5, -0.5};
-                static const double kSin[5] = {0.8660254037844386, 0.8660254037844386, 0.0, -0.8660254037844386, -0.8660254037844386};
-                for (int a = 0; a < 5; ++a) {
-                    Point d{kCos[a] * b.dir.x + kSin[a] * n.x, kCos[a] * b.dir.h + kSin[a] * n.h};
+                const std::vector<Dir>& layout = kTipLayout[tip++ % 4];
+                for (const Dir& a : layout) {
+                    Point d{a.c * b.dir.x + a.s * n.x, a.c * b.dir.h + a.s * n.h};
                     tree.shapes.push_back(circle(add(b.end, d, offset), radius, 0));
                 }
-                tree.leaves += 5;
+                tree.leaves += static_cast<int>(layout.size());
                 continue;
             }
             // A fork also holds leaves floating around it, since the crown is
