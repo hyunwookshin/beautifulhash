@@ -75,7 +75,7 @@ struct Params {
     Season season = Season::kSummer;  // context from Global; changes only Temperate mountain colors
     int conifer_subdivisions = 1;     // alpine front ridge: straight subdivisions per segment
     double conifer_height = 18.0;     // alpine front ridge: nominal tooth height (varies 0.6-1.2x)
-    double conifer_depth = 8.0;       // alpine front ridge: valley cut below the silhouette
+    double conifer_depth = 60.0;      // alpine front ridge: deepest valley cut below the silhouette (varies 0.5-1x)
     int canopy_subdivisions = 0;      // temperate front ridge: straight subdivisions per segment
     double canopy_height = 16.0;      // temperate front ridge: nominal bump height (varies 0.55-1.3x)
     double tree_threshold = 0.35;     // tree density score below which the front ridge is flat

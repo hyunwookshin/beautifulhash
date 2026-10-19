@@ -653,11 +653,17 @@ fixed integer mixer of its index along the ridge. The variation is the same for
 every hash; it could later be seeded from the hash.
 
 **Alpine conifers.** Each front-ridge segment is split once (to about 32
-units). The new split points are cut $8g$ below the silhouette as valleys. Each
-resulting segment then holds a sharp two-tooth zigzag: a tip at 20–30% of the
-segment, a V-valley at 45–55% cut $8g$ below the line, and a tip at 70–80%. Tip
-heights are $18 \cdot (0.6\text{–}1.2) \cdot g$. All edges are straight, so peaks
-and valleys are both sharp.
+units). The new split points are cut $60 \cdot (0.5\text{–}1.0) \cdot g$ below the
+silhouette as deep valleys. Each resulting segment then holds a sharp two-tooth
+zigzag: a tip at 20–30% of the segment, a V-valley at 45–55% cut
+$60 \cdot (0.5\text{–}1.0) \cdot g$ below the silhouette, and a tip at 70–80%. Tip
+heights are $18 \cdot (0.6\text{–}1.2) \cdot g$ above the silhouette. Tips and
+V-valleys are measured from the unlowered silhouette, so tree tips follow the
+ridge line while the valleys needle deep into it, and each tree reads as a
+distinct spire. All edges are straight, so peaks and valleys are both sharp.
+Every fourth valley falls on an original ridge vertex, which never moves, so
+valley depths vary naturally. Cuts only remove ridge area, so the ceiling and
+visibility guarantees are unaffected.
 
 **Temperate canopy.** Each front-ridge segment (about 64 units) becomes one
 rounded bump: fifteen points at $f = k/16$ on a semicircle-like arc
@@ -1068,7 +1074,7 @@ and off.
 * A front ridge drawn high can hide most of the ridges behind it.
 * The theme's color family: hue range, lightness bands, and chroma ranges.
 * Biome styling parameters: snowline fraction (1/3), snowline wave amplitude and
-  decay (36, 0.85), tree threshold (0.35), conifer height and valley cut (18, 8),
+  decay (36, 0.85), tree threshold (0.35), conifer height and valley cut (18, 60),
   canopy height (16), texture spacing.
 * Seasonal Temperate palettes and the fall gradient's golden shades.
 * Canopy texture depths: leafy cavities (10–50%) and winter bare depth (100).

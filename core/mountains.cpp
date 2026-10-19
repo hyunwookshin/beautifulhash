@@ -599,18 +599,23 @@ double tree_factor(const std::vector<Point>& density, double x, const Params& p)
 }  // namespace
 
 std::vector<Point> add_conifers(const std::vector<Point>& pts, const Params& p, const std::vector<Point>& density) {
-    // Straight subdivision, then the new (non-original) points become valleys
-    // cut conifer_depth below the silhouette, and one tooth per segment rises
-    // to 35-65% of the segment. Original points, including every bit-driven
-    // point, never move. Sizes scale with the local tree factor; where it is 0
-    // the texture is flat.
-    std::vector<Point> base = split(pts, p.conifer_subdivisions);
+    // Straight subdivision, then the new (non-original) points become deep
+    // valleys cut 50-100% of conifer_depth below the silhouette. Original
+    // points, including every bit-driven point, never move. Sizes scale with
+    // the local tree factor; where it is 0 the texture is flat. Tips and V
+    // valleys are measured from the unlowered silhouette `line`, so tree tips
+    // follow the ridge while the valleys needle down into it.
+    std::vector<Point> line = split(pts, p.conifer_subdivisions);
+    std::vector<Point> base = line;
     size_t stride = size_t{1} << p.conifer_subdivisions;
     for (size_t j = 0; j < base.size(); ++j) {
-        if (j % stride != 0) base[j].h = base[j].h - p.conifer_depth * tree_factor(density, base[j].x, p);
+        if (j % stride != 0) {
+            double cut = p.conifer_depth * (0.5 + 0.5 * jitter(static_cast<uint32_t>(j), 11));
+            base[j].h = base[j].h - cut * tree_factor(density, base[j].x, p);
+        }
     }
     // Each segment holds a continuous zigzag of two teeth: tip, V-valley cut
-    // conifer_depth below the silhouette, tip. All edges are straight, so both
+    // 50-100% of conifer_depth below the silhouette, tip. All edges are straight, so both
     // peaks and valleys are sharp. Three points per segment add two levels of
     // structure. Positions lean and heights vary by a fixed pattern.
     std::vector<Point> out;
@@ -620,13 +625,14 @@ std::vector<Point> add_conifers(const std::vector<Point>& pts, const Params& p, 
         double f1 = 0.20 + 0.10 * jitter(k, 1);
         double fv = 0.45 + 0.10 * jitter(k, 5);
         double f2 = 0.70 + 0.10 * jitter(k, 6);
-        double g = tree_factor(density, lerp_at(base[j], base[j + 1], fv, 0.0).x, p);
+        double g = tree_factor(density, lerp_at(line[j], line[j + 1], fv, 0.0).x, p);
         double h1 = p.conifer_height * (0.6 + 0.6 * jitter(k, 2)) * g;
         double h2 = p.conifer_height * (0.6 + 0.6 * jitter(k, 7)) * g;
+        double dv = p.conifer_depth * (0.5 + 0.5 * jitter(k, 10)) * g;
         out.push_back(base[j]);
-        out.push_back(lerp_at(base[j], base[j + 1], f1, h1));
-        out.push_back(lerp_at(base[j], base[j + 1], fv, -p.conifer_depth * g));
-        out.push_back(lerp_at(base[j], base[j + 1], f2, h2));
+        out.push_back(lerp_at(line[j], line[j + 1], f1, h1));
+        out.push_back(lerp_at(line[j], line[j + 1], fv, -dv));
+        out.push_back(lerp_at(line[j], line[j + 1], f2, h2));
     }
     out.push_back(base.back());
     return out;
