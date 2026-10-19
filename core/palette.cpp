@@ -210,18 +210,18 @@ const std::vector<uint32_t>& leaf_palette(Season season, int id) {
     };
     static const double kHueStep[6] = {0.0, 0.6, 0.2, 1.0, 0.4, 0.8};
     static const double kLightStep[6] = {0.35, 0.9, 0.0, 0.6, 1.0, 0.2};
-    static const double kChromaStep[6] = {0.85, 1.2, 1.0, 0.8, 1.15, 0.95};
+    static const double kChromaStep[6] = {0.92, 1.1, 1.0, 0.9, 1.08, 0.97};
     static const std::vector<std::vector<uint32_t>> tables = [] {
         std::vector<std::vector<uint32_t>> out;
         for (Season s : kSeasons) {
-            LeafFamily f{110.0, 165.0, 0.36, 0.27, 0.13};                      // summer: olive to deep blue-green
-            if (s == Season::kSpring) f = {90.0, 145.0, 0.55, 0.25, 0.15};    // yellow-green to fresh green
-            if (s == Season::kFall) f = {25.0, 105.0, 0.48, 0.30, 0.17};      // red, orange, gold, olive
+            LeafFamily f{110.0, 165.0, 0.40, 0.19, 0.13};                      // summer: olive to deep blue-green
+            if (s == Season::kSpring) f = {90.0, 145.0, 0.585, 0.18, 0.15};    // yellow-green to fresh green
+            if (s == Season::kFall) f = {25.0, 105.0, 0.525, 0.21, 0.17};      // red, orange, gold, olive
             for (int p = 0; p < kLeafPalettes; ++p) {
                 int a = p >> 2, b = p & 3;
                 std::vector<uint32_t> colors;
                 for (int j = 0; j < 6; ++j) {
-                    double hue = f.hue_low + (f.hue_high - f.hue_low) * (0.85 * kHueStep[j] + 0.15 * a / 3.0);
+                    double hue = f.hue_low + (f.hue_high - f.hue_low) * (0.7 * kHueStep[j] + 0.15 * a / 3.0);
                     double light = f.light_low + f.light_span * kLightStep[j] + 0.08 * b / 3.0;
                     double chroma = f.chroma * kChromaStep[j];
                     colors.push_back(oklch(light, chroma, hue));

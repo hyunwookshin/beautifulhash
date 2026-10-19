@@ -146,7 +146,9 @@ TreeShape quad(Point s, Point e, Point d, double w0, double w1, uint32_t rgb) {
 
 TreeShape circle(Point c, double r, uint32_t rgb) { return {{}, c, r, rgb}; }
 
-// A leaf: a slightly oval ellipse whose long axis points along `axis`.
+// A leaf: an eye shape tapering to a point at both ends, its long axis along
+// `axis`. `across` is the half-width of the brightest leaf; tree_svg narrows
+// darker ones.
 TreeShape leaf(Point c, Point axis, double along, double across) {
     TreeShape s{{}, c, along, 0};
     s.ry = across;
@@ -634,7 +636,7 @@ Tree build(const Values& v, const Plan& p, int index, const std::vector<Hill>& h
     // forks, with tips in the tree's left-to-right order: depth-first,
     // leftmost child first. paint_leaves colors them.
     if (sp == Species::kDeciduous && leafy(theme, season)) {
-        double along = 3.4 * scale, across = 2.6 * scale, offset = 6.0 * scale;
+        double along = 4.0 * scale, across = 2.8 * scale, offset = 6.0 * scale;
         // Tip layouts by dot count, left to right, as (cos, sin) of the angle
         // from the branch direction; (0, 0) puts the dot on the tip itself.
         struct Dir {
@@ -689,6 +691,21 @@ Tree build(const Values& v, const Plan& p, int index, const std::vector<Hill>& h
     return tree;
 }
 
+namespace {
+
+// Moves each channel a fraction k toward white (k > 0) or black (k < 0).
+uint32_t shade(uint32_t rgb, double k) {
+    uint32_t out = 0;
+    for (int shift = 16; shift >= 0; shift -= 8) {
+        double c = static_cast<double>((rgb >> shift) & 255u);
+        c = k > 0.0 ? c + (255.0 - c) * k : c * (1.0 + k);
+        out |= static_cast<uint32_t>(std::lround(c)) << shift;
+    }
+    return out;
+}
+
+}  // namespace
+
 void paint_leaves(std::vector<Tree>& trees, const Values& v, Season season) {
     if (v.leaf_bits == 0) return;
     const std::vector<uint32_t>& colors = leaf_palette(season, static_cast<int>(v.leaf));
@@ -698,8 +715,18 @@ void paint_leaves(std::vector<Tree>& trees, const Values& v, Season season) {
     size_t next = 0;
     for (size_t i : order) {
         Tree& t = trees[i];
-        for (size_t s = t.shapes.size() - static_cast<size_t>(t.leaves); s < t.shapes.size(); ++s) {
-            t.shapes[s].rgb = colors[next++ % colors.size()];
+        size_t first = t.shapes.size() - static_cast<size_t>(t.leaves);
+        // A slight gradient by height in the crown: the top leaves catch the
+        // light, the lowest are shaded. It follows the geometry, not the bits.
+        double low = 0.0, high = 0.0;
+        for (size_t s = first; s < t.shapes.size(); ++s) {
+            double h = t.shapes[s].center.h;
+            if (s == first || h < low) low = h;
+            if (s == first || h > high) high = h;
+        }
+        for (size_t s = first; s < t.shapes.size(); ++s) {
+            double u = high > low ? (t.shapes[s].center.h - low) / (high - low) - 0.5 : 0.0;  // -0.5 to 0.5
+            t.shapes[s].rgb = shade(colors[next++ % colors.size()], 0.3 * u);
         }
     }
 }
@@ -723,16 +750,30 @@ std::string tree_svg(const Tree& tree, int index, double scale) {
     out += "\">\n";
     for (const TreeShape& s : tree.shapes) {
         if (s.poly.empty() && s.ry > 0.0) {
+            // An eye shape: two quadratic arcs meeting in points at both ends.
+            // A control point at twice the half-width gives that half-width at
+            // the middle. Darker leaves are narrower, as if wilting: the width
+            // follows the fill's brightness, so it carries no bits.
+            uint32_t c = s.rgb;
+            double bright = (299.0 * (c >> 16) + 587.0 * ((c >> 8) & 255u) + 114.0 * (c & 255u)) / 255000.0;
+            double a = s.radius * scale, w = 2.0 * s.ry * (0.35 + 0.8 * bright) * scale;
+            out += "<path fill=\"";
+            append_hex(out, s.rgb);
+            out += "\" d=\"M";
+            append_fixed2(out, -a);
+            out += ",0Q0,";
+            append_fixed2(out, w);
+            out += " ";
+            append_fixed2(out, a);
+            out += ",0Q0,";
+            append_fixed2(out, -w);
+            out += " ";
+            append_fixed2(out, -a);
+            out += ",0Z\"";
             // The rotation is an exact matrix from the axis direction (SVG y
             // points down), so no angle or trigonometry is needed.
             double ux = s.axis.x, uy = -s.axis.h;
-            out += "<ellipse fill=\"";
-            append_hex(out, s.rgb);
-            out += "\" rx=\"";
-            append_fixed2(out, s.radius * scale);
-            out += "\" ry=\"";
-            append_fixed2(out, s.ry * scale);
-            out += "\" transform=\"matrix(";
+            out += " transform=\"matrix(";
             const double m[6] = {ux, uy, -uy, ux, s.center.x * scale, (kCanvasHeight - s.center.h) * scale};
             for (int q = 0; q < 6; ++q) {
                 if (q > 0) out += " ";

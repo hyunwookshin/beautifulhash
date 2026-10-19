@@ -330,10 +330,22 @@ darker than their hill and follow its biome and season:
 Deciduous trees in spring, summer, and fall carry leaves. The crown is meant
 to read as 3D, so leaves float inside it as well as at its edge.
 
-Each leaf is a slightly oval ellipse with half-axes $3.4s$ along and $2.6s$
-across, where $s$ is the tree's scale. Its long axis points outward, along the
-leaf's direction from its tip or fork (along the branch for a leaf on the tip
-itself).
+Each leaf is an eye shape that tapers to a point at both ends: two quadratic
+arcs from $(-a, 0)$ to $(a, 0)$ with control points $(0, \pm 2w)$, so its
+half-width at the middle is $w$. Its half-length is $a = 4.0s$, where $s$ is
+the tree's scale. Its long axis points outward, along the leaf's direction from
+its tip or fork (along the branch for a leaf on the tip itself).
+
+**Darker leaves are narrower,** as if they had lost their strength. The width
+follows the leaf's final color (after height shading, below), so it carries no
+bits. With the fill's bytes $(R, G, B)$ and brightness
+$\beta = (299R + 587G + 114B) / 255000$,
+
+$$
+w = 2.8s \cdot (0.35 + 0.8\,\beta)
+$$
+
+which runs from about half to full width across the leaf palettes.
 
 * **Tips:** 2 to 5 leaves at every branch tip, centered $6.0s$ from the tip or
   on the tip itself.
@@ -354,13 +366,13 @@ itself).
   direction); three do all of these, left to right.
 
 **Colors come from the leaf palette bits.** Each palette has six colors, built
-from an OKLCH grid. Each palette spans nearly the season's whole hue range with
-strong lightness and chroma contrast, interleaved so that neighboring leaves
+from an OKLCH grid. Each palette spans most of the season's hue range with
+moderate lightness and chroma contrast, interleaved so that neighboring leaves
 differ: a crown reads as many leaves, not one color. Palette $p$ has hue step
 $a = \lfloor p / 4 \rfloor$ and lightness step $b = p \bmod 4$. Color $j$ (0–5) has
 
 $$
-\text{hue} = h_0 + (h_1 - h_0)\left(0.85\,\eta_j + 0.15\,\frac{a}{3}\right),
+\text{hue} = h_0 + (h_1 - h_0)\left(0.7\,\eta_j + 0.15\,\frac{a}{3}\right),
 \qquad
 L = L_0 + \Delta L \cdot \lambda_j + 0.08\,\frac{b}{3},
 \qquad
@@ -373,13 +385,13 @@ with the fixed interleaving tables
 |---|---:|---:|---:|---:|---:|---:|
 | $\eta_j$ (hue) | 0 | 0.6 | 0.2 | 1.0 | 0.4 | 0.8 |
 | $\lambda_j$ (lightness) | 0.35 | 0.9 | 0 | 0.6 | 1.0 | 0.2 |
-| $\kappa_j$ (chroma) | 0.85 | 1.2 | 1.0 | 0.8 | 1.15 | 0.95 |
+| $\kappa_j$ (chroma) | 0.92 | 1.1 | 1.0 | 0.9 | 1.08 | 0.97 |
 
 | Season | Hue $h_0$–$h_1$ | $L_0$ | $\Delta L$ | $C_0$ | Look |
 |---|---|---:|---:|---:|---|
-| Spring | 90–145 | 0.55 | 0.25 | 0.15 | Yellow-green to fresh green |
-| Summer | 110–165 | 0.36 | 0.27 | 0.13 | Olive to deep blue-green |
-| Fall | 25–105 | 0.48 | 0.30 | 0.17 | Red, orange, gold, and olive |
+| Spring | 90–145 | 0.585 | 0.18 | 0.15 | Yellow-green to fresh green |
+| Summer | 110–165 | 0.40 | 0.19 | 0.13 | Olive to deep blue-green |
+| Fall | 25–105 | 0.525 | 0.21 | 0.17 | Red, orange, gold, and olive |
 
 All six colors in a palette are distinct, and the 16 palettes have distinct
 first colors.
@@ -389,6 +401,14 @@ tree is traversed left to right: depth-first from the trunk, visiting the child
 with the smaller direction $x$ first. A fork's dots come before its children's;
 each tip's dots run from left to right, as in the table. Dots take the six colors in turn,
 cycling continuously across all trees.
+
+**Height shading.** Within each tree, leaves are slightly lighter toward the
+top of the crown and darker toward the bottom, for a gentle gradient. With $u$
+the leaf center's height between the tree's lowest ($-0.5$) and highest
+($+0.5$) leaf centers, and $k = 0.3u$, each palette byte $c$ becomes
+$\operatorname{round}(c + (255 - c)k)$ for $k > 0$ and
+$\operatorname{round}(c(1 + k))$ otherwise: at most 15% toward white or black.
+The shading follows the geometry, not the bits.
 
 Winter trees are bare and the scene reads no leaf bits, so no bit is spent
 without an effect.
@@ -402,8 +422,8 @@ per line, in this order:
 2. conifer feathers, in branch order,
 3. foliage on terminal branches, in branch order (paths, and circles for cacti),
 4. deciduous leaves (forks and tips), in the tree's left-to-right order, as
-   `<ellipse>` elements rotated by an exact `matrix(...)` built from the leaf's
-   axis direction, so no angle or trigonometry is computed.
+   `<path>` elements (the eye shape, centered at the origin) placed by an exact
+   `matrix(...)` built from the leaf's axis direction, so no angle or trigonometry is computed.
 
 ### Injectivity
 
