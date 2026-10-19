@@ -235,3 +235,30 @@ const std::vector<uint32_t>& leaf_palette(Season season, int id) {
 }
 
 }  // namespace bh
+
+namespace bh {
+
+const std::vector<uint32_t>& fog_palette(Theme theme, Season season) {
+    // Pale tints near the sky: four hues across the biome's range, each at a
+    // faint and a light chroma. Index = hue (2 bits) | chroma (1 bit).
+    static const std::vector<std::vector<uint32_t>> tables = [] {
+        std::vector<std::vector<uint32_t>> out;
+        for (Theme t : kThemes)
+            for (Season s : kSeasons) {
+                double low = 220.0, high = 260.0;                                           // Alpine: cool blue-gray
+                if (t == Theme::kTemperate) low = 190.0, high = 240.0;                      // blue-green mist
+                if (t == Theme::kTemperate && s == Season::kFall) low = 60.0, high = 95.0;  // golden haze
+                if (t == Theme::kTundra) low = 275.0, high = 320.0;                         // lavender
+                if (t == Theme::kDesert) low = 55.0, high = 90.0;                           // dust
+                if (s == Season::kWinter) low = 215.0, high = 265.0;                        // cold blue-white
+                std::vector<uint32_t> colors;
+                for (int hi = 0; hi < 4; ++hi)
+                    for (int ci = 0; ci < 2; ++ci) colors.push_back(oklch(0.93, ci == 0 ? 0.012 : 0.028, lerp(low, high, hi, 4)));
+                out.push_back(colors);
+            }
+        return out;
+    }();
+    return tables[static_cast<size_t>(theme) * 4 + static_cast<size_t>(season)];
+}
+
+}  // namespace bh

@@ -20,6 +20,7 @@
 #include "hills.hpp"
 #include "trees.hpp"
 #include "mountains.hpp"
+#include "fog.hpp"
 #include "palette.hpp"
 #include "partition.hpp"
 #include "variants.hpp"
@@ -755,6 +756,87 @@ void check_trees(int samples) {
     check(bad == 0, "tree round trip mismatch");
 }
 
+// ---- 8. Fog ---------------------------------------------------------------
+
+// The fog gradient's stops: tint and opacities in hundredths.
+struct ParsedFog {
+    uint32_t rgb[2];
+    int opacity[2];
+};
+
+ParsedFog parse_fog(const std::string& svg) {
+    ParsedFog f{};
+    size_t pos = svg.find("<linearGradient id=\"fog\"");
+    for (int k = 0; k < 2; ++k) {
+        pos = svg.find("stop-color=\"#", pos) + 13;
+        f.rgb[k] = static_cast<uint32_t>(std::strtoul(svg.substr(pos, 6).c_str(), nullptr, 16));
+        pos = svg.find("stop-opacity=\"", pos) + 14;
+        f.opacity[k] = static_cast<int>(std::lround(std::strtod(svg.c_str() + pos, nullptr) * 100.0));
+    }
+    return f;
+}
+
+int count_of(const std::string& s, const std::string& needle) {
+    int n = 0;
+    for (size_t pos = 0; (pos = s.find(needle, pos)) != std::string::npos; pos += needle.size()) ++n;
+    return n;
+}
+
+void check_fog() {
+    namespace fg = bh::fog;
+    std::printf("== Fog\n");
+    check(fg::kDensityBits + fg::kTintBits + fg::kMistBits == kFog.width, "fog layout does not consume exactly 8 bits");
+    for (Theme t : kThemes) {
+        for (Season s : kSeasons) {
+            const auto& pal = fog_palette(t, s);
+            check(std::set<uint32_t>(pal.begin(), pal.end()).size() == pal.size(), "fog palette has duplicate colors");
+        }
+    }
+
+    // Every one of the 256 fog values, in every biome and season, decodes back
+    // from the SVG text; the layers sit in every depth gap.
+    std::mt19937_64 rng(13);
+    int bad = 0, bad_layers = 0, lo = 100, hi = 0;
+    for (Theme t : kThemes) {
+        for (Season s : kSeasons) {
+            for (uint32_t bits = 0; bits < 256; ++bits) {
+                Hash256 hash = random_hash(rng, 0);
+                for (int b = 0; b < kFog.width; ++b) hash.set_bit(kFog.begin + b, (bits >> (7 - b)) & 1);
+                Scene scene;
+                if (bits % 16 == 0) scene.ridges = mt::generate(mt::default_config(), hash);
+                scene.hills = bh::hills::generate(hash, t, s);
+                scene.fog = fg::generate(hash, t, s);
+                std::string svg = render_svg(scene, 1024, 768);
+                int ridges = static_cast<int>(scene.ridges.size()), hills = static_cast<int>(scene.hills.size());
+                int want = (ridges > 0 ? ridges - 1 : 0) + hills;
+                if (count_of(svg, "<rect class=\"fog\"") != want) ++bad_layers;
+
+                ParsedFog f = parse_fog(svg);
+                lo = std::min(lo, f.opacity[0]);
+                hi = std::max(hi, f.opacity[1]);
+                const auto& pal = fog_palette(t, s);
+                auto it = std::find(pal.begin(), pal.end(), f.rgb[0]);
+                int sum = f.opacity[0] + f.opacity[1], diff = f.opacity[1] - f.opacity[0];
+                if (it == pal.end() || f.rgb[1] != f.rgb[0] || sum % 6 != 0 || diff % 2 != 0) {
+                    ++bad;
+                    continue;
+                }
+                fg::Values v;
+                v.tint = static_cast<uint32_t>(it - pal.begin());
+                v.density = static_cast<uint32_t>((sum / 2 - 27) / 3);
+                v.mist = static_cast<uint32_t>(diff / 2);
+                Hash256 back = hash;
+                fg::encode(v, back);
+                if (back.bytes != hash.bytes) ++bad;
+            }
+        }
+    }
+    std::printf("  round trip (256 values x 16 biome/season pairs): %d mismatches; %d misplaced layer sets; "
+                "opacity %d-%d%%\n", bad, bad_layers, lo, hi);
+    check(bad == 0, "fog round trip mismatch");
+    check(bad_layers == 0, "fog layer missing from a depth gap");
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -784,6 +866,7 @@ int main(int argc, char** argv) {
 
     check_hills(std::max(1, samples / 20));
     check_trees(std::max(1, samples / 100));
+    check_fog();
 
     std::printf(failures == 0 ? "\nALL CHECKS PASSED\n" : "\n%d CHECK(S) FAILED\n", failures);
     return failures == 0 ? 0 : 1;

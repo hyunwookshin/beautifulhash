@@ -3,6 +3,7 @@
 #include <cstdio>
 #include <cstdlib>
 
+#include "fog.hpp"
 #include "format.hpp"
 #include "hills.hpp"
 #include "mountains.hpp"
@@ -12,12 +13,9 @@ namespace bh {
 
 namespace {
 
-// Placeholder sky and fog until their namespaces exist. These are fixed and
-// consume no hash bits.
+// Placeholder sky until its namespace exists. Fixed; consumes no hash bits.
 constexpr const char* kSkyTop = "#9db6d3";
 constexpr const char* kSkyBottom = "#e9eef2";
-constexpr const char* kHaze = "#dde5ec";
-constexpr const char* kHazeOpacity = "0.32";
 
 void append_hex(std::string& out, uint32_t rgb) {
     static const char* digits = "0123456789abcdef";
@@ -43,6 +41,20 @@ void append_full_rect(std::string& out, uint32_t width, uint32_t height) {
     out += "\"";
 }
 
+// An opacity in hundredths, as "0.NN".
+void append_opacity(std::string& out, int hundredths) {
+    out += "0.";
+    out.push_back(static_cast<char>('0' + hundredths / 10));
+    out.push_back(static_cast<char>('0' + hundredths % 10));
+}
+
+// One haze layer over the whole canvas (subspec/fog.md, Rendering).
+void append_fog(std::string& out, uint32_t width, uint32_t height) {
+    out += "<rect class=\"fog\" ";
+    append_full_rect(out, width, height);
+    out += " fill=\"url(#fog)\"/>\n";
+}
+
 }  // namespace
 
 Scene generate_scene(const Hash256& hash, int version) {
@@ -58,6 +70,8 @@ Scene generate_scene(const Hash256& hash, int version) {
     // which will plant on them using the advertised hill profiles.
     scene.hills = hills::generate(hash, config.params.theme, config.params.season);
     scene.trees = trees::generate(hash, scene.hills, config.params.theme, config.params.season);
+    // Fog comes last: it hazes every depth gap the other layers create.
+    scene.fog = fog::generate(hash, config.params.theme, config.params.season);
     return scene;
 }
 
@@ -78,6 +92,17 @@ std::string render_svg(const Scene& scene, uint32_t width, uint32_t height) {
     out += kSkyTop;
     out += "\"/><stop offset=\"1\" stop-color=\"";
     out += kSkyBottom;
+    out += "\"/></linearGradient>";
+    // The haze shared by every fog layer: tint and opacity from the Fog
+    // namespace, denser toward the ground when misty.
+    out += "<linearGradient id=\"fog\" x1=\"0\" y1=\"0\" x2=\"0\" y2=\"1\"><stop offset=\"0\" stop-color=\"";
+    append_hex(out, scene.fog.rgb);
+    out += "\" stop-opacity=\"";
+    append_opacity(out, scene.fog.top);
+    out += "\"/><stop offset=\"1\" stop-color=\"";
+    append_hex(out, scene.fog.rgb);
+    out += "\" stop-opacity=\"";
+    append_opacity(out, scene.fog.bottom);
     out += "\"/></linearGradient></defs>\n";
     out += "<rect class=\"sky\" ";
     append_full_rect(out, width, height);
@@ -141,26 +166,13 @@ std::string render_svg(const Scene& scene, uint32_t width, uint32_t height) {
             out += "\"/>\n";
         }
 
-        if (scene.fog.enabled && n > 0) {
-            out += "<rect class=\"fog\" ";
-            append_full_rect(out, width, height);
-            out += " fill=\"";
-            out += kHaze;
-            out += "\" fill-opacity=\"";
-            out += kHazeOpacity;
-            out += "\"/>\n";
-        }
+        if (n > 0) append_fog(out, width, height);
     }
-    // Hills: in front of every ridge, behind the (future) trees and vegetation.
-    if (!scene.hills.empty() && scene.fog.enabled) {
-        out += "<rect class=\"fog\" ";
-        append_full_rect(out, width, height);
-        out += " fill=\"";
-        out += kHaze;
-        out += "\" fill-opacity=\"";
-        out += kHazeOpacity;
-        out += "\"/>\n";
-    }
+    // Hills: in front of every ridge, behind the (future) vegetation. Every
+    // depth gap gets the same haze layer: between ridges, between the front
+    // ridge and the hills, and between the back hill (with its trees) and the
+    // front hill.
+    if (!scene.hills.empty()) append_fog(out, width, height);
     for (size_t n = scene.hills.size(); n-- > 0;) {
         const Hill& h = scene.hills[n];
         out += "<path class=\"hill\" id=\"hill-";
@@ -185,6 +197,7 @@ std::string render_svg(const Scene& scene, uint32_t width, uint32_t height) {
         for (size_t t = 0; t < scene.trees.size(); ++t) {
             if (scene.trees[t].hill == static_cast<int>(n)) out += trees::tree_svg(scene.trees[t], static_cast<int>(t), scale);
         }
+        if (n > 0) append_fog(out, width, height);
     }
     out += "</svg>\n";
     return out;

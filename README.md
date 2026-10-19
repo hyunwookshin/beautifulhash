@@ -83,7 +83,7 @@ The number of available combinations and the uniqueness of the mapping are diffe
 
 ### Current Status
 
-The reference implementation in `core/` (C++17) draws three of the eight
+The reference implementation in `core/` (C++17) draws four of the eight
 namespaces. Each is specified under `subspec/`:
 
 | Namespace | Status |
@@ -91,7 +91,8 @@ namespaces. Each is specified under `subspec/`:
 | Mountains | Implemented: two or three layered ridges, biome styling (snow caps, conifer and canopy tree lines), and seasonal palettes |
 | Hills | Implemented: one or two smooth hills below the mountains |
 | Trees | Implemented, visual tuning in progress: 1 to 10 fractal trees per scene (conifers, deciduous trees with seasonal leaves, cacti, Joshua trees) |
-| Global, Sky, Celestial, Vegetation, Fog | Not yet implemented. Theme and season are fixed per gallery configuration until Global is built |
+| Fog | Implemented: an 8-bit haze (density, tint, ground mist) in every depth gap |
+| Global, Sky, Celestial, Vegetation | Not yet implemented. Theme and season are fixed per gallery configuration until Global is built |
 
 ### Building
 
@@ -214,7 +215,6 @@ The following remain unresolved and should not be treated as finalized V0 requir
 * Theme-selection distribution
 * Final tuning of the tree algorithms, and the vegetation algorithm
 * Palette definitions
-* Fog model
 * Canonical scene serialization format
 * Whether pixel-level uniqueness is required
 * Whether pixel-identical rendering across platforms is required

@@ -41,4 +41,7 @@ const std::vector<uint32_t>& hill_palette(Theme theme, Season season, int id);
 constexpr int kLeafPalettes = 16;
 const std::vector<uint32_t>& leaf_palette(Season season, int id);
 
+// Fog tints (subspec/fog.md, Tint): 8 pale colors per biome and season.
+const std::vector<uint32_t>& fog_palette(Theme theme, Season season);
+
 }  // namespace bh

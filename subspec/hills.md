@@ -133,7 +133,9 @@ neighbors.
 * Hills are drawn after every mountain ridge and before Trees and Vegetation:
   back hill, then front hill. Each is a `<path class="hill">` closed down to the
   canvas bottom.
-* With fog on, one haze layer is drawn between the mountains and the hills.
+* A fog layer is drawn between the mountains and the hills, and in two-hill
+  mode another between the back hill (with its trees) and the front hill
+  ([Fog](fog.md)). The front hill is never fogged.
 
 ### Advertised profile
 
@@ -208,7 +210,6 @@ lowest point 1.77.
   fractions (0.15–0.80), and crest positions (0.15–0.85).
 * Green and snowy family hue ranges and lightness bands. The darkest front-hill
   greens render nearly black.
-* Whether the hills should have their own fog layer between them.
 * How Trees and Vegetation use the advertised profiles.
 
 ### Status

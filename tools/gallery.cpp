@@ -1,6 +1,6 @@
 // Renders comparison galleries: each parameter sweep (tools/variants.hpp) is
-// rendered on the same random hashes, in two- and three-ridge mode, with fog
-// off and on. Writes SVGs plus an index.html with a fog toggle.
+// rendered on the same random hashes, in two- and three-ridge mode. Writes SVGs
+// plus an index.html.
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
@@ -9,6 +9,7 @@
 #include <sys/stat.h>
 #include <vector>
 
+#include "fog.hpp"
 #include "generate.hpp"
 #include "hills.hpp"
 #include "trees.hpp"
@@ -70,12 +71,11 @@ int main(int argc, char** argv) {
         "h2{margin-top:40px}table{border-collapse:separate;border-spacing:8px}"
         "th{font-weight:600;text-align:center}td.h{font:11px monospace;color:#888;max-width:90px;word-break:break-all}"
         "img{width:400px;display:block;border-radius:4px;box-shadow:0 1px 3px #0003}"
-        "label{position:sticky;top:0;background:#f4f4f2;display:block;padding:8px 0;z-index:1}</style>\n"
+        "</style>\n"
         "<h1>BeautifulHash Gallery</h1>\n"
         "<p>Seed " + std::to_string(seed) + ". One table per biome, one column per season. Every cell in a "
-        "row uses the same hash, so only the biome and season change. Mountains, hills, and trees all come "
-        "from the hash.</p>\n"
-        "<label><input type=\"checkbox\" id=\"fog\" checked> Fog</label>\n";
+        "row uses the same hash, so only the biome and season change. Mountains, hills, trees, and fog all "
+        "come from the hash.</p>\n";
 
     for (const Group& g : variant_groups()) {
         html += "<h2>" + g.description + "</h2><div style=\"overflow-x:auto\"><table><tr><th></th>";
@@ -98,21 +98,15 @@ int main(int argc, char** argv) {
                 Hash256 th = hashes[i];
                 if (all[v].trees > 0) force_tree_count(th, all[v].trees);
                 scene.trees = trees::generate(th, scene.hills, configs[v].params.theme, configs[v].params.season);
-                std::string base = "v" + std::to_string(v) + "_h" + std::to_string(i);
-                scene.fog.enabled = false;
-                write_file(dir + "/" + base + "_clear.svg", render_svg(scene, 1024, 768));
-                scene.fog.enabled = true;
-                write_file(dir + "/" + base + "_fog.svg", render_svg(scene, 1024, 768));
-                html += "<td><img data-base=\"" + base + "\" src=\"" + base + "_fog.svg\"></td>";
+                scene.fog = fog::generate(hashes[i], configs[v].params.theme, configs[v].params.season);
+                std::string base = "v" + std::to_string(v) + "_h" + std::to_string(i) + ".svg";
+                write_file(dir + "/" + base, render_svg(scene, 1024, 768));
+                html += "<td><img src=\"" + base + "\"></td>";
             }
             html += "</tr>\n";
         }
         html += "</table></div>\n";
     }
-    html +=
-        "<script>document.getElementById('fog').addEventListener('change',e=>{"
-        "for(const i of document.querySelectorAll('img[data-base]'))"
-        "i.src=i.dataset.base+(e.target.checked?'_fog.svg':'_clear.svg');});</script>\n";
     write_file(dir + "/index.html", html);
     std::printf("wrote %zu variants x %zu hashes to %s/index.html\n", all.size(), hashes.size(), dir.c_str());
     return 0;

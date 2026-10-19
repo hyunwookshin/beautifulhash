@@ -63,8 +63,12 @@ struct Tree {
     int leaves = 0;                 // leaf dots: the last `leaves` shapes, left to right
 };
 
+// One haze layer, repeated in every depth gap (subspec/fog.md). Opacities are in
+// hundredths, at the top and bottom of the canvas.
 struct Fog {
-    bool enabled = false;
+    uint32_t rgb = 0xdde5ec;
+    int top = 32;
+    int bottom = 32;
 };
 
 struct Scene {

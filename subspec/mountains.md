@@ -1051,8 +1051,7 @@ gallery variant in `tools/variants.hpp`: one per biome.
 Latest run: 20,000 hashes per mode and size for the default configuration
 (Alpine), plus 2,000 per mode and size for each biome. 0 mismatches, smallest
 observed decode margin 2.19 px, smallest ceiling clearance 240.9 logical units.
-`make gallery` renders all four biomes on the same 40 random hashes, with fog on
-and off.
+`make gallery` renders all four biomes on the same 40 random hashes.
 
 ### Dependencies
 
