@@ -635,6 +635,124 @@ snowline. The polygons form one `<path class="snow">` element (color
 `#EEF2F6`), drawn right after the ridge and before the haze in front of it, so
 nearer ridges cover it and fog tints it. The ridge's own path is unchanged.
 
+#### Ridge faces: Alpine, Tundra, Desert
+
+A flat fill reads as a cutout, so bare and snowy ridges also show their facets:
+the lit and shaded halves of their peaks, and on snow, reflective triangles
+that catch the light. All of it is lit by the implicit sun
+(subspec/celestial.md) and carries no bits.
+
+* **Which ridges:** every Alpine ridge except the tree-covered front one, and
+  every Tundra and Desert ridge.
+* **Not Temperate:** its wooded ridges lack that clear-cut contrast.
+* **Source:** each ridge's final silhouette $P_0, \dots, P_{n-1}$, after any
+  styling.
+
+**Sharp turns.** A vertex $b$ between $a$ and $c$ turns by more than 30° when
+$u = b - a$ and $v = c - b$ satisfy $u \cdot v < 0$, or
+$(u \cdot v)^2 < 0.75\,|u|^2 |v|^2$, with no square root.
+
+* **Peak:** $b_h > a_h$, $b_h > c_h$ (a strict rise into a strict descent, so a
+  plateau never counts) and a sharp turn.
+* **Valley:** $b_h < a_h$, $b_h < c_h$ and a sharp turn.
+* **Width:** a peak counts only if its key valleys are at least 10% of the
+  canvas apart (204.8 logical units). Its key valley on each side is the lowest
+  point before the ridge climbs higher than the peak, or the canvas edge.
+* **Peak height** $H$: the peak's height minus the ridge's lowest point.
+
+**Incoming slope.** From each qualifying peak, a ray runs down into the face,
+toward the viewer like a tripod's third leg. It lies between the rising slope
+extended down past the peak, $\hat d_L = a - b$, and the descending one,
+$\hat d_R = c - b$. Each is scaled so its larger component is 1. With
+$N = 37$:
+
+$$
+d = \hat d_L + f\,(\hat d_R - \hat d_L), \qquad f = 0.1 + 0.8\,\frac{b_h \bmod N}{N}
+$$
+
+A convex combination always stays between the two slopes, and the padding keeps
+it off both.
+
+**Cutoff slope and reflective surface.** A cutoff is a ridge seen edge-on,
+crossing the face. Each valley $b$ has two candidates:
+
+* its descending slope extended past it, a ray from $b$ along $b - a$, under
+  the nearest qualifying peak to the right;
+* its ascending slope extended back past it, a ray from $b$ along $b - c$,
+  under the nearest qualifying peak to the left.
+
+A straight extension meets the other slope at 180° minus the valley's angle. A
+candidate is usable when its ray meets that peak's incoming slope, both rays
+going forward. That closes a triangle: the valley, the peak, and the meeting
+point. It is the reflective surface.
+
+* **Realism:** a surface is realistic when its vertical extent, from its lowest
+  corner up to the peak, is at most $H/2$. Larger flat faces are rare on real
+  mountains and are dropped. (The rule began at $H/3$; that left too few
+  faces.)
+* **Choice:** if both candidates are realistic, the valley's
+  $(b_h \bmod N)/N < 0.5$ picks the descending one, otherwise the ascending
+  one. If only one is realistic, it is used; if neither, the valley has no
+  surface.
+
+The full triangle, including any part below the snowline, is what the rules
+measure. The meeting point may lie above the snowline, in which case the whole
+cutoff shows inside the cap.
+
+Reflective surfaces are computed only on ridges with a snow cap, where they
+become glints.
+
+**Halves.** Each qualifying peak's incoming slope splits its stretch of the
+ridge into two faces. The stretch runs from the lowest point between it and the
+previous qualifying peak (or the canvas edge) to the lowest point before the
+next one, so the stretches of neighboring peaks never overlap.
+
+* The **left half** runs from the peak along the silhouette to that left low
+  point, down to a floor 10 units below the ridge's lowest point, then back up
+  the incoming slope.
+* The **right half** mirrors it.
+
+The top edge of each half is the silhouette itself, so nothing shows above the
+ridge.
+
+**Light.** With the sun's shadow direction $d_x$ and elevation step $e$:
+
+* **Shade:** the half turned away from the sun is overlaid with the ridge's
+  color darkened to 60%, at opacity $0.25 + 0.02\,(15 - e)$. That is 25% under
+  a high sun and 55% under the lowest. It is the right half when $d_x \ge 0$
+  (sun on the left), the left half otherwise. Over snow, an overlay at opacity
+  $k$ is the snow color mixed a fraction $k$ toward the darkened ridge color,
+  staying in the mountain's color family.
+* **Alpenglow:** at sunset ($e \le 2$, a sun at 26° or lower), the sunlit half
+  is overlaid with `#F6A98C`, an orange-pink, at opacity $0.35 + 0.1\,(2 - e)$.
+* **Fade:** both overlays use a vertical `userSpaceOnUse` gradient that holds
+  full opacity down to the fade top and falls to 0 at the fade bottom.
+  * The fade top is the snow's lowest point, or the ridge's highest point on a
+    bare ridge.
+  * The fade bottom is the ridge's lowest point.
+
+  So the snow cap reads crisply, and the rock below only hints at the facets,
+  fading out as it goes down.
+* **Glints:** realistic reflective surfaces on the sunlit side, clipped to the
+  snow cap, are pure white, or at sunset the snow moved 80% toward `#FFD9C2`.
+
+**Rendering.** After the ridge's snow path (if any), each overlay is a
+`<linearGradient id="shade-N">` or `id="glow-N"` followed by a
+`<path class="ridge-face">` filled with it. Each such path has one closed
+subpath per half. Glints follow, clipped by a `<clipPath id="snow-clip-N">`
+holding a copy of the cap outline. The fog in front softens all of it like the
+rest of the ridge. The ridge and snow paths are unchanged, so decoding is
+unaffected.
+
+**Frequency.**
+
+* On 1,000 random Alpine hashes, 97% of two-ridge snow caps and 66% of
+  three-ridge ones have a qualifying peak.
+* 58% of two-ridge caps also carry a glint; in three-ridge mode about 4% do,
+  because the far ridge is mostly a single summit with few sharp valleys.
+* In the gallery, every Tundra and Desert scene and 10 of 12 Alpine scenes
+  show faces.
+
 #### Front-ridge trees: Alpine and Temperate
 
 The front ridge's silhouette carries a tree texture: conifers in Alpine, a

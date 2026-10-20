@@ -217,6 +217,12 @@ std::vector<Point> style_points(const std::vector<Point>& pts, const Params& p, 
 // values, with amplitude decaying by snow_decay at each level.
 std::vector<std::vector<Point>> snow_caps(const std::vector<Point>& pts, const Params& p, const RidgeValues& values);
 
+// Alpine snow faces (subspec/mountains.md, Snow faces): fills ridge.faces with
+// the left and right halves of each qualifying peak (closed down to floor_h)
+// and, with with_glints (snow caps), ridge.glints with the realistic
+// reflective triangles, each with its side of its peak (-1 left, +1 right).
+void snow_faces(const std::vector<Point>& pts, double floor_h, Ridge& ridge, bool with_glints);
+
 // Total subdivision depth of ridge `index` as serialized, including biome
 // styling levels.
 int styled_depth(const Params& p, bool three_ridge, int index);

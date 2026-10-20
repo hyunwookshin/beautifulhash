@@ -1,5 +1,6 @@
 #include "generate.hpp"
 
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 
@@ -23,6 +24,16 @@ void append_hex(std::string& out, uint32_t rgb) {
     static const char* digits = "0123456789abcdef";
     out.push_back('#');
     for (int shift = 20; shift >= 0; shift -= 4) out.push_back(digits[(rgb >> shift) & 15]);
+}
+
+// Each channel moved a fraction k of the way from a to b.
+uint32_t mix(uint32_t a, uint32_t b, double k) {
+    uint32_t out = 0;
+    for (int shift = 16; shift >= 0; shift -= 8) {
+        double ca = static_cast<double>((a >> shift) & 255u), cb = static_cast<double>((b >> shift) & 255u);
+        out |= static_cast<uint32_t>(std::lround(ca + (cb - ca) * k)) << shift;
+    }
+    return out;
 }
 
 void append_uint(std::string& out, uint32_t v) {
@@ -173,20 +184,80 @@ std::string render_svg(const Scene& scene, uint32_t width, uint32_t height) {
 
         // Snow caps: a separate element over the ridge, so the ridge path itself
         // is unchanged. Drawn before the haze in front of this ridge.
+        std::string snow_d;
         if (!r.snow.empty()) {
-            out += "<path class=\"snow\" fill=\"";
-            append_hex(out, r.snow_rgb);
-            out += "\" d=\"";
             for (const auto& poly : r.snow) {
                 for (size_t i = 0; i < poly.size(); ++i) {
-                    out += i == 0 ? (&poly == &r.snow.front() ? "M" : " M") : " L";
-                    append_fixed2(out, poly[i].x * scale);
-                    out += ",";
-                    append_fixed2(out, (kCanvasHeight - poly[i].h) * scale);
+                    snow_d += i == 0 ? (&poly == &r.snow.front() ? "M" : " M") : " L";
+                    append_fixed2(snow_d, poly[i].x * scale);
+                    snow_d += ",";
+                    append_fixed2(snow_d, (kCanvasHeight - poly[i].h) * scale);
                 }
-                out += " Z";
+                snow_d += " Z";
             }
-            out += "\"/>\n";
+            out += "<path class=\"snow\" fill=\"";
+            append_hex(out, r.snow_rgb);
+            out += "\" d=\"" + snow_d + "\"/>\n";
+
+        }
+
+        // Faces (subspec/mountains.md, Ridge faces): the half of each peak
+        // turned away from the sun is overlaid with the mountain's color
+        // darkened, at an opacity that grows as the sun drops. It holds full
+        // strength down to the snow's lowest point (or from the top of a bare
+        // ridge) and fades out by the ridge's lowest point, so the snow cap
+        // reads crisp and the rock below only hints at it. At sunset the
+        // sunlit halves glow orange-pink the same way. On snow, realistic
+        // reflective triangles on the sunlit side catch the light as glints.
+        if (!r.faces.empty()) {
+            std::string num = std::to_string(n + 1);
+            int shaded = scene.sun.dx >= 0.0 ? 1 : -1;  // sun on the left shades right halves
+            bool sunset = scene.sun.elevation <= 2;
+            auto layer = [&](const std::vector<std::vector<Point>>& polys, const std::vector<int>& sides, int side,
+                             const std::string& fill, const std::string& extra) {
+                std::string d;
+                for (size_t f = 0; f < polys.size(); ++f) {
+                    if (sides[f] != side) continue;
+                    for (size_t i = 0; i < polys[f].size(); ++i) {
+                        d += i == 0 ? (d.empty() ? "M" : " M") : " L";
+                        append_fixed2(d, polys[f][i].x * scale);
+                        d += ",";
+                        append_fixed2(d, (kCanvasHeight - polys[f][i].h) * scale);
+                    }
+                    d += " Z";
+                }
+                if (d.empty()) return;
+                out += "<path class=\"ridge-face\" fill=\"" + fill + "\"" + extra + " d=\"" + d + "\"/>\n";
+            };
+            auto fade = [&](const std::string& id, uint32_t rgb, int hundredths) {
+                out += "<linearGradient id=\"" + id + "\" gradientUnits=\"userSpaceOnUse\" x1=\"0\" y1=\"";
+                append_fixed2(out, (kCanvasHeight - r.fade_top) * scale);
+                out += "\" x2=\"0\" y2=\"";
+                append_fixed2(out, (kCanvasHeight - r.fade_bottom) * scale);
+                for (int s = 0; s < 2; ++s) {
+                    out += s == 0 ? "\"><stop offset=\"0\" stop-color=\"" : "\"/><stop offset=\"1\" stop-color=\"";
+                    append_hex(out, rgb);
+                    out += "\" stop-opacity=\"";
+                    append_opacity(out, s == 0 ? hundredths : 0);
+                }
+                out += "\"/></linearGradient>\n";
+            };
+            fade("shade-" + num, mix(r.rgb, 0x000000, 0.4), 25 + 2 * (15 - scene.sun.elevation));
+            layer(r.faces, r.face_side, shaded, "url(#shade-" + num + ")", "");
+            if (sunset) {
+                fade("glow-" + num, 0xF6A98C, 35 + 10 * (2 - scene.sun.elevation));
+                layer(r.faces, r.face_side, -shaded, "url(#glow-" + num + ")", "");
+            }
+            if (!r.glints.empty() && !r.snow.empty()) {
+                std::string id = "snow-clip-" + num;
+                out += "<clipPath id=\"" + id + "\"><path d=\"" + snow_d + "\"/></clipPath>\n";
+                std::string glint = "#ffffff";
+                if (sunset) {
+                    glint.clear();
+                    append_hex(glint, mix(r.snow_rgb, 0xFFD9C2, 0.8));
+                }
+                layer(r.glints, r.glint_side, -shaded, glint, " clip-path=\"url(#" + id + ")\"");
+            }
         }
 
         if (n > 0) append_fog(out, width, height);

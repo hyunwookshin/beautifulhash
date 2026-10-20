@@ -27,6 +27,14 @@ struct Ridge {
     // Biome styling drawn over the ridge: closed polygons above the snowline.
     std::vector<std::vector<Point>> snow;
     uint32_t snow_rgb = 0;
+    // Alpine snow faces (subspec/mountains.md, Snow faces), drawn clipped to the
+    // snow caps and lit by the sun: the left (-1) and right (+1) halves of
+    // each peak, and the realistic reflective triangles as glints.
+    std::vector<std::vector<Point>> faces;
+    std::vector<int> face_side;
+    std::vector<std::vector<Point>> glints;
+    std::vector<int> glint_side;
+    double fade_top = 0.0, fade_bottom = 0.0;  // faces: full strength above fade_top, gone by fade_bottom
 };
 
 // A hill's defining points and shape, advertised as context to the namespaces
@@ -111,6 +119,7 @@ struct Sun {
     double length = 1.0;        // shadow length per unit of height (cot of the elevation)
     double tilt = 0.0;          // band tilt toward the shaded side
     double spacing = 0.0;       // band spacing curve
+    int elevation = 0;          // elevation step, 0 (20 degrees) to 15 (65 degrees)
 };
 
 struct Scene {

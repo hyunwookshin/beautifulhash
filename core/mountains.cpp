@@ -517,6 +517,27 @@ std::vector<Ridge> generate(const Config& config, const Hash256& hash) {
             placed[i].snow_rgb = p.snow_rgb;
         }
         placed[i].points = style_points(placed[i].points, p, v.three_ridge, index, v.ridges[i]);
+        // Lit and shaded faces on bare and snowy ridges: Alpine (except its
+        // tree-covered front ridge), Tundra, and Desert. Temperate ridges are
+        // wooded, without that clear-cut contrast.
+        bool faced = (p.theme == Theme::kAlpine && role(v.three_ridge, index) != 0) || p.theme == Theme::kTundra ||
+                     p.theme == Theme::kDesert;
+        if (faced) {
+            const std::vector<Point>& pts = placed[i].points;
+            double low = pts[0].h, high = pts[0].h;
+            for (const Point& q : pts) {
+                low = std::min(low, q.h);
+                high = std::max(high, q.h);
+            }
+            // Full strength down to the snow's lowest point (or from the top on
+            // a bare ridge), fading out by the ridge's lowest point.
+            double top = high;
+            for (const auto& poly : placed[i].snow)
+                for (const Point& q : poly) top = std::min(top, q.h);
+            placed[i].fade_top = top;
+            placed[i].fade_bottom = low;
+            snow_faces(pts, low - 10.0, placed[i], !placed[i].snow.empty());
+        }
     }
     return placed;
 }
@@ -808,6 +829,140 @@ double texture_min_fraction(const Params& p, bool three_ridge, int index) {
         return (0.65 / 16.0) / std::pow(2.0, p.canopy_subdivisions);
     }
     return 1.0;
+}
+
+}  // namespace bh::mountains
+
+namespace bh::mountains {
+
+namespace {
+
+// Whether the ridge turns by more than 30 degrees at b, without a square
+// root: the angle between a->b and b->c exceeds 30 degrees exactly when
+// their dot product is below cos(30) times the product of their lengths.
+bool sharp_turn(Point a, Point b, Point c) {
+    double ux = b.x - a.x, uh = b.h - a.h, vx = c.x - b.x, vh = c.h - b.h;
+    double dot = ux * vx + uh * vh;
+    if (dot < 0.0) return true;
+    return dot * dot < 0.75 * (ux * ux + uh * uh) * (vx * vx + vh * vh);
+}
+
+// A direction scaled so its larger component is 1 (no square root).
+Point flat_unit(Point d) {
+    double m = std::max(std::fabs(d.x), std::fabs(d.h));
+    return {d.x / m, d.h / m};
+}
+
+// Where rays p + s u and q + t w meet, with s, t > 0; false if they never do.
+bool meet(Point p, Point u, Point q, Point w, Point& out) {
+    double det = u.x * (-w.h) - u.h * (-w.x);
+    if (det == 0.0) return false;
+    double dx = q.x - p.x, dh = q.h - p.h;
+    double s = (dx * (-w.h) - dh * (-w.x)) / det;
+    double t = (u.x * dh - u.h * dx) / det;
+    if (s <= 0.0 || t <= 0.0) return false;
+    out = {p.x + s * u.x, p.h + s * u.h};
+    return true;
+}
+
+}  // namespace
+
+void snow_faces(const std::vector<Point>& pts, double floor_h, Ridge& ridge, bool with_glints) {
+    const double kMod = 37.0;  // N: the height modulus that picks directions
+    std::vector<std::vector<Point>>& faces = ridge.glints;
+    std::vector<int>& sides = ridge.glint_side;
+    faces.clear();
+    sides.clear();
+    ridge.faces.clear();
+    ridge.face_side.clear();
+    size_t n = pts.size();
+    if (n < 3) return;
+    double low = pts[0].h;
+    for (const Point& q : pts) low = std::min(low, q.h);
+
+    // Peaks: a rise turning into a descent by more than 30 degrees, at least
+    // 10% of the canvas wide between its key valleys (the lowest points
+    // before the ridge climbs higher than the peak on either side).
+    struct Peak {
+        size_t i;
+        Point in;  // incoming slope direction, down into the face
+    };
+    std::vector<Peak> peaks;
+    for (size_t i = 1; i + 1 < n; ++i) {
+        const Point &a = pts[i - 1], &b = pts[i], &c = pts[i + 1];
+        if (!(b.h > a.h && b.h > c.h && sharp_turn(a, b, c))) continue;
+        size_t l = i, r = i;
+        for (size_t k = i; k-- > 0 && pts[k].h <= b.h;) if (pts[k].h < pts[l].h) l = k;
+        for (size_t k = i + 1; k < n && pts[k].h <= b.h; ++k) if (pts[k].h < pts[r].h) r = k;
+        if (pts[r].x - pts[l].x < 0.10 * kCanvasWidth) continue;
+        // The incoming slope: between the rising slope (down-left from the
+        // peak) and the descending one (down-right), at a fraction set by the
+        // peak's height modulo N, padded to 10-90%.
+        Point down_left = flat_unit({a.x - b.x, a.h - b.h}), down_right = flat_unit({c.x - b.x, c.h - b.h});
+        double f = 0.1 + 0.8 * (std::fmod(b.h, kMod) / kMod);
+        peaks.push_back({i, {down_left.x + f * (down_right.x - down_left.x), down_left.h + f * (down_right.h - down_left.h)}});
+    }
+
+    // Valleys: a descent turning into a rise by more than 30 degrees. Each can
+    // extend its descending slope on past it (under the next peak to the
+    // right) or its ascending slope back past it (under the previous peak to
+    // the left), as a cutoff slope. A cutoff that meets that peak's incoming
+    // slope closes a triangle: the reflective surface. It is realistic when
+    // its vertical extent is at most half the peak's height above the
+    // ridge's lowest point.
+    for (size_t v = 1; with_glints && v + 1 < n; ++v) {
+        const Point &a = pts[v - 1], &b = pts[v], &c = pts[v + 1];
+        if (!(b.h < a.h && b.h < c.h && sharp_turn(a, b, c))) continue;
+        std::vector<Point> option[2];  // 0: descending extension, 1: ascending
+        for (int o = 0; o < 2; ++o) {
+            const Peak* pk = nullptr;
+            for (const Peak& q : peaks) {
+                if (o == 0 && q.i > v && (!pk || q.i < pk->i)) pk = &q;
+                if (o == 1 && q.i < v && (!pk || q.i > pk->i)) pk = &q;
+            }
+            if (!pk) continue;
+            Point dir = o == 0 ? Point{b.x - a.x, b.h - a.h} : Point{b.x - c.x, b.h - c.h};
+            Point m;
+            if (!meet(b, dir, pts[pk->i], pk->in, m)) continue;
+            const Point& top = pts[pk->i];
+            double extent = top.h - std::min(b.h, m.h);
+            if (extent > (top.h - low) / 2.0) continue;
+            option[o] = {b, top, m};
+        }
+        int pick = -1;
+        if (!option[0].empty() && !option[1].empty()) pick = std::fmod(b.h, kMod) / kMod < 0.5 ? 0 : 1;
+        else if (!option[0].empty()) pick = 0;
+        else if (!option[1].empty()) pick = 1;
+        if (pick < 0) continue;
+        faces.push_back(option[pick]);
+        sides.push_back(pick == 0 ? -1 : 1);  // left of the peak to its right, or right of the peak to its left
+    }
+
+    // The two halves of each peak: its incoming slope splits its stretch of the
+    // ridge, from the lowest point between it and the previous qualifying peak
+    // (or the canvas edge) to the lowest point before the next one, into a
+    // left and a right face. Each closes down to floor_h, below the snow, so
+    // clipping to the cap shows exactly the snow on that side.
+    for (size_t k = 0; k < peaks.size(); ++k) {
+        size_t i = peaks[k].i;
+        size_t from = k == 0 ? 0 : peaks[k - 1].i, to = k + 1 == peaks.size() ? n - 1 : peaks[k + 1].i;
+        size_t l = from, r = to;
+        for (size_t q = from; q <= i; ++q) if (pts[q].h < pts[l].h) l = q;
+        for (size_t q = i; q <= to; ++q) if (pts[q].h < pts[r].h) r = q;
+        const Point& top = pts[i];
+        Point d = peaks[k].in;
+        Point foot{top.x + (floor_h - top.h) / d.h * d.x, floor_h};  // the incoming slope at floor_h
+        std::vector<Point> left = {top};
+        for (size_t q = i; q-- > l;) left.push_back(pts[q]);
+        left.push_back({pts[l].x, floor_h});
+        left.push_back(foot);
+        std::vector<Point> right = {top, foot, {pts[r].x, floor_h}};
+        for (size_t q = r + 1; q-- > i + 1;) right.push_back(pts[q]);
+        ridge.faces.push_back(left);
+        ridge.face_side.push_back(-1);
+        ridge.faces.push_back(right);
+        ridge.face_side.push_back(1);
+    }
 }
 
 }  // namespace bh::mountains

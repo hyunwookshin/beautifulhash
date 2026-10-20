@@ -55,6 +55,7 @@ Sun sun(const Values& v) {
     s.length = kShadow[v.elevation];
     s.tilt = 0.15 * s.dx;
     s.spacing = 0.25 - static_cast<double>(v.elevation) / 30.0;
+    s.elevation = static_cast<int>(v.elevation);
     return s;
 }
 
