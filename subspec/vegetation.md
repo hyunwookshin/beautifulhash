@@ -8,12 +8,12 @@
 
 The Vegetation namespace covers the ground of the front (or only) hill with
 many small plants: petals in spring, grass in summer, fallen leaves under the
-Temperate trees in fall, frosted grass in winter, and rosettes in the desert.
+Temperate trees in fall, snow pocks in winter, and rosettes in the desert.
 Where they grow depends on the plant, and the two placements are each
 other's negative:
 
 * **Near the trees:** Temperate fall leaves (one in five blown loose across
-  the hill) and winter's frosted grass gather at the foot of the trees.
+  the hill) and winter's snow pocks gather at the foot of the trees.
 * **Away from the trees:** everything else fills the open ground between the
   trees, thinning to nothing at each trunk and growing denser toward the rim,
   as receding ground does.
@@ -45,10 +45,16 @@ effect in every biome and season.
 | Fall, Alpine and Tundra | Grass tuft, dry: these evergreen biomes drop no leaves | Straw to olive-brown |
 | Spring | Petal: the same eye shape | Creamy to cool whites, with one or two yellows |
 | Summer | Grass tuft, `\|||/` | Dark greens |
-| Winter | Grass tuft, frosted | Snowy blue-white and lavender-white tints |
+| Winter | Snow pock: a small cup, `\_/`, where needles and clumps dropped from the branches, or an animal stepped | A gradient from the front hill's darkest band at the rim to its second darkest at the bottom |
 | Desert, except winter | Rosette: five broad pointed leaves fanning from the ground | Sage (spring), dusty olive (summer), ochre (fall) |
 
-Winter overrides the biome, so the desert also has frosted grass in winter.
+Winter overrides the biome, so the desert also has snow pocks in winter.
+
+**Pocks and the palette bits.** Pocks take their color from the hill, so in
+winter the palette field shapes them instead: rim width factor
+$1 + 0.1\lfloor p / 4 \rfloor$ and depth $0.32 + 0.06\,(p \bmod 4)$ times the rim's
+half-width, giving 16 distinct cups. The palette bits therefore still have an
+effect in winter.
 
 ### Placement
 
@@ -106,6 +112,7 @@ Plants are tiny by the rim and grow toward the viewer; near the trees, those by
 a rim tree are also far smaller than those in front of a slope tree.
 
 * Leaf or petal: half-length $2.2\,d\,j$.
+* Snow pock: rim half-width $3.2\,d\,j$.
 * Tuft: blade height $6\,d\,j$; the outer blades lean out by $0.25 + 0.3u_5$
   of that height.
 * Rosette: leaf height $5\,d\,j$; the outer leaves lean out by $0.9 + 0.4u_5$.
@@ -148,7 +155,7 @@ $$
 |---|---|---:|---:|---:|
 | Fall (Temperate) | 30–85 | 0.55 | 0.18 | 0.15 |
 | Summer | 115–150 | 0.36 | 0.14 | 0.08 |
-| Winter (every biome) | 215–280 | 0.84 | 0.08 | 0.03 |
+| Winter (every biome; unused, pocks take the hill's gradient) | 215–280 | 0.84 | 0.08 | 0.03 |
 | Desert spring (sage) | 120–155 | 0.60 | 0.14 | 0.06 |
 | Desert summer (olive) | 95–125 | 0.52 | 0.14 | 0.06 |
 | Desert fall (ochre) | 60–85 | 0.56 | 0.16 | 0.09 |
@@ -188,6 +195,13 @@ them.
 * **Rosette:** the same five-blade form, broader and lower: roots $0.1$ of the
   height apart, half-width $0.16$ of the height at the root, leaf heights 0.5,
   0.8, 1, 0.8, 0.5, and the same fan-out with its wider lean.
+* **Snow pock:** with rim half-width $a$ (times the width factor) and depth $d$,
+  `M-a,0 L a,0 L 0.55a,d Q0,1.3d -0.55a,d Z`, placed by `translate(...)` at
+  the plant's point (the rim's center). Every pock is filled with
+  `url(#pock)`: one vertical `<linearGradient id="pock">` in `<defs>`, from the
+  front hill's darkest band at the top (the rim reads darker, like a hole seen
+  from the side) to its second darkest at the bottom. The gradient is defined
+  only when the scene has pocks.
 
 ### Verification
 

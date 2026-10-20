@@ -92,7 +92,7 @@ namespaces. Each is specified under `subspec/`:
 | Hills | Implemented: one or two smooth hills below the mountains |
 | Trees | Implemented, visual tuning in progress: 1 to 10 fractal trees per scene (conifers, deciduous trees with seasonal leaves, cacti, Joshua trees) |
 | Fog | Implemented: an 8-bit haze (density, tint, ground mist) in every depth gap |
-| Vegetation | Implemented: seasonal ground cover on the front hill (fallen leaves and frosted grass at the trees; petals, grass, and desert rosettes in the open) |
+| Vegetation | Implemented: seasonal ground cover on the front hill (fallen leaves and snow pocks at the trees; petals, grass, and desert rosettes in the open) |
 | Celestial | Implemented: an implicit, never-drawn sun that lights the front hill's bands and casts the trees' shadows |
 | Global, Sky | Not yet implemented. Theme and season are fixed per gallery configuration until Global is built |
 

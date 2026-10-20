@@ -81,9 +81,10 @@ struct Tree {
 };
 
 // One foreground plant (subspec/vegetation.md): a fallen leaf or petal (an eye
-// shape like a tree leaf), a grass tuft of five thin blades, or a desert
-// rosette of five broad pointed leaves.
-enum class PlantKind { kLeaf, kTuft, kRosette };
+// shape like a tree leaf), a grass tuft of five thin blades, a desert rosette
+// of five broad pointed leaves, or a winter snow pock: a small cup, \_/, where
+// needles or a footprint pressed into the snow.
+enum class PlantKind { kLeaf, kTuft, kRosette, kPock };
 
 struct Plant {
     PlantKind kind = PlantKind::kLeaf;
@@ -91,6 +92,7 @@ struct Plant {
     Point axis{1, 0};    // leaf: unit direction of its long axis
     double size = 1.0;   // leaf: half-length; tuft and rosette: tallest blade
     double lean = 0.0;   // tuft and rosette: how far the outer blades fan out, as a fraction of the height
+    double wide = 1.0, deep = 0.4;  // pock: rim width factor and depth as a fraction of the half-width
     uint32_t rgb = 0;
 };
 

@@ -111,7 +111,22 @@ std::string render_svg(const Scene& scene, uint32_t width, uint32_t height) {
     append_hex(out, scene.fog.rgb);
     out += "\" stop-opacity=\"";
     append_opacity(out, scene.fog.bottom);
-    out += "\"/></linearGradient></defs>\n";
+    out += "\"/></linearGradient>";
+    // Winter snow pocks share one gradient: the front hill's darkest band at the
+    // rim to its second darkest at the bottom (subspec/vegetation.md).
+    bool pocks = false;
+    for (const Plant& p : scene.vegetation) pocks = pocks || p.kind == PlantKind::kPock;
+    if (pocks && !scene.hills.empty()) {
+        const Hill& front = scene.hills[0];
+        size_t nb = front.band_rgb.size();
+        uint32_t rim = nb > 0 ? front.band_rgb[nb - 1] : front.rgb, floor = nb > 1 ? front.band_rgb[nb - 2] : front.rgb;
+        out += "<linearGradient id=\"pock\" x1=\"0\" y1=\"0\" x2=\"0\" y2=\"1\"><stop offset=\"0\" stop-color=\"";
+        append_hex(out, rim);
+        out += "\"/><stop offset=\"1\" stop-color=\"";
+        append_hex(out, floor);
+        out += "\"/></linearGradient>";
+    }
+    out += "</defs>\n";
     out += "<rect class=\"sky\" ";
     append_full_rect(out, width, height);
     out += " fill=\"url(#sky)\"/>\n";

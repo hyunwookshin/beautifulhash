@@ -41,12 +41,12 @@ void append_point(std::string& out, double x, double h, double scale) {
     append_fixed2(out, (kCanvasHeight - h) * scale);
 }
 
-// The plant for a biome and season: winter is frosted grass everywhere; the
+// The plant for a biome and season: winter is snow pocks everywhere; the
 // desert grows rosettes; elsewhere spring has petals and summer grass. Only
 // Temperate (deciduous) trees drop leaves in fall; the evergreen biomes have
 // dry grass instead.
 PlantKind kind_of(Theme theme, Season season) {
-    if (season == Season::kWinter) return PlantKind::kTuft;
+    if (season == Season::kWinter) return PlantKind::kPock;
     if (theme == Theme::kDesert) return PlantKind::kRosette;
     if (season == Season::kSpring) return PlantKind::kLeaf;
     if (season == Season::kFall && theme == Theme::kTemperate) return PlantKind::kLeaf;
@@ -164,6 +164,8 @@ std::vector<Plant> scatter(const Values& v, const std::vector<Anchor>& anchors, 
                 double q = 2.0 * u(5) - 1.0;
                 p.axis = {(1.0 - q * q) / (1.0 + q * q), 2.0 * q / (1.0 + q * q)};
                 p.size = 2.2 * depth * jitter;
+            } else if (kind == PlantKind::kPock) {
+                p.size = 3.2 * depth * jitter;  // half-width of the rim
             } else if (kind == PlantKind::kTuft) {
                 p.size = 6.0 * depth * jitter;
                 p.lean = 0.25 + 0.3 * u(5);
@@ -182,6 +184,13 @@ std::vector<Plant> build(const Values& v, const std::vector<Tree>& trees, const 
     std::vector<Plant> out = scatter(v, anchors(trees, hills), hills[0], theme, season);
     const std::vector<uint32_t>& colors = vegetation_palette(theme, season, static_cast<int>(v.palette));
     for (size_t i = 0; i < out.size(); ++i) out[i].rgb = colors[i % colors.size()];
+    // Pocks take their color from the hill (a gradient), so the palette bits
+    // shape them instead: rim width and depth, two bits each.
+    for (Plant& p : out) {
+        if (p.kind != PlantKind::kPock) continue;
+        p.wide = 1.0 + 0.1 * static_cast<double>(v.palette >> 2);
+        p.deep = 0.32 + 0.06 * static_cast<double>(v.palette & 3u);
+    }
     // Back to front, so nearer plants overlap farther ones.
     std::stable_sort(out.begin(), out.end(), [](const Plant& a, const Plant& b) { return a.base.h > b.base.h; });
     return out;
@@ -193,6 +202,32 @@ std::vector<Plant> generate(const Hash256& hash, const std::vector<Tree>& trees,
 }
 
 std::string plant_svg(const Plant& p, double scale) {
+    if (p.kind == PlantKind::kPock) {
+        // A small cup pressed into the snow, seen from the side: a flat rim,
+        // sides tapering in, and a rounded bottom. Filled with the shared
+        // pock gradient (darker rim, lighter bottom), placed by translation.
+        double a = p.size * p.wide * scale, d = p.size * p.deep * scale;
+        std::string out = "<path fill=\"url(#pock)\" d=\"M";
+        append_fixed2(out, -a);
+        out += ",0L";
+        append_fixed2(out, a);
+        out += ",0L";
+        append_fixed2(out, 0.55 * a);
+        out += ",";
+        append_fixed2(out, d);
+        out += "Q0,";
+        append_fixed2(out, 1.3 * d);
+        out += " ";
+        append_fixed2(out, -0.55 * a);
+        out += ",";
+        append_fixed2(out, d);
+        out += "Z\" transform=\"translate(";
+        append_fixed2(out, p.base.x * scale);
+        out += " ";
+        append_fixed2(out, (kCanvasHeight - p.base.h) * scale);
+        out += ")\"/>";
+        return out;
+    }
     std::string out = "<path fill=\"";
     append_hex(out, p.rgb);
     out += "\" d=\"";

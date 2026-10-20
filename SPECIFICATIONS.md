@@ -132,7 +132,7 @@ The season cascades through every layer it affects:
 
 | Season | Mountains | Hills | Trees | Foreground vegetation |
 |---|---|---|---|---|
-| Winter | Temperate: shades of bluish gray instead of the usual palette. Other biomes unchanged. | Snowy tints in every biome (pale blue-whites to lavender-whites), still varied by the color bits | Temperate broadleaf trees are bare, with occasional white (snow) spots | Frosted grass tufts in snowy tints clustered at the trees, in every biome |
+| Winter | Temperate: shades of bluish gray instead of the usual palette. Other biomes unchanged. | Snowy tints in every biome (pale blue-whites to lavender-whites), still varied by the color bits | Temperate broadleaf trees are bare, with occasional white (snow) spots | Snow pocks (small cups where needles dropped or an animal stepped) clustered at the trees, in every biome, shaded from the front hill's darkest band |
 | Spring | Unchanged | Green | Unchanged | White petals with occasional yellow, on the open ground away from the trees; desert rosettes in sage |
 | Summer | Unchanged (the baseline palettes) | Green | Unchanged | Dark green grass tufts on the open ground away from the trees; desert rosettes in dusty olive |
 | Fall | Temperate: shades of yellowish orange instead of the usual palette. Other biomes unchanged. | Green | Unchanged | Temperate: fallen orange and gold leaves at the trees, a few blown loose. Alpine and Tundra (evergreen): dry grass. Desert: rosettes in ochre |
