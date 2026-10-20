@@ -128,6 +128,24 @@ uint32_t shade(uint32_t rgb, double k) {
     return out;
 }
 
+// Grass teeth along an edge, \/\/\/: valleys on the edge every `spacing`, peaks
+// between them raised by `height` times a repeating, irregular pattern, so
+// the teeth are uneven but not random. With `cap`, no point rises above it.
+std::vector<Point> teeth(const std::vector<Point>& edge, double spacing, double height, const std::vector<Point>* cap) {
+    static const int kPattern[6] = {2, 3, 0, 1, 4, 7};
+    std::vector<Point> out;
+    int steps = static_cast<int>(kCanvasWidth / spacing);
+    for (int k = 0; k <= 2 * steps; ++k) {
+        double x = 0.5 * spacing * k;
+        double h = mountains::height_at(edge, x);
+        if (k % 2 == 1) h += height * (0.3 + 0.1 * kPattern[(k / 2) % 6]);
+        if (cap) h = std::min(h, mountains::height_at(*cap, x));
+        out.push_back({x, h});
+    }
+    if (out.back().x < kCanvasWidth) out.push_back({kCanvasWidth, mountains::height_at(edge, kCanvasWidth)});
+    return out;
+}
+
 }  // namespace
 
 void add_bands(Hill& hill, const Sun& sun) {
@@ -155,6 +173,17 @@ void add_bands(Hill& hill, const Sun& sun) {
         for (const Point& q : s) {
             double tilt = 1.0 + sun.tilt * f * (2.0 * q.x / kCanvasWidth - 1.0);
             edge.push_back({q.x, celestial::surface(q.h, low, f) * tilt});
+        }
+        // The crest gets the finest teeth, under a logical unit tall: visible
+        // when zoomed in, not at full view. They rise above the silhouette, on
+        // the top band only, so the hill's own path is unchanged. Inner
+        // boundaries get grass teeth that grow toward the viewer with the
+        // vegetation's depth scale, capped at the silhouette.
+        if (j == 0) {
+            edge = teeth(edge, 2.0, 0.8, nullptr);
+        } else {
+            double d = 0.35 + 1.65 * f;
+            edge = teeth(edge, 4.0 * d, 5.0 * d, &s);
         }
         hill.bands.push_back(edge);
         // 8% steps toward white above the middle band and toward black below.

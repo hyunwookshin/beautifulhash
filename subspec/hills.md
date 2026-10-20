@@ -154,6 +154,20 @@ banded.
   and $|\tau| \le 0.15$, $B_j(x) \le (1 - f)(1 + 0.15f)\,S(x) \le S(x)$: no
   boundary rises above the silhouette. Since $|\beta| \le 0.25$, the depths
   increase with $j$.
+* **Grass teeth:** no boundary is a smooth line; each becomes a row of teeth,
+  `\/\/\/`. With tooth spacing $w$ and height $a$, the valleys lie on the
+  boundary at $x = kw$, and the peaks halfway between rise by $a\,m_k$. The
+  multiplier $m_k = 0.3 + 0.1\,p_{k \bmod 6}$ follows the repeating, irregular
+  pattern $p = (2, 3, 0, 1, 4, 7)$, so the teeth are uneven but not random.
+  Heights between points are read linearly off the boundary, and the row ends
+  with a point at $x = 2048$.
+  * **Crest** (boundary 0): the finest teeth, $w = 2$ and $a = 0.8$ logical
+    units, under half a pixel at 1024 wide. They show when zoomed in and
+    vanish at full view. They rise above the silhouette and belong to the top
+    band only, so the hill's own path is unchanged.
+  * **Inner boundaries** ($j \ge 1$): grass that grows toward the viewer with
+    the vegetation's depth scale $d = 0.35 + 1.65 f_j$ (subspec/vegetation.md,
+    Size): $w = 4d$ and $a = 5d$. Peaks are capped at the silhouette.
 * **Colors:** band $j$ moves each channel $c$ of the hill's color by
   $k = 0.08\,(\lfloor (n - 1)/2 \rfloor - j)$: to
   $\operatorname{round}(c + (255 - c)k)$ toward white for $k > 0$, or
