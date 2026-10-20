@@ -82,7 +82,7 @@ Layers are listed from foreground to background.
 | 7 | Taller mountain ridge | More distant/taller silhouette | No |
 | 8 | Additional taller ridge | Third mountain ridge | Yes |
 | 9 | Sky and clouds | Background atmosphere | No |
-| 10 | Sun or moon | Celestial object linked to sky | Yes |
+| 10 | Sun (implicit) | Never drawn; lights the front hill and casts the trees' shadows | No |
 
 ### Layer rules
 
@@ -93,7 +93,7 @@ Layers are listed from foreground to background.
 * Layers must obey a consistent depth and occlusion model.
 * Mountains and hills should form coherent silhouettes.
 * Tree types and vegetation must be appropriate to the selected environment.
-* Sun/moon placement must be consistent with the sky configuration.
+* The implicit sun's light (bands and shadows) must be consistent across the front hill and its trees.
 
 ## Environmental Themes
 
@@ -263,7 +263,7 @@ The proposed V0 allocation is:
 |---|---|---:|---|
 | Global | 0–15 | 16 | Theme, season, and overall composition |
 | Sky | 16–39 | 24 | Sky colors, clouds, atmospheric conditions |
-| Celestial | 40–47 | 8 | Sun, moon, position, and lighting |
+| Celestial | 40–47 | 8 | The implicit sun: direction and height, for lighting and shadows |
 | Mountains | 48–135 | 88 | Mountain ridges and their geometry |
 | Hills | 136–175 | 40 | Hill terrain geometry, silhouettes, and surface colors (no trees) |
 | Trees | 176–223 | 48 | Tree arrangements, sizes, and branching |
@@ -407,7 +407,7 @@ For example:
 * The Mountains namespace may use the Global namespace's selected theme to choose mountain colors and textures.
 * The Trees and Vegetation namespaces plant on hills using the hill profiles advertised by Hills (crest, edge heights, and shape), so Hills is generated before them.
 * The Fog namespace may use the scene's layer depths to determine atmospheric effects.
-* The Celestial namespace may use the Sky namespace's lighting mode to select a compatible sun or moon.
+* The Celestial namespace's sun lights the front hill's bands and casts the trees' shadows, using the hill profile and the tree limbs, so Hills and Trees are generated before it is applied.
 
 These dependencies must not involve reading another namespace's raw hash bits.
 

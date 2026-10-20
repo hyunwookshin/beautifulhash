@@ -68,8 +68,9 @@ Interval crest_interval(const Params& p, bool two, int index, double crest_x, co
 Hill build(const Params& p, bool two, int index, const HillValues& v, const std::vector<Hill>& front,
            Theme theme, Season season);
 
-// Adds the front hill's shading bands (subspec/hills.md, Shading bands).
-void add_bands(Hill& hill);
+// Adds the front hill's shading bands, lit by the sun (subspec/hills.md,
+// Shading bands).
+void add_bands(Hill& hill, const Sun& sun);
 
 // Decodes the namespace and builds every hill, front to back.
 std::vector<Hill> generate(const Hash256& hash, Theme theme, Season season);

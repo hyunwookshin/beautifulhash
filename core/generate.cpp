@@ -3,6 +3,7 @@
 #include <cstdio>
 #include <cstdlib>
 
+#include "celestial.hpp"
 #include "fog.hpp"
 #include "format.hpp"
 #include "hills.hpp"
@@ -71,6 +72,10 @@ Scene generate_scene(const Hash256& hash, int version) {
     // which will plant on them using the advertised hill profiles.
     scene.hills = hills::generate(hash, config.params.theme, config.params.season);
     scene.trees = trees::generate(hash, scene.hills, config.params.theme, config.params.season);
+    // The implicit sun lights the front hill and casts the trees' shadows.
+    scene.sun = celestial::generate(hash);
+    hills::add_bands(scene.hills[0], scene.sun);
+    celestial::cast_shadows(scene.trees, scene.hills[0], scene.sun);
     scene.vegetation = vegetation::generate(hash, scene.trees, scene.hills, config.params.theme, config.params.season);
     // Fog comes last: it hazes every depth gap the other layers create.
     scene.fog = fog::generate(hash, config.params.theme, config.params.season);
@@ -214,6 +219,25 @@ std::string render_svg(const Scene& scene, uint32_t width, uint32_t height) {
             out += " L0,";
             append_uint(out, height);
             out += " Z\"/>\n";
+        }
+        // Tree shadows on the front hill, in its darkest band color, under the
+        // ground cover (subspec/celestial.md, Shadows).
+        for (size_t t = 0; t < scene.trees.size(); ++t) {
+            const Tree& tr = scene.trees[t];
+            if (tr.hill != static_cast<int>(n) || tr.shadow.empty() || h.band_rgb.empty()) continue;
+            out += "<path class=\"shadow\" fill=\"";
+            append_hex(out, h.band_rgb.back());
+            out += "\" d=\"";
+            for (size_t k = 0; k < tr.shadow.size(); ++k) {
+                for (size_t i = 0; i < tr.shadow[k].size(); ++i) {
+                    out += i == 0 ? (k == 0 ? "M" : " M") : " L";
+                    append_fixed2(out, tr.shadow[k][i].x * scale);
+                    out += ",";
+                    append_fixed2(out, (kCanvasHeight - tr.shadow[k][i].h) * scale);
+                }
+                out += " Z";
+            }
+            out += "\"/>\n";
         }
         // Vegetation covers the front (or only) hill's ground, under its trees
         // (subspec/vegetation.md, Rendering).

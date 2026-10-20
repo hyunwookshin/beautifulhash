@@ -132,22 +132,28 @@ neighbors.
 
 The front (or only) hill is shaded in discrete bands, lighter at the top and
 darker toward the viewer, so it reads as a lit, rounded surface rather than a
-flat fill. The bands carry no bits; they follow from the hill's shape and color.
-The back hill is not banded.
+flat fill. The bands carry no Hills bits: they follow from the hill's shape and
+color, lit by the implicit sun (subspec/celestial.md). The back hill is not
+banded.
 
 * **Count:** 5 bands when the hill's mean height over its 65 points is at least
   80, otherwise 3.
-* **Boundaries:** with silhouette $S(x)$, its lowest height
-  $S_{\min}$, and $f = j / n$, boundary $j = 0, \dots, n - 1$ is
+* **Boundaries:** with $r = j / n$ and the sun's spacing $\beta$ and tilt
+  $\tau$, boundary $j = 0, \dots, n - 1$ lies at depth
+  $f_j = r(1 - \beta) + r^2\beta$ on the ground surface $H$ (subspec/celestial.md,
+  The ground surface), tilted across the canvas:
 
   $$
-  B_j(x) = (1 - f)\left((1 - f)\,S(x) + f\,S_{\min}\right)
+  B_j(x) = H(x, f_j)\left(1 + \tau f_j \left(\frac{2x}{2048} - 1\right)\right)
   $$
 
   Boundary 0 is the silhouette. Deeper boundaries follow the crest's contour
   but flatten toward $S_{\min}$ and drop toward the canvas bottom, so they have
-  less and less curvature toward the front, which gives the 3D effect. Since
-  $S_{\min} \le S(x)$, no boundary rises above the silhouette.
+  less and less curvature toward the front, which gives the 3D effect. The
+  tilt lowers them on the side the sun lights. Since $H(x, f) \le (1 - f)S(x)$
+  and $|\tau| \le 0.15$, $B_j(x) \le (1 - f)(1 + 0.15f)\,S(x) \le S(x)$: no
+  boundary rises above the silhouette. Since $|\beta| \le 0.25$, the depths
+  increase with $j$.
 * **Colors:** band $j$ moves each channel $c$ of the hill's color by
   $k = 0.08\,(\lfloor (n - 1)/2 \rfloor - j)$: to
   $\operatorname{round}(c + (255 - c)k)$ toward white for $k > 0$, or

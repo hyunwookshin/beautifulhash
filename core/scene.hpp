@@ -59,6 +59,12 @@ struct TreeShape {
     Point axis{1, 0};
 };
 
+// One trunk or branch segment, for casting shadows: its ends and widths.
+struct Limb {
+    Point a, b;
+    double wa, wb;
+};
+
 struct Tree {
     std::vector<TreeShape> shapes;  // branches breadth-first, then foliage
     int hill = 0;                   // index into Scene::hills it stands on
@@ -67,6 +73,8 @@ struct Tree {
     int leaves = 0;                 // leaf dots: the last `leaves` shapes, left to right
     Point base{0, 0};               // where the trunk meets the ground
     double scale = 1.0;             // overall size factor (composition and size class)
+    std::vector<Limb> limbs;        // trunk and branches (not foliage)
+    std::vector<std::vector<Point>> shadow;  // front hill: shadow polygons on the ground
 };
 
 // One foreground plant (subspec/vegetation.md): a fallen leaf or petal (an eye
@@ -91,6 +99,15 @@ struct Fog {
     int bottom = 32;
 };
 
+// The implicit sun (subspec/celestial.md): never drawn, but it lights the front
+// hill's bands and casts the trees' shadows.
+struct Sun {
+    double dx = 1.0, dy = 0.0;  // shadow direction on the ground: right, toward the viewer
+    double length = 1.0;        // shadow length per unit of height (cot of the elevation)
+    double tilt = 0.0;          // band tilt toward the shaded side
+    double spacing = 0.0;       // band spacing curve
+};
+
 struct Scene {
     int version = 0;
     std::vector<Ridge> ridges;  // front to back: ridges[0] is Ridge 1
@@ -98,6 +115,7 @@ struct Scene {
     std::vector<Tree> trees;    // in drawing order within each hill
     std::vector<Plant> vegetation;  // on the front (or only) hill, back to front
     Fog fog;
+    Sun sun;
 };
 
 }  // namespace bh

@@ -453,7 +453,8 @@ trees). 0 mismatches, and no ambiguous pairs.
   whether the leaf palette field exists; it also reaches trees through the hill
   color.
 * Provides: tree placements and depths, used by Fog and for occlusion, and tree
-  bases and sizes, used by Vegetation to cluster plants at the trees.
+  bases and sizes, used by Vegetation to cluster plants at the trees, and tree
+  limbs (trunk and branch segments), used by Celestial to cast shadows.
 
 ### Open decisions
 

@@ -370,6 +370,7 @@ Tree build(const Values& v, const Plan& p, int index, const std::vector<Hill>& h
     trunk.girth = scale * girth_base * (1.0 + 1.5 * gv);
     trunk.end = add(trunk.start, trunk.dir, trunk.length);
     tree.shapes.push_back(quad(trunk.start, trunk.end, trunk.dir, trunk.girth, trunk.girth * taper, col.trunk));
+    tree.limbs.push_back({trunk.start, trunk.end, trunk.girth, trunk.girth * taper});
 
     // Forks, breadth-first. The split ratio sets both shares and both angles:
     // the large branch tilts by about 90(1 - r) degrees and the small one by
@@ -551,12 +552,15 @@ Tree build(const Values& v, const Plan& p, int index, const std::vector<Hill>& h
                 // Cactus arms leave at the fork angle, then turn straight up.
                 Point elbow = add(b.start, b.dir, 0.3 * b.length);
                 tree.shapes.push_back(quad(b.start, elbow, b.dir, b.girth, b.girth, col.trunk));
+                tree.limbs.push_back({b.start, elbow, b.girth, b.girth});
                 b.dir = {0.0, 1.0};
                 b.end = add(elbow, b.dir, 0.7 * b.length);
                 tree.shapes.push_back(quad(elbow, b.end, b.dir, b.girth, b.girth, col.trunk));
+                tree.limbs.push_back({elbow, b.end, b.girth, b.girth});
             } else {
                 b.end = add(b.start, b.dir, b.length);
                 tree.shapes.push_back(quad(b.start, b.end, b.dir, b.girth, b.girth * taper, col.trunk));
+                tree.limbs.push_back({b.start, b.end, b.girth, b.girth * taper});
             }
             kids[idx].push_back(open.size());
             kids.push_back({});

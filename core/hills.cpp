@@ -5,6 +5,7 @@
 #include <cstdio>
 #include <cstdlib>
 
+#include "celestial.hpp"
 #include "mountains.hpp"
 #include "palette.hpp"
 #include "partition.hpp"
@@ -129,7 +130,7 @@ uint32_t shade(uint32_t rgb, double k) {
 
 }  // namespace
 
-void add_bands(Hill& hill) {
+void add_bands(Hill& hill, const Sun& sun) {
     // Discrete light bands: lighter at the top, darker toward the viewer, so
     // the hill reads as lit from above. A tall hill gets five, a low one three.
     const std::vector<Point>& s = hill.points;
@@ -144,12 +145,17 @@ void add_bands(Hill& hill) {
     hill.band_rgb.clear();
     for (int j = 0; j < n; ++j) {
         // Boundary j follows the silhouette, flattened toward the hill's lowest
-        // height and lowered toward the canvas bottom by f = j / n: deeper bands
-        // have less and less curvature. Since the lowest height is at most the
-        // silhouette, no boundary rises above it.
-        double f = static_cast<double>(j) / n;
+        // height and lowered toward the canvas bottom at depth f: deeper bands
+        // have less and less curvature. The sun sets the spacing of the depths
+        // and tilts the boundaries lower on its lit side. No boundary rises
+        // above the silhouette: (1 - f)(1 + 0.15 f) <= 1.
+        double r = static_cast<double>(j) / n;
+        double f = r * (1.0 - sun.spacing) + r * r * sun.spacing;
         std::vector<Point> edge;
-        for (const Point& q : s) edge.push_back({q.x, (1.0 - f) * ((1.0 - f) * q.h + f * low)});
+        for (const Point& q : s) {
+            double tilt = 1.0 + sun.tilt * f * (2.0 * q.x / kCanvasWidth - 1.0);
+            edge.push_back({q.x, celestial::surface(q.h, low, f) * tilt});
+        }
         hill.bands.push_back(edge);
         // 8% steps toward white above the middle band and toward black below.
         hill.band_rgb.push_back(shade(hill.rgb, 0.08 * ((n - 1) / 2 - j)));
@@ -163,7 +169,6 @@ std::vector<Hill> generate(const Hash256& hash, Theme theme, Season season) {
     for (size_t i = 0; i < v.hills.size(); ++i) {
         built.push_back(build(p, v.two, static_cast<int>(i), v.hills[i], built, theme, season));
     }
-    add_bands(built[0]);
     return built;
 }
 

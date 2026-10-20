@@ -21,6 +21,7 @@
 #include "hills.hpp"
 #include "trees.hpp"
 #include "mountains.hpp"
+#include "celestial.hpp"
 #include "fog.hpp"
 #include "palette.hpp"
 #include "partition.hpp"
@@ -926,6 +927,71 @@ void check_vegetation(int samples) {
     check(bad == 0, "vegetation round trip mismatch");
 }
 
+// ---- 10. Celestial ---------------------------------------------------------
+
+// The SVG lines the sun shapes: the front hill's bands and the tree shadows.
+std::string sunlit(const std::string& svg) {
+    std::string out;
+    for (const std::string& l : split_lines(svg)) {
+        if (l.find("class=\"hill-band\"") != std::string::npos || l.find("class=\"shadow\"") != std::string::npos) out += l + "\n";
+    }
+    return out;
+}
+
+void check_celestial(int samples) {
+    namespace cl = bh::celestial;
+    std::printf("== Celestial\n");
+    check(cl::kAzimuthBits + cl::kElevationBits == kCelestial.width, "celestial layout does not consume exactly 8 bits");
+
+    // The sun is decoded from the bands and shadows alone: every one of the 256
+    // suns is tried on the same hills and trees, and exactly one must match.
+    // Tree foliage is dropped first; only the limbs cast shadows.
+    std::mt19937_64 rng(19);
+    int bad = 0, bare = 0, shadows = 0;
+    // The second half drops the trees, so the bands alone must carry the sun.
+    for (int i = 0; i < 2 * samples; ++i) {
+        Hash256 hash = random_hash(rng, 0);
+        Theme t = kThemes[i % 4];
+        Season s = kSeasons[(i / 4) % 4];
+        Scene base;
+        base.hills = bh::hills::generate(hash, t, s);
+        if (i < samples) base.trees = bh::trees::generate(hash, base.hills, t, s);
+        for (Tree& tr : base.trees) {
+            tr.shapes.clear();
+            tr.leaves = 0;
+        }
+        auto lit = [&](const Sun& sun) {
+            Scene c = base;
+            c.sun = sun;
+            bh::hills::add_bands(c.hills[0], sun);
+            cl::cast_shadows(c.trees, c.hills[0], sun);
+            return sunlit(render_svg(c, 1024, 768));
+        };
+        std::string actual = lit(cl::generate(hash));
+        if (actual.find("class=\"shadow\"") == std::string::npos) ++bare;
+        else ++shadows;
+        int found = 0;
+        cl::Values v;
+        for (uint32_t a = 0; a < 16; ++a) {
+            for (uint32_t e = 0; e < 16; ++e) {
+                if (lit(cl::sun({a, e})) == actual) {
+                    ++found;
+                    v = {a, e};
+                }
+            }
+        }
+        Hash256 back = hash;
+        if (found == 1) cl::encode(v, back);
+        if (found != 1 || back.bytes != hash.bytes) {
+            if (bad < 5) std::printf("    no unique decode (%d): %s\n", found, hash.to_hex().c_str());
+            ++bad;
+        }
+    }
+    std::printf("  round trip (%d scenes, %d with shadows, %d bare front hills): %d mismatches\n", 2 * samples, shadows,
+                bare, bad);
+    check(bad == 0, "celestial round trip mismatch");
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -957,6 +1023,7 @@ int main(int argc, char** argv) {
     check_trees(std::max(1, samples / 100));
     check_fog();
     check_vegetation(std::max(1, samples / 500));
+    check_celestial(std::max(16, samples / 50));
 
     std::printf(failures == 0 ? "\nALL CHECKS PASSED\n" : "\n%d CHECK(S) FAILED\n", failures);
     return failures == 0 ? 0 : 1;

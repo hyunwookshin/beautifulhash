@@ -9,6 +9,7 @@
 #include <sys/stat.h>
 #include <vector>
 
+#include "celestial.hpp"
 #include "fog.hpp"
 #include "generate.hpp"
 #include "hills.hpp"
@@ -99,6 +100,9 @@ int main(int argc, char** argv) {
                 Hash256 th = hashes[i];
                 if (all[v].trees > 0) force_tree_count(th, all[v].trees);
                 scene.trees = trees::generate(th, scene.hills, configs[v].params.theme, configs[v].params.season);
+                scene.sun = celestial::generate(hashes[i]);
+                hills::add_bands(scene.hills[0], scene.sun);
+                celestial::cast_shadows(scene.trees, scene.hills[0], scene.sun);
                 scene.vegetation = vegetation::generate(hashes[i], scene.trees, scene.hills, configs[v].params.theme, configs[v].params.season);
                 scene.fog = fog::generate(hashes[i], configs[v].params.theme, configs[v].params.season);
                 std::string base = "v" + std::to_string(v) + "_h" + std::to_string(i) + ".svg";
