@@ -1,14 +1,8 @@
 ## BeautifulHash
 
-| Temperate, fall | Alpine, winter |
-|---|---|
 | ![A Temperate autumn BeautifulHash landscape: a grove of orange and gold trees on a green hill casting long shadows, a brown wooded ridge behind, hazy blue mountains, and a soft pink sunset sky](docs/scenery.svg) | ![An Alpine winter BeautifulHash landscape: layered blue ridges with a conifer tree line, a snowy back peak, and a small grove of conifers on a pale snowy hill](docs/alpine-winter.svg) |
+|---|---|
 | `9e5a38fb4042fcbcad48b6ecc6ad70987129d51315698477282cc24a93cd7f23` | `ec6a17f8d540f175abe79b32907742efd2631a98d11df20ace953a4ff454379d` |
-
-*Both scenes use three-ridge mode and are rendered by the reference
-implementation with Mountains, Hills, and Trees. The biome and season are set
-by hand until the Global namespace is implemented. `make gallery` renders every
-biome and season.*
 
 The project is to turn any input (strings, numbers, pdfs) into a beautiful,
 distinctive, and repeatable landscape imagery in SVG format.
