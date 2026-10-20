@@ -715,6 +715,27 @@ next one, so the stretches of neighboring peaks never overlap.
 The top edge of each half is the silhouette itself, so nothing shows above the
 ridge.
 
+**High-poly lines.** The incoming and cutoff slopes are not drawn straight. As
+a post-process, each straight line from $a$ to $b$ between two fixed corners
+(the peak, the foot, the valley, the meeting point) becomes 12 segments, bent
+to follow the ridge:
+
+* **Ridge sample:** take the silhouette for 12 points from the line's anchor
+  (its peak or valley), walking down the ridge away from the line's other end
+  (to the right for a peak's incoming slope).
+* **Deviation:** $w_k$ is how far point $k$ of that sample strays from the
+  sample's own chord, normalized by the largest $|w_k|$.
+* **Offset:** interior point $k$, at $t = k/12$, is pushed sideways by
+  $0.1\,L \cdot 4t(1 - t) \cdot w_k$, where $L$ is the line's larger extent and the
+  sideways direction is the line turned a quarter, scaled so its larger
+  component is 1. The taper keeps both corners fixed.
+
+Both halves of a peak share the same bent incoming slope, so they meet with no
+gap. A glint's triangle runs along the actual silhouette from the valley to the
+peak, then down its bent incoming slope to the meeting point and back along its
+bent cutoff. Its corners are unchanged, so the realism rule still measures the
+straight triangle.
+
 **Light.** With the sun's shadow direction $d_x$ and elevation step $e$:
 
 * **Shade:** the half turned away from the sun is overlaid with the ridge's

@@ -865,6 +865,34 @@ bool meet(Point p, Point u, Point q, Point w, Point& out) {
     return true;
 }
 
+// The interior points of a straight line a -> b, bent to follow the ridge:
+// 12 segments, each pushed sideways by how the silhouette next to `anchor`
+// (walking `step` = +1 right or -1 left) strays from its own chord, scaled to
+// 10% of the line's size and tapered to zero at both ends, so a and b stay.
+std::vector<Point> bend(Point a, Point b, const std::vector<Point>& pts, size_t anchor, int step) {
+    const int kSegments = 12;
+    long n = static_cast<long>(pts.size());
+    long last = std::min(n - 1, std::max(0L, static_cast<long>(anchor) + step * kSegments));
+    long span = last - static_cast<long>(anchor);
+    std::vector<double> w(kSegments + 1, 0.0);
+    double most = 0.0;
+    for (int k = 0; k <= kSegments && span != 0; ++k) {
+        long q = static_cast<long>(anchor) + span * k / kSegments;
+        double chord = pts[anchor].h + (pts[last].h - pts[anchor].h) * k / kSegments;
+        w[k] = pts[q].h - chord;
+        most = std::max(most, std::fabs(w[k]));
+    }
+    double dx = b.x - a.x, dh = b.h - a.h, size = std::max(std::fabs(dx), std::fabs(dh));
+    std::vector<Point> out;
+    if (size == 0.0) return out;
+    double nx = -dh / size, nh = dx / size;  // sideways, larger component 1
+    for (int k = 1; k < kSegments; ++k) {
+        double t = static_cast<double>(k) / kSegments;
+        double off = most > 0.0 ? 0.1 * size * 4.0 * t * (1.0 - t) * w[k] / most : 0.0;
+        out.push_back({a.x + t * dx + nx * off, a.h + t * dh + nh * off});
+    }
+    return out;
+}
 }  // namespace
 
 void snow_faces(const std::vector<Point>& pts, double floor_h, Ridge& ridge, bool with_glints) {
@@ -927,7 +955,20 @@ void snow_faces(const std::vector<Point>& pts, double floor_h, Ridge& ridge, boo
             const Point& top = pts[pk->i];
             double extent = top.h - std::min(b.h, m.h);
             if (extent > (top.h - low) / 2.0) continue;
-            option[o] = {b, top, m};
+            // The triangle, high-poly: the silhouette from the valley to the peak,
+            // the incoming slope down to the meeting point, and the cutoff back
+            // to the valley, both bent to follow the ridge.
+            std::vector<Point> tri;
+            if (pk->i > v) {
+                for (size_t q = v; q <= pk->i; ++q) tri.push_back(pts[q]);
+            } else {
+                for (size_t q = v + 1; q-- > pk->i;) tri.push_back(pts[q]);
+            }
+            int away = pk->i > v ? 1 : -1;
+            for (const Point& q : bend(top, m, pts, pk->i, away)) tri.push_back(q);
+            tri.push_back(m);
+            for (const Point& q : bend(m, b, pts, v, -away)) tri.push_back(q);
+            option[o] = tri;
         }
         int pick = -1;
         if (!option[0].empty() && !option[1].empty()) pick = std::fmod(b.h, kMod) / kMod < 0.5 ? 0 : 1;
@@ -952,11 +993,18 @@ void snow_faces(const std::vector<Point>& pts, double floor_h, Ridge& ridge, boo
         const Point& top = pts[i];
         Point d = peaks[k].in;
         Point foot{top.x + (floor_h - top.h) / d.h * d.x, floor_h};  // the incoming slope at floor_h
+        // The incoming slope from the peak to its foot, bent to follow the
+        // ridge descending to the right; both halves share it exactly.
+        std::vector<Point> walk = bend(top, foot, pts, i, 1);
         std::vector<Point> left = {top};
         for (size_t q = i; q-- > l;) left.push_back(pts[q]);
         left.push_back({pts[l].x, floor_h});
         left.push_back(foot);
-        std::vector<Point> right = {top, foot, {pts[r].x, floor_h}};
+        for (size_t q = walk.size(); q-- > 0;) left.push_back(walk[q]);
+        std::vector<Point> right = {top};
+        for (const Point& q : walk) right.push_back(q);
+        right.push_back(foot);
+        right.push_back({pts[r].x, floor_h});
         for (size_t q = r + 1; q-- > i + 1;) right.push_back(pts[q]);
         ridge.faces.push_back(left);
         ridge.face_side.push_back(-1);
