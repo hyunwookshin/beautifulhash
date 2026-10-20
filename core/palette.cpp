@@ -343,43 +343,78 @@ void to_oklch(uint32_t rgb, double& L, double& C, double& h) {
 
 }  // namespace
 
-const std::vector<uint32_t>& sky_colors(int elevation) {
-    // Per sun elevation step: the four sky gradient stops and the sun glow.
-    // A low sun (steps 0-6) rotates the sky's hue toward sunset colors,
-    // keeping its lightness, weakest at the top and strongest at the horizon.
+uint32_t sky_tint(uint32_t index) {
+    // 256 light blues for the top of the sky: lightness (2 bits), hue (3 bits),
+    // and chroma (3 bits).
+    static const std::vector<uint32_t> tints = [] {
+        std::vector<uint32_t> out;
+        for (int li = 0; li < 4; ++li)
+            for (int hi = 0; hi < 8; ++hi)
+                for (int ci = 0; ci < 8; ++ci) out.push_back(oklch(0.70 + 0.035 * li, 0.03 + 0.007 * ci, 212.0 + 6.0 * hi));
+        return out;
+    }();
+    return tints[index];
+}
+
+const std::vector<uint32_t>& sky_colors(int elevation, int tint_index) {
+    // Per sky tint and sun elevation step: the four sky gradient stops and the
+    // sun glow. A low sun (steps 0-6) rotates the sky's hue toward sunset
+    // colors, keeping its lightness, weakest at the top and strongest at the
+    // horizon.
     static const std::vector<std::vector<uint32_t>> tables = [] {
-        const uint32_t top = 0x9DB6D3, bottom = 0xE9EEF2;
-        const double kOffset[4] = {0.0, 0.45, 0.75, 1.0};
-        const double kHue[4] = {300.0, 345.0, 25.0, 50.0};  // purple, pink, orange-pink, orange
-        const double kWeight[4] = {0.35, 0.6, 0.85, 1.0};
+        const uint32_t bottom = 0xE9EEF2;
         std::vector<std::vector<uint32_t>> out;
-        for (int e = 0; e < 16; ++e) {
-            double warmth = e <= 6 ? (7.0 - e) / 7.0 : 0.0;
-            std::vector<uint32_t> colors;
-            for (int s = 0; s < 4; ++s) {
-                uint32_t base = 0;
-                for (int shift = 16; shift >= 0; shift -= 8) {
-                    double a = (top >> shift) & 255u, b = (bottom >> shift) & 255u;
-                    base |= static_cast<uint32_t>(std::lround(a + (b - a) * kOffset[s])) << shift;
-                }
-                if (warmth == 0.0) {
-                    colors.push_back(base);
-                    continue;
+        for (uint32_t t = 0; t < 256; ++t) {
+            const uint32_t top = sky_tint(t);
+            const double kOffset[4] = {0.0, 0.45, 0.75, 1.0};
+            const double kHue[4] = {285.0, 335.0, 20.0, 48.0};  // violet, magenta-pink, coral, amber
+            const double kWeight[4] = {0.55, 0.75, 0.9, 1.0};
+            for (int e = 0; e < 16; ++e) {
+                double warmth = e <= 6 ? (7.0 - e) / 7.0 : 0.0;
+                std::vector<uint32_t> colors;
+                for (int s = 0; s < 4; ++s) {
+                    uint32_t base = 0;
+                    for (int shift = 16; shift >= 0; shift -= 8) {
+                        double a = (top >> shift) & 255u, b = (bottom >> shift) & 255u;
+                        base |= static_cast<uint32_t>(std::lround(a + (b - a) * kOffset[s])) << shift;
+                    }
+                    if (warmth == 0.0) {
+                        colors.push_back(base);
+                        continue;
+                    }
+                    double L, C, h;
+                    to_oklch(base, L, C, h);
+                    double k = warmth * kWeight[s];
+                    double turn = std::fmod(kHue[s] - h + 540.0, 360.0) - 180.0;  // shortest way round
+                    colors.push_back(oklch(L - 0.04 * k * (s == 0 ? 1.0 : 0.0), C + 0.15 * k, h + turn * k));
                 }
                 double L, C, h;
-                to_oklch(base, L, C, h);
-                double k = warmth * kWeight[s];
-                double turn = std::fmod(kHue[s] - h + 540.0, 360.0) - 180.0;  // shortest way round
-                colors.push_back(oklch(L, C + 0.10 * k, h + turn * k));
+                to_oklch(bottom, L, C, h);
+                colors.push_back(oklch(L - 0.03, 0.05 + 0.10 * warmth, 45.0));  // glow: horizon lightness, orange
+                out.push_back(colors);
             }
-            double L, C, h;
-            to_oklch(bottom, L, C, h);
-            colors.push_back(oklch(L - 0.03, 0.05 + 0.10 * warmth, 45.0));  // glow: horizon lightness, orange
-            out.push_back(colors);
         }
         return out;
     }();
-    return tables[static_cast<size_t>(elevation)];
+    return tables[static_cast<size_t>(tint_index) * 16 + static_cast<size_t>(elevation)];
+}
+
+}  // namespace bh
+
+namespace bh {
+
+uint32_t cloud_color(int elevation) {
+    // White under a high sun; a low sun (steps 0-6) lights clouds pink and
+    // gold, more as it drops.
+    static const std::vector<uint32_t> table = [] {
+        std::vector<uint32_t> out;
+        for (int e = 0; e < 16; ++e) {
+            double warmth = e <= 6 ? (7.0 - e) / 7.0 : 0.0;
+            out.push_back(warmth == 0.0 ? 0xFFFFFFu : oklch(0.97 - 0.07 * warmth, 0.12 * warmth, 25.0 + 30.0 * warmth));
+        }
+        return out;
+    }();
+    return table[static_cast<size_t>(elevation)];
 }
 
 }  // namespace bh

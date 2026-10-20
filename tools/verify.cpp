@@ -23,6 +23,7 @@
 #include "mountains.hpp"
 #include "celestial.hpp"
 #include "fog.hpp"
+#include "sky.hpp"
 #include "palette.hpp"
 #include "partition.hpp"
 #include "variants.hpp"
@@ -992,6 +993,75 @@ void check_celestial(int samples) {
     check(bad == 0, "celestial round trip mismatch");
 }
 
+// ---- 11. Sky ---------------------------------------------------------------
+
+void check_sky(int samples) {
+    namespace sk = bh::sky;
+    std::printf("== Sky\n");
+    check(sk::kTopBits + sk::kHeightBits + sk::kWidthBits + sk::kCenterBits + sk::kBottomBits + sk::kSkewBits +
+                  sk::kLeadBits + sk::kTintBits == kSky.width,
+          "sky layout does not consume exactly 24 bits");
+    // Every tint gives a distinct gradient under every sun.
+    for (int e = 0; e < 16; ++e) {
+        Sun sun = bh::celestial::sun({0, static_cast<uint32_t>(e)});
+        std::set<std::string> grads;
+        for (uint32_t t = 0; t < 256; ++t) {
+            Sky s;
+            s.tint = t;
+            grads.insert(sk::gradient_svg(s, sun));
+        }
+        if (grads.size() != 256) {
+            std::printf("  sun step %d: %zu of 256 sky gradients distinct\n", e, grads.size());
+            check(false, "sky tints collide");
+        }
+    }
+    // Round trip: the cloud's 16 bits from its path and gradient, the tint from
+    // the sky gradient, given the scene's fog and sun (decoded by their own
+    // namespaces).
+    std::mt19937_64 rng(23);
+    int bad = 0;
+    for (int i = 0; i < samples; ++i) {
+        Hash256 hash = random_hash(rng, 0);
+        Scene scene;
+        scene.fog = bh::fog::generate(hash, Theme::kAlpine, Season::kSummer);
+        scene.sun = bh::celestial::generate(hash);
+        scene.sky = sk::generate(hash, scene.fog);
+        std::string svg = render_svg(scene, 1024, 768);
+        int found = 0;
+        sk::Values v;
+        // Quick filter: the clip path's first point, then the full text.
+        const std::string clip = "<clipPath id=\"cloud-clip\"><path d=\"M";
+        size_t at = svg.find(clip) + clip.size();
+        std::string first = svg.substr(at, svg.find(' ', at) - at);
+        for (uint32_t c = 0; c < (1u << 16); ++c) {
+            sk::Values cand = sk::with_cloud_bits(sk::Values{}, c);
+            Sky s = sk::build(cand, scene.fog);
+            if (sk::cloud_path(s, 0.5).compare(1, first.size(), first) != 0) continue;
+            if (svg.find(sk::cloud_svg(s, 0.5)) == std::string::npos) continue;
+            if (svg.find(sk::cloud_defs_svg(s, scene.sun, 0.5)) == std::string::npos) continue;
+            ++found;
+            v = cand;
+        }
+        int tints = 0;
+        for (uint32_t t = 0; t < 256; ++t) {
+            Sky s;
+            s.tint = t;
+            if (svg.find(sk::gradient_svg(s, scene.sun)) != std::string::npos) {
+                ++tints;
+                v.tint = t;
+            }
+        }
+        Hash256 back = hash;
+        if (found == 1 && tints == 1) sk::encode(v, back);
+        if (found != 1 || tints != 1 || back.bytes != hash.bytes) {
+            if (bad < 5) std::printf("    no unique decode (cloud %d, tint %d): %s\n", found, tints, hash.to_hex().c_str());
+            ++bad;
+        }
+    }
+    std::printf("  round trip (%d hashes): %d mismatches\n", samples, bad);
+    check(bad == 0, "sky round trip mismatch");
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -1024,6 +1094,7 @@ int main(int argc, char** argv) {
     check_fog();
     check_vegetation(std::max(1, samples / 500));
     check_celestial(std::max(16, samples / 50));
+    check_sky(std::max(8, samples / 100));
 
     std::printf(failures == 0 ? "\nALL CHECKS PASSED\n" : "\n%d CHECK(S) FAILED\n", failures);
     return failures == 0 ? 0 : 1;

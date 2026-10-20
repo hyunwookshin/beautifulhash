@@ -77,7 +77,7 @@ The number of available combinations and the uniqueness of the mapping are diffe
 
 ### Current Status
 
-The reference implementation in `core/` (C++17) draws six of the eight
+The reference implementation in `core/` (C++17) draws seven of the eight
 namespaces. Each is specified under `subspec/`:
 
 | Namespace | Status |
@@ -87,8 +87,9 @@ namespaces. Each is specified under `subspec/`:
 | Trees | Implemented, visual tuning in progress: 1 to 10 fractal trees per scene (conifers, deciduous trees with seasonal leaves, cacti, Joshua trees) |
 | Fog | Implemented: an 8-bit haze (density, tint, ground mist) in every depth gap |
 | Vegetation | Implemented: seasonal ground cover on the front hill (fallen leaves and snow pocks at the trees; petals, grass, and desert rosettes in the open) |
+| Sky | Implemented: a sky tint and one cloud, a curved shape in a hash-shaped trapezoid, crisp on its leading side and dissolving elsewhere, as clear as the fog allows |
 | Celestial | Implemented: an implicit, never-drawn sun that lights the front hill's bands and casts the trees' shadows |
-| Global, Sky | Not yet implemented. Theme and season are fixed per gallery configuration until Global is built |
+| Global | Not yet implemented. Theme and season are fixed per gallery configuration until Global is built |
 
 ### Building
 

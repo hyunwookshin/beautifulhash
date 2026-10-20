@@ -8,6 +8,7 @@
 #include "fog.hpp"
 #include "format.hpp"
 #include "palette.hpp"
+#include "sky.hpp"
 #include "hills.hpp"
 #include "mountains.hpp"
 #include "trees.hpp"
@@ -90,6 +91,8 @@ Scene generate_scene(const Hash256& hash, int version) {
     scene.vegetation = vegetation::generate(hash, scene.trees, scene.hills, config.params.theme, config.params.season);
     // Fog comes last: it hazes every depth gap the other layers create.
     scene.fog = fog::generate(hash, config.params.theme, config.params.season);
+    // The sky's cloud shows as clearly as the fog allows.
+    scene.sky = sky::generate(hash, scene.fog);
     return scene;
 }
 
@@ -105,20 +108,11 @@ std::string render_svg(const Scene& scene, uint32_t width, uint32_t height) {
     out += " ";
     append_uint(out, height);
     out += "\">\n";
-    // Placeholder sky until its namespace exists (no bits): a vertical gradient
-    // whose hue the low sun warms toward sunset colors (subspec/celestial.md,
-    // Sky warmth).
-    const std::vector<uint32_t>& sky = sky_colors(scene.sun.elevation);
-    static const char* kSkyOffset[4] = {"0", "0.45", "0.75", "1"};
-    out += "<defs><linearGradient id=\"sky\" x1=\"0\" y1=\"0\" x2=\"0\" y2=\"1\">";
-    for (int s = 0; s < 4; ++s) {
-        out += "<stop offset=\"";
-        out += kSkyOffset[s];
-        out += "\" stop-color=\"";
-        append_hex(out, sky[static_cast<size_t>(s)]);
-        out += "\"/>";
-    }
-    out += "</linearGradient>";
+    // The sky (subspec/sky.md): a vertical gradient from its tint, whose hue a
+    // low sun warms toward sunset colors (subspec/celestial.md, Sky warmth),
+    // and the cloud's gradient.
+    const std::vector<uint32_t>& sky = sky_colors(scene.sun.elevation, static_cast<int>(scene.sky.tint));
+    out += "<defs>" + sky::gradient_svg(scene.sky, scene.sun) + sky::cloud_defs_svg(scene.sky, scene.sun, scale);
     int glow = scene.sun.elevation <= 6 ? static_cast<int>(std::lround(70.0 * (7 - scene.sun.elevation) / 7.0)) : 0;
     if (glow > 0) {
         // Warmest toward the sun: a radial glow low in the sky on its side.
@@ -171,6 +165,8 @@ std::string render_svg(const Scene& scene, uint32_t width, uint32_t height) {
         append_full_rect(out, width, height);
         out += " fill=\"url(#sun-glow)\"/>\n";
     }
+    // The cloud, behind every ridge.
+    if (!scene.sky.outline.empty()) out += sky::cloud_svg(scene.sky, scale) + "\n";
 
     // Back to front. Fog is a separate element between ridges, so it never
     // rewrites a ridge's fill; farther ridges accumulate more haze.

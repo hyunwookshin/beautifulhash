@@ -17,6 +17,7 @@
 #include "mountains.hpp"
 #include "partition.hpp"
 #include "variants.hpp"
+#include "sky.hpp"
 #include "vegetation.hpp"
 
 using namespace bh;
@@ -107,6 +108,7 @@ int main(int argc, char** argv) {
                 trees::tint_cover(scene.trees, scene.hills[0]);
                 scene.vegetation = vegetation::generate(hashes[i], scene.trees, scene.hills, configs[v].params.theme, configs[v].params.season);
                 scene.fog = fog::generate(hashes[i], configs[v].params.theme, configs[v].params.season);
+                scene.sky = sky::generate(hashes[i], scene.fog);
                 std::string base = "v" + std::to_string(v) + "_h" + std::to_string(i) + ".svg";
                 write_file(dir + "/" + base, render_svg(scene, 1024, 768));
                 html += "<td><img src=\"" + base + "\"></td>";

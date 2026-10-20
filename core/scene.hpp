@@ -109,6 +109,21 @@ struct Plant {
     uint32_t rgb = 0;
 };
 
+// The sky (subspec/sky.md): its tint and one cloud, a curved shape inside a
+// trapezoid, crisp on its leading side and dissolving elsewhere.
+struct Sky {
+    uint32_t tint = 0;     // index into the sky tints
+    Point corner[4]{};     // the trapezoid, clockwise from top left
+    Point point[5]{};      // points on its boundary, in order
+    int edge[5]{};         // the edge (0 top, 1 right, 2 bottom, 3 left) each point lies on
+    std::vector<Point> outline;  // the refined outline: 625 points, in order
+    Point source[5]{};     // glow sources: the five boundary points, pulled inward
+    bool strong[5]{};      // sources on the leading half glow twice as strong
+    double glow_r = 0.0;   // glow radius
+    int lead = 0;          // crisp side: 0 left, 1 right
+    int peak = 85;         // peak opacity, hundredths
+};
+
 // One haze layer, repeated in every depth gap (subspec/fog.md). Opacities are in
 // hundredths, at the top and bottom of the canvas.
 struct Fog {
@@ -135,6 +150,7 @@ struct Scene {
     std::vector<Plant> vegetation;  // on the front (or only) hill, back to front
     Fog fog;
     Sun sun;
+    Sky sky;
 };
 
 }  // namespace bh
