@@ -12,7 +12,7 @@ Temperate trees in fall, snow pocks in winter, and rosettes in the desert.
 Where they grow depends on the plant, and the two placements are each
 other's negative:
 
-* **Near the trees:** Temperate fall leaves (one in five blown loose across
+* **Near the trees:** Temperate fall leaves (two in five blown loose across
   the hill) and winter's snow pocks gather at the foot of the trees.
 * **Away from the trees:** everything else fills the open ground between the
   trees, thinning to nothing at each trunk and growing denser toward the rim,
@@ -69,21 +69,30 @@ Each anchor gets $n$ plants (the density), so the plant count always follows
 the number of trees. Plant $i$ of anchor $a$ draws uniforms $u_0, \dots, u_5$
 from the PRNG. $R(x)$ is the front hill's silhouette height at $x$.
 
-**Near the trees (Temperate fall and winter).** With radius $r = 90\,k\,\sigma$:
+**Near the trees (Temperate fall and winter).** With radius $r = 90\,k\,\sigma$.
+Fallen leaves scatter more loosely than snow pocks:
+
+| | Reach $\rho$ | Band above, below $h_b$ | Depth draw $v$ |
+|---|---:|---|---|
+| Snow pocks (winter) | $1.5r$ | $0.15r$, $0.6r$ | $u_2 u_3$ |
+| Fallen leaves (Temperate fall) | $2.3r$ | $0.3r$, $1.0r$ | $u_2$ |
 
 * **Across:** $x = x_{lo} + (x_{hi} - x_{lo}) \cdot \tfrac12(1 + u_0 - u_1)$,
-  where $[x_{lo}, x_{hi}] = [x_b - 1.5r,\, x_b + 1.5r] \cap [0, 2048]$. The
+  where $[x_{lo}, x_{hi}] = [x_b - \rho,\, x_b + \rho] \cap [0, 2048]$. The
   difference of two uniforms peaks at the tree.
-* **Down the slope:** $h_{hi} = \min(h_b + 0.15r,\; 0.97R(x))$ and
-  $h_{lo} = \min(\max(0,\, h_b - 0.6r),\; h_{hi})$:
-  $h = h_{hi} - (h_{hi} - h_{lo})\,u_2 u_3$. The product of two uniforms
-  gathers plants just in front of the tree, and no plant rises above the
-  silhouette.
+* **Down the slope:** $h_{hi} = \min(h_b + \text{above},\; 0.97R(x))$ and
+  $h_{lo} = \min(\max(0,\, h_b - \text{below}),\; h_{hi})$:
+  $h = h_{hi} - (h_{hi} - h_{lo})\,v$.
+  * Snow pocks gather just in front of the tree, because the product of two
+    uniforms is mostly near 0.
+  * Fallen leaves spread evenly over a deeper band.
+  * No plant rises above the silhouette.
 * The plant takes its tree's size: $\sigma_p = \sigma$.
 
-In Temperate fall, every fifth leaf ($i \bmod 5 = 4$) is a stray, blown loose:
-it lands at $x = 2048\,u_0$ and is otherwise placed and sized like an
-open-ground plant, so leaves also appear well away from the trees.
+In Temperate fall, two leaves in five ($i \bmod 5 \in \{1, 4\}$) are strays,
+blown loose. Each lands at $x = 2048\,u_0$ and is otherwise placed and sized
+like an open-ground plant, so leaves also lie well away from the trees.
+
 **Away from the trees (everything else).** The anchors' $x_b$ and the canvas
 edges $0$ and $2048$ cut the hill into gaps $[e_g, e_{g+1}]$:
 
@@ -111,7 +120,10 @@ so the open front stays light.
 Plants are tiny by the rim and grow toward the viewer; near the trees, those by
 a rim tree are also far smaller than those in front of a slope tree.
 
-* Leaf or petal: half-length $2.2\,d\,j$.
+* Leaf or petal: half-length $2.2\,d\,j$. About 30% of fallen leaves
+  ($u_6 < 0.3$) lie edge-on to the viewer, face down at a steep angle. They
+  render with their width scaled by $0.25 + 0.1\,u_7$, so they are far
+  skinnier.
 * Snow pock: rim half-width $3.2\,d\,j$.
 * Tuft: blade height $6\,d\,j$; the outer blades lean out by $0.25 + 0.3u_5$
   of that height.
@@ -170,7 +182,8 @@ is a deeper gold when $b$ is odd:
   hue $80 + 40\eta_j + 10b$.
 
 Leaves and petals are narrower when darker, as on the trees: half-width
-$0.7 \cdot \text{half-length} \cdot (0.35 + 0.8\beta)$, with $\beta$ the fill's
+$0.7 \cdot \text{half-length} \cdot (0.35 + 0.8\beta)$ (times the edge-on factor for
+skinny fallen leaves), with $\beta$ the fill's
 brightness (subspec/trees.md, Leaves).
 
 Every palette's six colors are distinct, and the 16 palettes of a biome and

@@ -113,19 +113,23 @@ std::vector<Plant> scatter(const Values& v, const std::vector<Anchor>& anchors, 
             if (out.size() >= limit) return out;
             auto u = [&](int stream) { return uniform(v.seed, a, static_cast<size_t>(i), stream); };
             double x, h, rim, sigma;
-            // One fallen leaf in five has blown loose: it lands anywhere on the hill.
-            bool stray = fallen && i % 5 == 4;
+            // Two fallen leaves in five have blown loose: they land anywhere on
+            // the hill, on open ground as well as under the trees.
+            bool stray = fallen && (i % 5 == 1 || i % 5 == 4);
             if (near && !stray) {
                 // Across: a triangular spread peaked at the tree, mapped into
-                // the part of the canvas within 1.5 r of it.
-                double x_lo = std::max(0.0, an.base.x - 1.5 * r), x_hi = std::min(kCanvasWidth, an.base.x + 1.5 * r);
+                // the part of the canvas within 1.5 r of it (2.3 r for fallen
+                // leaves, which scatter more loosely than snow pocks).
+                double reach = fallen ? 2.3 * r : 1.5 * r;
+                double x_lo = std::max(0.0, an.base.x - reach), x_hi = std::min(kCanvasWidth, an.base.x + reach);
                 x = x_lo + (x_hi - x_lo) * (0.5 + 0.5 * (u(0) - u(1)));
-                // Down the slope: mostly just in front of the tree (the product
-                // of two uniforms gathers near 0), never above the silhouette.
+                // Down the slope, never above the silhouette: snow pocks gather
+                // just in front of the tree (the product of two uniforms is
+                // mostly near 0); fallen leaves spread evenly over a deeper band.
                 rim = mountains::height_at(front.points, x);
-                double h_hi = std::min(an.base.h + 0.15 * r, 0.97 * rim);
-                double h_lo = std::min(std::max(0.0, an.base.h - 0.6 * r), h_hi);
-                h = h_hi - (h_hi - h_lo) * u(2) * u(3);
+                double h_hi = std::min(an.base.h + (fallen ? 0.3 : 0.15) * r, 0.97 * rim);
+                double h_lo = std::min(std::max(0.0, an.base.h - (fallen ? 1.0 : 0.6) * r), h_hi);
+                h = h_hi - (h_hi - h_lo) * (fallen ? u(2) : u(2) * u(3));
                 sigma = an.scale;
             } else {
                 if (stray) {
@@ -164,6 +168,9 @@ std::vector<Plant> scatter(const Values& v, const std::vector<Anchor>& anchors, 
                 double q = 2.0 * u(5) - 1.0;
                 p.axis = {(1.0 - q * q) / (1.0 + q * q), 2.0 * q / (1.0 + q * q)};
                 p.size = 2.2 * depth * jitter;
+                // About 30% of fallen leaves lie edge-on to the viewer (face down
+                // at a steep angle): they render far skinnier.
+                if (fallen && u(6) < 0.3) p.slim = 0.25 + 0.1 * u(7);
             } else if (kind == PlantKind::kPock) {
                 p.size = 3.2 * depth * jitter;  // half-width of the rim
             } else if (kind == PlantKind::kTuft) {
@@ -257,7 +264,7 @@ std::string plant_svg(const Plant& p, double scale) {
     // ones are narrower.
     uint32_t c = p.rgb;
     double bright = (299.0 * (c >> 16) + 587.0 * ((c >> 8) & 255u) + 114.0 * (c & 255u)) / 255000.0;
-    double a = p.size * scale, w = 2.0 * 0.7 * p.size * (0.35 + 0.8 * bright) * scale;
+    double a = p.size * scale, w = 2.0 * 0.7 * p.size * (0.35 + 0.8 * bright) * p.slim * scale;
     out += "M";
     append_fixed2(out, -a);
     out += ",0Q0,";

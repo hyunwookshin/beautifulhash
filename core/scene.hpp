@@ -105,6 +105,7 @@ struct Plant {
     double size = 1.0;   // leaf: half-length; tuft and rosette: tallest blade
     double lean = 0.0;   // tuft and rosette: how far the outer blades fan out, as a fraction of the height
     double wide = 1.0, deep = 0.4;  // pock: rim width factor and depth as a fraction of the half-width
+    double slim = 1.0;   // leaf: width factor; fallen leaves seen edge-on are far skinnier
     uint32_t rgb = 0;
 };
 
