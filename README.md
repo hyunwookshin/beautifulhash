@@ -1,8 +1,8 @@
 ## BeautifulHash
 
-| ![A Temperate autumn BeautifulHash landscape: a grove of orange and gold trees on a green hill casting long shadows, a brown wooded ridge behind, hazy blue mountains, and a soft pink sunset sky](docs/scenery.svg) | ![An Alpine winter BeautifulHash landscape: layered blue ridges with a conifer tree line, a snowy back peak, and a small grove of conifers on a pale snowy hill](docs/alpine-winter.svg) |
+| ![A Temperate autumn BeautifulHash landscape: a small orange tree on a green hill and a tall one at the right edge, a russet wooded ridge, a gray-green mountain range, and a soft cloud in a pale sky](docs/scenery.svg) | ![An Alpine winter BeautifulHash landscape: layered blue ridges with a conifer tree line, a snowy back peak, and a small grove of conifers on a pale snowy hill](docs/alpine-winter.svg) |
 |---|---|
-| `9e5a38fb4042fcbcad48b6ecc6ad70987129d51315698477282cc24a93cd7f23` | `ec6a17f8d540f175abe79b32907742efd2631a98d11df20ace953a4ff454379d` |
+| `aa6ed8c1b2283a48a64fca7f8be20b89e01fa378280f91c631ffe62c2f144534` | `ec6a17f8d540f175abe79b32907742efd2631a98d11df20ace953a4ff454379d` |
 
 The project is to turn any input (strings, numbers, pdfs) into a beautiful,
 distinctive, and repeatable landscape imagery in SVG format.
