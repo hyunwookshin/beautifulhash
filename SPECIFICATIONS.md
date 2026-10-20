@@ -73,7 +73,7 @@ Layers are listed from foreground to background.
 
 | Order | Layer | Description | Optional |
 |---|---|---|---|
-| 1 | Vegetation | Foreground plants, grasses, foliage | No |
+| 1 | Vegetation | Ground cover on the front hill: fallen leaves, petals, grass | No |
 | 2 | Trees | Branched trees | No |
 | 3 | Additional trees | Extra tree arrangements | Yes |
 | 4 | Primary hill | Terrain geometry, silhouette, and surface colors | No |
@@ -132,10 +132,10 @@ The season cascades through every layer it affects:
 
 | Season | Mountains | Hills | Trees | Foreground vegetation |
 |---|---|---|---|---|
-| Winter | Temperate: shades of bluish gray instead of the usual palette. Other biomes unchanged. | Snowy tints in every biome (pale blue-whites to lavender-whites), still varied by the color bits | Temperate broadleaf trees are bare, with occasional white (snow) spots | Shades of white, in every biome |
-| Spring | Unchanged | Green | Unchanged | Temperate and Tundra: varied flower colors (yellow, pink, blue). Not Alpine. |
-| Summer | Unchanged (the baseline palettes) | Green | Unchanged | Green |
-| Fall | Temperate: shades of yellowish orange instead of the usual palette. Other biomes unchanged. | Green | Unchanged | Green |
+| Winter | Temperate: shades of bluish gray instead of the usual palette. Other biomes unchanged. | Snowy tints in every biome (pale blue-whites to lavender-whites), still varied by the color bits | Temperate broadleaf trees are bare, with occasional white (snow) spots | Frosted grass tufts in snowy tints clustered at the trees, in every biome |
+| Spring | Unchanged | Green | Unchanged | White petals with occasional yellow, on the open ground away from the trees; desert rosettes in sage |
+| Summer | Unchanged (the baseline palettes) | Green | Unchanged | Dark green grass tufts on the open ground away from the trees; desert rosettes in dusty olive |
+| Fall | Temperate: shades of yellowish orange instead of the usual palette. Other biomes unchanged. | Green | Unchanged | Temperate: fallen orange and gold leaves at the trees, a few blown loose. Alpine and Tundra (evergreen): dry grass. Desert: rosettes in ochre |
 
 Rules:
 

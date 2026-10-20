@@ -8,6 +8,7 @@
 #include "hills.hpp"
 #include "mountains.hpp"
 #include "trees.hpp"
+#include "vegetation.hpp"
 
 namespace bh {
 
@@ -70,6 +71,7 @@ Scene generate_scene(const Hash256& hash, int version) {
     // which will plant on them using the advertised hill profiles.
     scene.hills = hills::generate(hash, config.params.theme, config.params.season);
     scene.trees = trees::generate(hash, scene.hills, config.params.theme, config.params.season);
+    scene.vegetation = vegetation::generate(hash, scene.trees, scene.hills, config.params.theme, config.params.season);
     // Fog comes last: it hazes every depth gap the other layers create.
     scene.fog = fog::generate(hash, config.params.theme, config.params.season);
     return scene;
@@ -168,7 +170,7 @@ std::string render_svg(const Scene& scene, uint32_t width, uint32_t height) {
 
         if (n > 0) append_fog(out, width, height);
     }
-    // Hills: in front of every ridge, behind the (future) vegetation. Every
+    // Hills: in front of every ridge. Every
     // depth gap gets the same haze layer: between ridges, between the front
     // ridge and the hills, and between the back hill (with its trees) and the
     // front hill.
@@ -193,6 +195,16 @@ std::string render_svg(const Scene& scene, uint32_t width, uint32_t height) {
         out += " L0,";
         append_uint(out, height);
         out += " Z\"/>\n";
+        // Vegetation covers the front (or only) hill's ground, under its trees
+        // (subspec/vegetation.md, Rendering).
+        if (n == 0 && !scene.vegetation.empty()) {
+            out += "<g class=\"vegetation\">\n";
+            for (const Plant& p : scene.vegetation) {
+                out += vegetation::plant_svg(p, scale);
+                out += "\n";
+            }
+            out += "</g>\n";
+        }
         // Trees standing on this hill, drawn right after it.
         for (size_t t = 0; t < scene.trees.size(); ++t) {
             if (scene.trees[t].hill == static_cast<int>(n)) out += trees::tree_svg(scene.trees[t], static_cast<int>(t), scale);

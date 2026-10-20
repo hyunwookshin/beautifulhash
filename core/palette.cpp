@@ -262,3 +262,57 @@ const std::vector<uint32_t>& fog_palette(Theme theme, Season season) {
 }
 
 }  // namespace bh
+
+namespace bh {
+
+const std::vector<uint32_t>& vegetation_palette(Theme theme, Season season, int id) {
+    // Same interleaving idea as the leaf palettes: six colors per palette,
+    // neighbors differing in hue, lightness, and chroma.
+    static const double kHueStep[6] = {0.0, 0.6, 0.2, 1.0, 0.4, 0.8};
+    static const double kLightStep[6] = {0.35, 0.9, 0.0, 0.6, 1.0, 0.2};
+    static const double kChromaStep[6] = {0.92, 1.1, 1.0, 0.9, 1.08, 0.97};
+    static const std::vector<std::vector<uint32_t>> tables = [] {
+        std::vector<std::vector<uint32_t>> out;
+        for (Theme th : kThemes)
+        for (Season s : kSeasons) {
+            bool desert = th == Theme::kDesert && s != Season::kWinter;
+            for (int p = 0; p < kVegetationPalettes; ++p) {
+                int a = p >> 2, b = p & 3;
+                std::vector<uint32_t> colors;
+                for (int j = 0; j < 6; ++j) {
+                    if (s == Season::kSpring && !desert) {
+                        // Petals: creamy to cool whites, and one or two yellows
+                        // (colors 1, and 4, a deeper gold, when b is odd).
+                        bool yellow = j == 1 || (j == 4 && (b & 1));
+                        if (yellow) {
+                            colors.push_back(oklch(0.86 + 0.02 * kLightStep[j], 0.14 + 0.01 * (b >> 1), 95.0 + 4.0 * a - (j == 4 ? 10.0 : 0.0)));
+                        } else {
+                            colors.push_back(oklch(0.90 + 0.05 * kLightStep[j], 0.010 + 0.006 * a,
+                                                   80.0 + 40.0 * kHueStep[j] + 10.0 * b));
+                        }
+                        continue;
+                    }
+                    // Fall: fallen orange and gold leaves. Summer: dark grass.
+                    // Winter: frosted grass in snowy tints.
+                    double h0 = 30.0, h1 = 85.0, l0 = 0.55, dl = 0.18, c0 = 0.15;
+                    if (s == Season::kSummer) h0 = 115.0, h1 = 150.0, l0 = 0.36, dl = 0.14, c0 = 0.08;
+                    if (s == Season::kWinter) h0 = 215.0, h1 = 280.0, l0 = 0.84, dl = 0.08, c0 = 0.03;
+                    // Desert rosettes: sage in spring, dusty olive in summer, ochre in fall.
+                    if (desert && s == Season::kSpring) h0 = 120.0, h1 = 155.0, l0 = 0.60, dl = 0.14, c0 = 0.06;
+                    if (desert && s == Season::kSummer) h0 = 95.0, h1 = 125.0, l0 = 0.52, dl = 0.14, c0 = 0.06;
+                    if (desert && s == Season::kFall) h0 = 60.0, h1 = 85.0, l0 = 0.56, dl = 0.16, c0 = 0.09;
+                    // Evergreen biomes in fall: dry grass, straw to olive-brown.
+                    if ((th == Theme::kAlpine || th == Theme::kTundra) && s == Season::kFall) h0 = 70.0, h1 = 100.0, l0 = 0.42, dl = 0.16, c0 = 0.07;
+                    double hue = h0 + (h1 - h0) * (0.7 * kHueStep[j] + 0.15 * a / 3.0);
+                    double light = l0 + dl * kLightStep[j] + 0.06 * b / 3.0;
+                    colors.push_back(oklch(light, c0 * kChromaStep[j], hue));
+                }
+                out.push_back(colors);
+            }
+        }
+        return out;
+    }();
+    return tables[(static_cast<size_t>(theme) * 4 + static_cast<size_t>(season)) * kVegetationPalettes + static_cast<size_t>(id)];
+}
+
+}  // namespace bh

@@ -14,6 +14,7 @@
 #include <random>
 #include <set>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 #include "generate.hpp"
@@ -24,6 +25,7 @@
 #include "palette.hpp"
 #include "partition.hpp"
 #include "variants.hpp"
+#include "vegetation.hpp"
 
 using namespace bh;
 namespace mt = bh::mountains;
@@ -837,6 +839,93 @@ void check_fog() {
     check(bad_layers == 0, "fog layer missing from a depth gap");
 }
 
+// ---- 9. Vegetation --------------------------------------------------------
+
+// A plant line without anything its color affects (the fill, and a leaf's
+// width), so positions can be matched before the palette is known: a leaf's
+// transform, or a tuft's blades.
+std::string without_fill(const std::string& line) {
+    size_t m = line.find(" transform=");
+    return line.substr(m != std::string::npos ? m : line.find("\" d=\""));
+}
+
+void check_vegetation(int samples) {
+    namespace vg = bh::vegetation;
+    namespace tr = bh::trees;
+    std::printf("== Vegetation\n");
+    check(vg::kPaletteBits + vg::kDensityBits + vg::kSpreadBits + vg::kSeedBits == kVegetation.width,
+          "vegetation layout does not consume exactly 24 bits");
+    for (Theme t : kThemes)
+    for (Season s : kSeasons) {
+        std::set<std::vector<uint32_t>> sets;
+        for (int id = 0; id < kVegetationPalettes; ++id) {
+            const auto& pal = vegetation_palette(t, s, id);
+            check(std::set<uint32_t>(pal.begin(), pal.end()).size() == pal.size(),
+                  "vegetation palette has duplicate colors");
+            sets.insert(pal);
+        }
+        check(sets.size() == static_cast<size_t>(kVegetationPalettes), "two vegetation palettes are identical");
+    }
+
+    // Round trip through SVG text. The first plant generated is found among
+    // the drawn ones (they are depth sorted) for every spread and seed; the
+    // count gives the density; the palette is tried on the full set.
+    std::mt19937_64 rng(17);
+    int bad = 0, plants = 0;
+    for (Theme t : kThemes) {
+        for (Season s : kSeasons) {
+            for (int i = 0; i < samples; ++i) {
+                Hash256 hash = random_hash(rng, 0);
+                Scene scene;
+                scene.hills = bh::hills::generate(hash, t, s);
+                scene.trees = tr::generate(hash, scene.hills, t, s);
+                scene.vegetation = vg::generate(hash, scene.trees, scene.hills, t, s);
+                std::string svg = render_svg(scene, 1024, 768);
+                size_t g = svg.find("<g class=\"vegetation\">\n");
+                std::string block = svg.substr(g + 23, svg.find("</g>\n", g) - g - 23);
+                std::vector<std::string> lines = split_lines(block);
+                plants += static_cast<int>(lines.size());
+                std::unordered_set<std::string> keys;
+                for (const std::string& l : lines) keys.insert(without_fill(l));
+
+                std::vector<vg::Anchor> anchors = vg::anchors(scene.trees, scene.hills);
+                vg::Values v;
+                int found = 0;
+                for (uint32_t d = 0; d < 4; ++d) {
+                    if (static_cast<size_t>(vg::per_cluster(d)) * anchors.size() == lines.size()) v.density = d;
+                }
+                for (uint32_t sp = 0; sp < 4; ++sp) {
+                    for (uint32_t seed = 0; seed < (1u << vg::kSeedBits); ++seed) {
+                        vg::Values c{0, v.density, sp, seed};
+                        std::vector<Plant> first = vg::scatter(c, anchors, scene.hills[0], t, s, 1);
+                        first[0].rgb = 0;
+                        if (!keys.count(without_fill(vg::plant_svg(first[0], 0.5)))) continue;
+                        for (uint32_t p = 0; p < static_cast<uint32_t>(kVegetationPalettes); ++p) {
+                            c.palette = p;
+                            std::string text;
+                            for (const Plant& q : vg::build(c, scene.trees, scene.hills, t, s)) text += vg::plant_svg(q, 0.5) + "\n";
+                            if (text == block) {
+                                ++found;
+                                v = c;
+                            }
+                        }
+                    }
+                }
+                if (found != 1) {
+                    if (bad < 5) std::printf("    no unique decode (%d): %s %s %s\n", found, theme_name(t), season_name(s), hash.to_hex().c_str());
+                    ++bad;
+                    continue;
+                }
+                Hash256 back = hash;
+                vg::encode(v, back);
+                if (back.bytes != hash.bytes) ++bad;
+            }
+        }
+    }
+    std::printf("  round trip (%d hashes x 16 biome/season pairs, %d plants): %d mismatches\n", samples, plants, bad);
+    check(bad == 0, "vegetation round trip mismatch");
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -867,6 +956,7 @@ int main(int argc, char** argv) {
     check_hills(std::max(1, samples / 20));
     check_trees(std::max(1, samples / 100));
     check_fog();
+    check_vegetation(std::max(1, samples / 500));
 
     std::printf(failures == 0 ? "\nALL CHECKS PASSED\n" : "\n%d CHECK(S) FAILED\n", failures);
     return failures == 0 ? 0 : 1;

@@ -452,7 +452,8 @@ trees). 0 mismatches, and no ambiguous pairs.
   and colors from Hills (generated first). The season sets the leaf colors and
   whether the leaf palette field exists; it also reaches trees through the hill
   color.
-* Provides: tree placements and depths, used by Fog and for occlusion.
+* Provides: tree placements and depths, used by Fog and for occlusion, and tree
+  bases and sizes, used by Vegetation to cluster plants at the trees.
 
 ### Open decisions
 

@@ -356,6 +356,8 @@ Tree build(const Values& v, const Plan& p, int index, const std::vector<Hill>& h
     Species sp = species_of(theme, index, v.arrangement);
     Colors col = hill_colors(hills[tree.hill].rgb);
     double scale = kSizeClass[v.size] * p.scale[index];
+    tree.base = {x, base_h};
+    tree.scale = scale;
     const TreeValues& tv = v.trees[index];
     double gv = unit_of(tv.girth, tv.girth_bits), hv = unit_of(tv.height, tv.height_bits);
     double girth_base = sp == Species::kCactus ? 14.0 : sp == Species::kJoshua ? 13.0 : sp == Species::kDeciduous ? 11.0 : 9.0;

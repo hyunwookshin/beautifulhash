@@ -61,6 +61,22 @@ struct Tree {
     int group = 0;                  // trees::Group
     double x = 0.0;                 // base position, for left-to-right leaf order
     int leaves = 0;                 // leaf dots: the last `leaves` shapes, left to right
+    Point base{0, 0};               // where the trunk meets the ground
+    double scale = 1.0;             // overall size factor (composition and size class)
+};
+
+// One foreground plant (subspec/vegetation.md): a fallen leaf or petal (an eye
+// shape like a tree leaf), a grass tuft of five thin blades, or a desert
+// rosette of five broad pointed leaves.
+enum class PlantKind { kLeaf, kTuft, kRosette };
+
+struct Plant {
+    PlantKind kind = PlantKind::kLeaf;
+    Point base{0, 0};    // leaf: its center; tuft and rosette: the middle of the root
+    Point axis{1, 0};    // leaf: unit direction of its long axis
+    double size = 1.0;   // leaf: half-length; tuft and rosette: tallest blade
+    double lean = 0.0;   // tuft and rosette: how far the outer blades fan out, as a fraction of the height
+    uint32_t rgb = 0;
 };
 
 // One haze layer, repeated in every depth gap (subspec/fog.md). Opacities are in
@@ -76,6 +92,7 @@ struct Scene {
     std::vector<Ridge> ridges;  // front to back: ridges[0] is Ridge 1
     std::vector<Hill> hills;    // front to back: hills[0] is the front (or only) hill
     std::vector<Tree> trees;    // in drawing order within each hill
+    std::vector<Plant> vegetation;  // on the front (or only) hill, back to front
     Fog fog;
 };
 
