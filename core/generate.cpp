@@ -81,6 +81,7 @@ Scene generate_scene(const Hash256& hash, int version) {
     // which will plant on them using the advertised hill profiles.
     scene.hills = hills::generate(hash, config.params.theme, config.params.season);
     scene.trees = trees::generate(hash, scene.hills, config.params.theme, config.params.season);
+    trees::add_crest_trees(scene.hills, hash, config.params.theme, config.params.season);
     // The implicit sun lights the front hill and casts the trees' shadows.
     scene.sun = celestial::generate(hash);
     hills::add_bands(scene.hills[0], scene.sun);
@@ -316,6 +317,24 @@ std::string render_svg(const Scene& scene, uint32_t width, uint32_t height) {
         out += " L0,";
         append_uint(out, height);
         out += " Z\"/>\n";
+        // The back hill's crest trees, a distant tree line on its silhouette
+        // (subspec/trees.md, Crest trees), behind the trees standing on it.
+        for (size_t k = 0; k < h.crest_trees.size(); ++k) {
+            out += "<path class=\"crest-tree\" fill=\"";
+            append_hex(out, h.crest_rgb[k]);
+            out += h.crest_trees[k].size() > 1 ? "\" fill-rule=\"evenodd\" d=\"" : "\" d=\"";
+            for (size_t p = 0; p < h.crest_trees[k].size(); ++p) {
+                const std::vector<Point>& poly = h.crest_trees[k][p];
+                for (size_t i = 0; i < poly.size(); ++i) {
+                    out += i == 0 ? (p == 0 ? "M" : " M") : " L";
+                    append_fixed2(out, poly[i].x * scale);
+                    out += ",";
+                    append_fixed2(out, (kCanvasHeight - poly[i].h) * scale);
+                }
+                out += " Z";
+            }
+            out += "\"/>\n";
+        }
         // The front hill's shading bands, top to bottom, each closed down to the
         // canvas bottom over the one before (subspec/hills.md, Shading bands).
         for (size_t b = 0; b < h.bands.size(); ++b) {

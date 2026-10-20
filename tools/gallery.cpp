@@ -100,6 +100,7 @@ int main(int argc, char** argv) {
                 Hash256 th = hashes[i];
                 if (all[v].trees > 0) force_tree_count(th, all[v].trees);
                 scene.trees = trees::generate(th, scene.hills, configs[v].params.theme, configs[v].params.season);
+                trees::add_crest_trees(scene.hills, hashes[i], configs[v].params.theme, configs[v].params.season);
                 scene.sun = celestial::generate(hashes[i]);
                 hills::add_bands(scene.hills[0], scene.sun);
                 celestial::cast_shadows(scene.trees, scene.hills[0], scene.sun);

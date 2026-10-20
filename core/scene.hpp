@@ -53,6 +53,10 @@ struct Hill {
     // region closed down to the canvas bottom, drawn over the hill in order.
     std::vector<std::vector<Point>> bands;
     std::vector<uint32_t> band_rgb;
+    // Back hill only: a line of small fixed-shape trees along its crest.
+    // Each shape is one path: an outline, then any holes (even-odd fill).
+    std::vector<std::vector<std::vector<Point>>> crest_trees;
+    std::vector<uint32_t> crest_rgb;
 };
 
 // One drawn part of a tree: a polygon, or a circle when `poly` is empty.

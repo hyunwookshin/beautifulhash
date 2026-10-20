@@ -85,6 +85,11 @@ std::vector<Tree> generate(const Hash256& hash, const std::vector<Hill>& hills, 
 // band color (subspec/trees.md, Ground cover). Call after the bands exist.
 void tint_cover(std::vector<Tree>& trees, const Hill& front);
 
+// Two-hill scenes: a line of small fixed-shape trees along the back hill's
+// crest (subspec/trees.md, Crest trees). Alpine conifers and Temperate
+// deciduous trees only. No bits.
+void add_crest_trees(std::vector<Hill>& hills, const Hash256& hash, Theme theme, Season season);
+
 // One tree's SVG fragment, one element per line (shared by render_svg and verify).
 std::string tree_svg(const Tree& tree, int index, double scale);
 
