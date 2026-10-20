@@ -116,6 +116,42 @@ Heights are the drawn heights, which already include each tree's perspective
 scale, while the ground depth $G$ is uniform. Near trees therefore cast
 proportionally longer shadows than a strict perspective model would give.
 
+### Sky warmth
+
+A low sun warms the sky, warmest on the sun's side, even though the sun itself
+is never drawn. Only the hue moves: the sky keeps its lightness, so it reads as
+a tinted sky rather than a repainted one. No bits; until the Sky namespace
+exists, the sky is a fixed gradient from `#9DB6D3` at the top to `#E9EEF2` at the
+horizon (subspec/sky.md).
+
+**Warmth** $w = (7 - e)/7$ for elevation steps $e \le 6$ (a sun at 38° or lower),
+and 0 above. That is full at 20° and gone by 41°.
+
+**Gradient.** The sky gradient has four stops at offsets 0, 0.45, 0.75, and 1.
+Stop $s$ starts from the fixed gradient's color at its offset (channels
+interpolated in sRGB). Converted to OKLCH, with $k = w\,\omega_s$:
+
+* the lightness stays;
+* the chroma grows by $0.10\,k$;
+* the hue turns the shortest way toward a target by the fraction $k$.
+
+| Stop | 0 (top) | 0.45 | 0.75 | 1 (horizon) |
+|---|---|---|---|---|
+| Target hue | 300° purple | 345° pink | 25° orange-pink | 50° orange |
+| Weight $\omega_s$ | 0.35 | 0.6 | 0.85 | 1 |
+
+So as the sun drops, the blue turns lavender, then purple at the top, through
+pink to peach and orange at the horizon.
+
+**Sun glow.** When $w > 0$, a full-canvas `<rect class="sun-glow">` over the sky
+is filled with a radial gradient. It is centered low in the sky on the sun's
+side: $x = \tfrac12(1 - d_x)\,W$, $y = 0.8\,H$, radius $0.75\,W$. Its color is
+the horizon's lightness less 0.03, chroma $0.05 + 0.10\,w$, hue 45°, at
+opacity $\operatorname{round}(70w)/100$ fading to 0 at the rim.
+
+The colors are constant tables, 16 elevation steps of four stops and a glow,
+computed once in the reference implementation.
+
 ### Rendering
 
 Each tree's shadow is one `<path class="shadow">` with one closed subpath per
@@ -134,7 +170,8 @@ are included.
 
 * Consumes: the front hill's silhouette from Hills, and the tree bases and
   limbs from Trees.
-* Provides: the sun's light on the front hill (bands and shadows).
+* Provides: the sun's light on the front hill (bands and shadows), on the ridge
+  faces, and on the sky (Sky warmth).
 
 ### Open decisions
 

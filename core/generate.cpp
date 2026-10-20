@@ -7,6 +7,7 @@
 #include "celestial.hpp"
 #include "fog.hpp"
 #include "format.hpp"
+#include "palette.hpp"
 #include "hills.hpp"
 #include "mountains.hpp"
 #include "trees.hpp"
@@ -16,9 +17,6 @@ namespace bh {
 
 namespace {
 
-// Placeholder sky until its namespace exists. Fixed; consumes no hash bits.
-constexpr const char* kSkyTop = "#9db6d3";
-constexpr const char* kSkyBottom = "#e9eef2";
 
 void append_hex(std::string& out, uint32_t rgb) {
     static const char* digits = "0123456789abcdef";
@@ -106,12 +104,38 @@ std::string render_svg(const Scene& scene, uint32_t width, uint32_t height) {
     out += " ";
     append_uint(out, height);
     out += "\">\n";
+    // Placeholder sky until its namespace exists (no bits): a vertical gradient
+    // whose hue the low sun warms toward sunset colors (subspec/celestial.md,
+    // Sky warmth).
+    const std::vector<uint32_t>& sky = sky_colors(scene.sun.elevation);
+    static const char* kSkyOffset[4] = {"0", "0.45", "0.75", "1"};
     out += "<defs><linearGradient id=\"sky\" x1=\"0\" y1=\"0\" x2=\"0\" y2=\"1\">";
-    out += "<stop offset=\"0\" stop-color=\"";
-    out += kSkyTop;
-    out += "\"/><stop offset=\"1\" stop-color=\"";
-    out += kSkyBottom;
-    out += "\"/></linearGradient>";
+    for (int s = 0; s < 4; ++s) {
+        out += "<stop offset=\"";
+        out += kSkyOffset[s];
+        out += "\" stop-color=\"";
+        append_hex(out, sky[static_cast<size_t>(s)]);
+        out += "\"/>";
+    }
+    out += "</linearGradient>";
+    int glow = scene.sun.elevation <= 6 ? static_cast<int>(std::lround(70.0 * (7 - scene.sun.elevation) / 7.0)) : 0;
+    if (glow > 0) {
+        // Warmest toward the sun: a radial glow low in the sky on its side.
+        // The sun sits left of center when shadows fall right (dx > 0).
+        out += "<radialGradient id=\"sun-glow\" gradientUnits=\"userSpaceOnUse\" cx=\"";
+        append_fixed2(out, 0.5 * (1.0 - scene.sun.dx) * width);
+        out += "\" cy=\"";
+        append_fixed2(out, 0.8 * height);
+        out += "\" r=\"";
+        append_fixed2(out, 0.75 * width);
+        out += "\"><stop offset=\"0\" stop-color=\"";
+        append_hex(out, sky[4]);
+        out += "\" stop-opacity=\"";
+        append_opacity(out, glow);
+        out += "\"/><stop offset=\"1\" stop-color=\"";
+        append_hex(out, sky[4]);
+        out += "\" stop-opacity=\"0.00\"/></radialGradient>";
+    }
     // The haze shared by every fog layer: tint and opacity from the Fog
     // namespace, denser toward the ground when misty.
     out += "<linearGradient id=\"fog\" x1=\"0\" y1=\"0\" x2=\"0\" y2=\"1\"><stop offset=\"0\" stop-color=\"";
@@ -141,6 +165,11 @@ std::string render_svg(const Scene& scene, uint32_t width, uint32_t height) {
     out += "<rect class=\"sky\" ";
     append_full_rect(out, width, height);
     out += " fill=\"url(#sky)\"/>\n";
+    if (glow > 0) {
+        out += "<rect class=\"sun-glow\" ";
+        append_full_rect(out, width, height);
+        out += " fill=\"url(#sun-glow)\"/>\n";
+    }
 
     // Back to front. Fog is a separate element between ridges, so it never
     // rewrites a ridge's fill; farther ridges accumulate more haze.

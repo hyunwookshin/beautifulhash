@@ -316,3 +316,70 @@ const std::vector<uint32_t>& vegetation_palette(Theme theme, Season season, int 
 }
 
 }  // namespace bh
+
+namespace bh {
+
+namespace {
+
+// sRGB byte to linear light.
+double to_linear(double c) {
+    c /= 255.0;
+    return c <= 0.04045 ? c / 12.92 : std::pow((c + 0.055) / 1.055, 2.4);
+}
+
+// 0xRRGGBB to OKLCH (L, C, hue in degrees).
+void to_oklch(uint32_t rgb, double& L, double& C, double& h) {
+    double r = to_linear((rgb >> 16) & 255u), g = to_linear((rgb >> 8) & 255u), b = to_linear(rgb & 255u);
+    double l = std::cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b);
+    double m = std::cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b);
+    double s = std::cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b);
+    L = 0.2104542553 * l + 0.7936177850 * m - 0.0040720468 * s;
+    double a = 1.9779984951 * l - 2.4285922050 * m + 0.4505937099 * s;
+    double bb = 0.0259040371 * l + 0.7827717662 * m - 0.8086757660 * s;
+    C = std::sqrt(a * a + bb * bb);
+    h = std::atan2(bb, a) * 180.0 / 3.14159265358979323846;
+    if (h < 0.0) h += 360.0;
+}
+
+}  // namespace
+
+const std::vector<uint32_t>& sky_colors(int elevation) {
+    // Per sun elevation step: the four sky gradient stops and the sun glow.
+    // A low sun (steps 0-6) rotates the sky's hue toward sunset colors,
+    // keeping its lightness, weakest at the top and strongest at the horizon.
+    static const std::vector<std::vector<uint32_t>> tables = [] {
+        const uint32_t top = 0x9DB6D3, bottom = 0xE9EEF2;
+        const double kOffset[4] = {0.0, 0.45, 0.75, 1.0};
+        const double kHue[4] = {300.0, 345.0, 25.0, 50.0};  // purple, pink, orange-pink, orange
+        const double kWeight[4] = {0.35, 0.6, 0.85, 1.0};
+        std::vector<std::vector<uint32_t>> out;
+        for (int e = 0; e < 16; ++e) {
+            double warmth = e <= 6 ? (7.0 - e) / 7.0 : 0.0;
+            std::vector<uint32_t> colors;
+            for (int s = 0; s < 4; ++s) {
+                uint32_t base = 0;
+                for (int shift = 16; shift >= 0; shift -= 8) {
+                    double a = (top >> shift) & 255u, b = (bottom >> shift) & 255u;
+                    base |= static_cast<uint32_t>(std::lround(a + (b - a) * kOffset[s])) << shift;
+                }
+                if (warmth == 0.0) {
+                    colors.push_back(base);
+                    continue;
+                }
+                double L, C, h;
+                to_oklch(base, L, C, h);
+                double k = warmth * kWeight[s];
+                double turn = std::fmod(kHue[s] - h + 540.0, 360.0) - 180.0;  // shortest way round
+                colors.push_back(oklch(L, C + 0.10 * k, h + turn * k));
+            }
+            double L, C, h;
+            to_oklch(bottom, L, C, h);
+            colors.push_back(oklch(L - 0.03, 0.05 + 0.10 * warmth, 45.0));  // glow: horizon lightness, orange
+            out.push_back(colors);
+        }
+        return out;
+    }();
+    return tables[static_cast<size_t>(elevation)];
+}
+
+}  // namespace bh

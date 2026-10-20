@@ -25,3 +25,8 @@ rest of the scene should feel consistent with.
 ### Status
 
 Subnamespace widths and interpretation rules are not yet defined.
+
+Until this namespace is built, the renderer draws a fixed placeholder sky: a
+vertical gradient from `#9DB6D3` to `#E9EEF2`. The low sun shifts its hue toward
+sunset colors (subspec/celestial.md, Sky warmth), and the namespace should keep
+that behavior.

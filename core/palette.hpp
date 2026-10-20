@@ -48,6 +48,10 @@ const std::vector<uint32_t>& leaf_palette(Season season, int id);
 constexpr int kVegetationPalettes = 16;
 const std::vector<uint32_t>& vegetation_palette(Theme theme, Season season, int id);
 
+// The sky gradient's four stops (offsets 0, 0.45, 0.75, 1) and the sun glow color,
+// by sun elevation step (subspec/celestial.md, Sky warmth).
+const std::vector<uint32_t>& sky_colors(int elevation);
+
 // Fog tints (subspec/fog.md, Tint): 8 pale colors per biome and season.
 const std::vector<uint32_t>& fog_palette(Theme theme, Season season);
 
