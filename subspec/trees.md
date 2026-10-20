@@ -479,48 +479,34 @@ on the crest at $(x, B(x))$, where $B$ is the back hill's silhouette.
 $s = 45 + 25\,((B(x) \cdot x) \bmod 997)/997$.
 
 * **Conifer:** a two-tier spire on a short trunk, $0.42s$ wide at the base.
-* **Deciduous, spring to fall:** a trunk $0.08s$ wide up to $0.64s$, in the
-  hill's color moved 12% toward black. On it, 3 to 5 separate crown clumps
-  ($3 + \delta \bmod 3$), with the sky showing between them, so the crown reads
-  as thin foliage rather than a mushroom cap.
-  * **Placement:** clump $c$ sits in direction $2 + ((8c/(n-1) + \tau) \bmod 9)$
-    of 24 (15° steps, exact constants) from the crown center, where
-    $\tau = \delta \bmod 3$. Its distance is $\rho = r(0.45 + 0.04\delta)$, scaled 0.6 horizontally and
-    1.3 vertically so the clumps stack upright, then lowered by $0.2r$, with
-    $r = 0.32s$.
-  * **Twigs:** each clump hangs on a thin tapered twig from a fork $0.35r$
-    below the crown center, in the trunk's color.
-  * **Shape:** each clump has radius $r(0.3 + 0.025\delta)$ and 12 ragged
-    points alternating $0.9 + 0.025\delta$ and $0.62 + 0.025\delta$ of it,
-    scaled 0.8 wide and 1.3 tall, so each clump is upright rather than a flat
-    donut.
-  * **Holes:** every clump has two, one $0.32$ of its radius above its center
-    and one below. Each is a rectangle, trapezoid, parallelogram, or rhombus
-    ($\delta \bmod 4$), cut with `fill-rule="evenodd"` inside the solid core.
-
-  Here $\delta$ are digits of pi from offset $5k$ for tree $k$.
-* **Deciduous, winter:** bare needles in the conifers' dark grayish green,
-  never in the snowy hill color. A main needle $s$ tall and $0.1s$ wide at the
-  base, then 1 or 2 side needles:
+* **Deciduous:** a needle tree in every season, like a distant sapling. It has
+  a main needle $s$ tall and $0.1s$ wide at the base, then 1 or 2 side needles:
   * starting $0.3 + 0.04\delta$ up the trunk, 30° or 45° off vertical;
   * $s(0.3 + 0.025\delta)$ long.
 
   Each side needle may carry one sub-needle, halfway along and bent 30° back
-  toward vertical, at 0.45 of its length. That is at most three orders.
+  toward vertical, at 0.45 of its length: at most three orders. Here $\delta$
+  are digits of pi from offset $5k$ for tree $k$.
+* **Leaf dots (spring to fall):** tiny rectangles, $2 \times 2$ or $2 \times 4$
+  logical units (1–2 pixels at 1024 wide), in the scene's leaf palette (Leaves).
+  * **Where:** around every fork and tip: the main tip, each side needle's
+    fork and tip, and each sub-needle's tip.
+  * **How many:** with crest point $(x, y)$ and spot index $j$,
+    $q = \lfloor 7x + 13y \rfloor + 31j$; the spot gets $1 + (q \bmod 4)$ dots.
+  * **Each dot:** with $u = 17q + 101d$, dot $d$ is offset by
+    $(u \bmod 9) - 4$ across and $(\lfloor u/9 \rfloor \bmod 7) - 3$ up. It is
+    taller when $u \bmod 3 = 0$, and takes palette color
+    $\lfloor u/63 \rfloor \bmod 6$.
 
 **Colors.**
 
-* Conifers, and deciduous trees in winter: one dark grayish green, `#3C4A40`.
-* Deciduous crowns in spring and summer: the back hill's color moved 12% toward
-  black, so they read as silhouettes on the crest.
-* Deciduous crowns in fall: the scene's leaf palette (Leaves), in an order taken
-  from the digits of pi. Tree $k$ takes color $\delta_{3k \bmod 64} \bmod 6$; if
-  that repeats the previous tree's color, it takes the next one. The order is
-  irregular rather than an obvious red, orange, yellow cycle.
+* Conifers, and deciduous needles in winter: one dark grayish green, `#3C4A40`.
+* Deciduous needles in spring, summer, and fall: the back hill's color moved
+  12% toward black, so they blend into the hill; the leaf dots carry the
+  season's color.
 
 **Rendering.** Each crest tree is a `<path class="crest-tree">` (a deciduous tree
-is several: trunk, twigs, then clumps, a hole as an extra subpath; a winter one
-is its needles), drawn right after
+is one per needle, then one per leaf dot), drawn right after
 the back hill and before the trees standing on it. The hill's path is
 unchanged, so decoding is unaffected.
 

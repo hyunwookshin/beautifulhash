@@ -937,13 +937,12 @@ void add_crest_trees(std::vector<Hill>& hills, const Hash256& hash, Theme theme,
     // silhouettes; in fall they take the scene's leaf colors in an irregular
     // order from the digits of pi, never repeating a color back to back.
     const uint32_t kDarkGreen = 0x3C4A40;
-    std::vector<uint32_t> fall;
-    if (!conifer && season == Season::kFall) {
+    std::vector<uint32_t> leaves;  // the scene's leaf colors, for deciduous trees outside winter
+    if (!conifer && season != Season::kWinter) {
         Values v = decode(hash, true, theme, season);
-        fall = leaf_palette(season, static_cast<int>(v.leaf));
+        leaves = leaf_palette(season, static_cast<int>(v.leaf));
     }
     static const char kPi[] = "3141592653589793238462643383279502884197169399375105820974944592";
-    int previous = -1;
     for (size_t k = 0; k < spots.size(); ++k) {
         const Spot& s = spots[k];
         double size = 45.0 + 25.0 * std::fmod(s.h * s.x, 997.0) / 997.0;  // varied heights
@@ -973,96 +972,61 @@ void add_crest_trees(std::vector<Hill>& hills, const Hash256& hash, Theme theme,
                 double dx = kDir[d % 24][0], dh = kDir[d % 24][1];
                 return std::vector<Point>{{p.x - dh * w, p.h + dx * w}, {p.x + dx * l, p.h + dh * l}, {p.x + dh * w, p.h - dx * w}};
             };
-            if (season == Season::kWinter) {
-                // Bare in winter: one main needle, one or two side needles, and
-                // at most one sub-needle on each (three orders), all in the same
-                // dark grayish green as the other trees.
-                Point base{x, h};
-                back.crest_trees.push_back({needle(base, 6, size, 0.05 * size)});
-                back.crest_rgb.push_back(kDarkGreen);
-                int sides = 1 + static_cast<int>(dig(0)) % 2;
-                for (int b = 0; b < sides; ++b) {
-                    int left = (static_cast<int>(dig(1)) + b) % 2;  // which side this branch leaves on
-                    double at = 0.3 + 0.04 * dig(2 + b);            // up the trunk
-                    int d = left ? 6 + 2 + static_cast<int>(dig(4 + b)) % 2 : 6 - 2 - static_cast<int>(dig(4 + b)) % 2;
-                    double l = size * (0.3 + 0.025 * dig(6 + b));
-                    Point p{x, h + at * size};
-                    back.crest_trees.push_back({needle(p, d, l, 0.022 * size)});
-                    back.crest_rgb.push_back(kDarkGreen);
-                    if (static_cast<int>(dig(8 + b)) % 2 == 1) {
-                        double m = 0.45 + 0.03 * dig(10 + b);
-                        Point q{p.x + kDir[d][0] * l * m, p.h + kDir[d][1] * l * m};
-                        int d2 = left ? d - 2 : d + 2;  // bends back toward vertical
-                        back.crest_trees.push_back({needle(q, d2, 0.45 * l, 0.012 * size)});
-                        back.crest_rgb.push_back(kDarkGreen);
+            // Every season: one main needle, one or two side needles, and at
+            // most one sub-needle on each (three orders). In winter they are the
+            // dark grayish green of the other trees; otherwise they blend into
+            // the hill, and tiny leaf dots at the tips and forks carry the
+            // season's color.
+            uint32_t wood = season == Season::kWinter ? kDarkGreen : shade(back.rgb, -0.12);
+            std::vector<Point> spots_at;  // forks and tips, where leaf dots gather
+            Point base{x, h};
+            back.crest_trees.push_back({needle(base, 6, size, 0.05 * size)});
+            back.crest_rgb.push_back(wood);
+            spots_at.push_back({x, h + size});
+            int sides = 1 + static_cast<int>(dig(0)) % 2;
+            for (int b = 0; b < sides; ++b) {
+                int left = (static_cast<int>(dig(1)) + b) % 2;  // which side this branch leaves on
+                double at = 0.3 + 0.04 * dig(2 + b);            // up the trunk
+                int d = left ? 6 + 2 + static_cast<int>(dig(4 + b)) % 2 : 6 - 2 - static_cast<int>(dig(4 + b)) % 2;
+                double l = size * (0.3 + 0.025 * dig(6 + b));
+                Point p{x, h + at * size};
+                back.crest_trees.push_back({needle(p, d, l, 0.022 * size)});
+                back.crest_rgb.push_back(wood);
+                spots_at.push_back(p);
+                spots_at.push_back({p.x + kDir[d][0] * l, p.h + kDir[d][1] * l});
+                if (static_cast<int>(dig(8 + b)) % 2 == 1) {
+                    double m = 0.45 + 0.03 * dig(10 + b);
+                    Point q{p.x + kDir[d][0] * l * m, p.h + kDir[d][1] * l * m};
+                    int d2 = left ? d - 2 : d + 2;  // bends back toward vertical
+                    back.crest_trees.push_back({needle(q, d2, 0.45 * l, 0.012 * size)});
+                    back.crest_rgb.push_back(wood);
+                    spots_at.push_back({q.x + kDir[d2][0] * 0.45 * l, q.h + kDir[d2][1] * 0.45 * l});
+                }
+            }
+            if (!leaves.empty()) {
+                // 1 to 4 tiny dots (2x2 or 2x4 logical units) around each fork
+                // and tip, their count, offsets, and colors set by the crest
+                // point's x and y.
+                for (size_t j = 0; j < spots_at.size(); ++j) {
+                    const Point& c = spots_at[j];
+                    long key = static_cast<long>(std::floor(s.x * 7.0 + s.h * 13.0)) + static_cast<long>(j) * 31;
+                    int dots = 1 + static_cast<int>(key % 4);
+                    for (int dd = 0; dd < dots; ++dd) {
+                        long u = key * 17 + dd * 101;
+                        double ox = static_cast<double>(u % 9) - 4.0, oh = static_cast<double>((u / 9) % 7) - 3.0;
+                        double w = 1.0, hh = (u % 3 == 0) ? 2.0 : 1.0;
+                        Point o{c.x + ox, c.h + oh};
+                        back.crest_trees.push_back({{{o.x - w, o.h - hh}, {o.x + w, o.h - hh}, {o.x + w, o.h + hh}, {o.x - w, o.h + hh}}});
+                        back.crest_rgb.push_back(leaves[static_cast<size_t>((u / 63) % 6)]);
                     }
                 }
-                continue;
             }
-            // A trunk in the hill's color, drawn as its own shape first.
-            double r = 0.32 * size, cy = h + 0.64 * size;
-            back.crest_trees.push_back({{{x - 0.04 * size, h}, {x - 0.04 * size, cy}, {x + 0.04 * size, cy}, {x + 0.04 * size, h}}});
-            back.crest_rgb.push_back(shade(back.rgb, -0.12));
-            // The crown: 3 to 5 separate ragged clumps on thin twigs, with the
-            // sky showing between them, so it reads as thin foliage rather
-            // than one mushroom cap. Count, positions, and sizes come from the
-            // digits. Each clump is its own shape after the twigs.
-            int clumps = 3 + static_cast<int>(dig(0)) % 3;
-            int turn = static_cast<int>(dig(1)) % 3;  // rotates where the clumps sit
-            Point fork{x, cy - 0.35 * r};
-            std::vector<Point> centers;
-            for (int c = 0; c < clumps; ++c) {
-                // Spread over the upper half circle (directions 2-10 of 24).
-                int d = 2 + (c * 8 / std::max(1, clumps - 1) + turn) % 9;
-                double rad = r * (0.45 + 0.04 * dig(2 + c));
-                centers.push_back({x + kDir[d][0] * rad * 0.6, cy + kDir[d][1] * rad * 1.3 - 0.2 * r});
-                double dx = centers.back().x - fork.x, dh = centers.back().h - fork.h;
-                double m = std::max(std::fabs(dx), std::fabs(dh)), w = 0.018 * size;
-                back.crest_trees.push_back({{{fork.x - dh / m * w, fork.h + dx / m * w}, centers.back(),
-                                             {fork.x + dh / m * w, fork.h - dx / m * w}}});
-                back.crest_rgb.push_back(shade(back.rgb, -0.12));
-            }
-            for (int c = 0; c < clumps; ++c) {
-                double cr = r * (0.3 + 0.025 * dig(8 + c));
-                std::vector<Point> blob;
-                for (int a = 0; a < 24; a += 2) {  // 12 ragged points, alternating in and out
-                    double rr = cr * ((a / 2) % 2 == 0 ? 0.9 + 0.025 * dig(12 + a) : 0.62 + 0.025 * dig(12 + a));
-                    blob.push_back({centers[c].x + kDir[a][0] * rr * 0.8, centers[c].h + kDir[a][1] * rr * 1.3});  // upright
-                }
-                std::vector<std::vector<Point>> clump = {blob};
-                for (int q = 0; q < 2; ++q) {
-                    // Two holes in every clump, one above the other inside its
-                    // solid core: a rectangle, trapezoid, parallelogram, or rhombus.
-                    double hx = centers[c].x, hy = centers[c].h + (q == 0 ? 0.32 : -0.32) * cr, a = 0.18 * cr, b = 0.14 * cr;
-                    switch (static_cast<int>(dig(20 + 2 * c + q)) % 4) {
-                        case 0: clump.push_back({{hx - a, hy - b}, {hx + a, hy - b}, {hx + a, hy + b}, {hx - a, hy + b}}); break;
-                        case 1: clump.push_back({{hx - a, hy - b}, {hx + a, hy - b}, {hx + 0.5 * a, hy + b}, {hx - 0.5 * a, hy + b}}); break;
-                        case 2: clump.push_back({{hx - a, hy - b}, {hx + 0.5 * a, hy - b}, {hx + a, hy + b}, {hx - 0.5 * a, hy + b}}); break;
-                        default: clump.push_back({{hx, hy - 1.3 * b}, {hx + a, hy}, {hx, hy + 1.3 * b}, {hx - a, hy}}); break;
-                    }
-                }
-                if (c + 1 < clumps) {
-                    back.crest_trees.push_back(clump);
-                    back.crest_rgb.push_back(0xFFFFFFFFu);  // unset: colored below with the rest of the crown
-                } else {
-                    shape = clump;  // the last clump takes the tree's crown color as before
-                }
-            }
+            continue;
         }
-        if (conifer) shape.push_back(poly);
-        uint32_t rgb = kDarkGreen;
-        if (!conifer && (season == Season::kSpring || season == Season::kSummer)) rgb = shade(back.rgb, -0.12);
-        if (!fall.empty()) {
-            int c = (kPi[(3 * k) % 64] - '0') % 6;
-            if (c == previous) c = (c + 1) % 6;
-            previous = c;
-            rgb = fall[static_cast<size_t>(c)];
-        }
-        for (uint32_t& c : back.crest_rgb) {
-            if (c == 0xFFFFFFFFu) c = rgb;
-        }
+        // Conifers: the spire, in dark grayish green.
+        shape.push_back(poly);
         back.crest_trees.push_back(shape);
-        back.crest_rgb.push_back(rgb);
+        back.crest_rgb.push_back(kDarkGreen);
     }
 }
 
