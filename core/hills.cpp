@@ -1,5 +1,7 @@
 #include "hills.hpp"
 
+#include <algorithm>
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 
@@ -112,6 +114,48 @@ Hill build(const Params& p, bool two, int index, const HillValues& v, const std:
     return hill;
 }
 
+namespace {
+
+// Moves each channel a fraction k toward white (k > 0) or black (k < 0).
+uint32_t shade(uint32_t rgb, double k) {
+    uint32_t out = 0;
+    for (int shift = 16; shift >= 0; shift -= 8) {
+        double c = static_cast<double>((rgb >> shift) & 255u);
+        c = k > 0.0 ? c + (255.0 - c) * k : c * (1.0 + k);
+        out |= static_cast<uint32_t>(std::lround(c)) << shift;
+    }
+    return out;
+}
+
+}  // namespace
+
+void add_bands(Hill& hill) {
+    // Discrete light bands: lighter at the top, darker toward the viewer, so
+    // the hill reads as lit from above. A tall hill gets five, a low one three.
+    const std::vector<Point>& s = hill.points;
+    double mean = 0.0, low = s.front().h;
+    for (const Point& q : s) {
+        mean += q.h;
+        low = std::min(low, q.h);
+    }
+    mean /= static_cast<double>(s.size());
+    int n = mean >= 80.0 ? 5 : 3;
+    hill.bands.clear();
+    hill.band_rgb.clear();
+    for (int j = 0; j < n; ++j) {
+        // Boundary j follows the silhouette, flattened toward the hill's lowest
+        // height and lowered toward the canvas bottom by f = j / n: deeper bands
+        // have less and less curvature. Since the lowest height is at most the
+        // silhouette, no boundary rises above it.
+        double f = static_cast<double>(j) / n;
+        std::vector<Point> edge;
+        for (const Point& q : s) edge.push_back({q.x, (1.0 - f) * ((1.0 - f) * q.h + f * low)});
+        hill.bands.push_back(edge);
+        // 8% steps toward white above the middle band and toward black below.
+        hill.band_rgb.push_back(shade(hill.rgb, 0.08 * ((n - 1) / 2 - j)));
+    }
+}
+
 std::vector<Hill> generate(const Hash256& hash, Theme theme, Season season) {
     Values v = decode(hash);
     const Params& p = default_params();
@@ -119,6 +163,7 @@ std::vector<Hill> generate(const Hash256& hash, Theme theme, Season season) {
     for (size_t i = 0; i < v.hills.size(); ++i) {
         built.push_back(build(p, v.two, static_cast<int>(i), v.hills[i], built, theme, season));
     }
+    add_bands(built[0]);
     return built;
 }
 

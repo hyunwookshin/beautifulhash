@@ -128,11 +128,43 @@ Desert green ranges at low lightness; the ranges above are collision-free, and
 the Temperate range was confirmed by a parameter search to have collision-free
 neighbors.
 
+### Shading bands
+
+The front (or only) hill is shaded in discrete bands, lighter at the top and
+darker toward the viewer, so it reads as a lit, rounded surface rather than a
+flat fill. The bands carry no bits; they follow from the hill's shape and color.
+The back hill is not banded.
+
+* **Count:** 5 bands when the hill's mean height over its 65 points is at least
+  80, otherwise 3.
+* **Boundaries:** with silhouette $S(x)$, its lowest height
+  $S_{\min}$, and $f = j / n$, boundary $j = 0, \dots, n - 1$ is
+
+  $$
+  B_j(x) = (1 - f)\left((1 - f)\,S(x) + f\,S_{\min}\right)
+  $$
+
+  Boundary 0 is the silhouette. Deeper boundaries follow the crest's contour
+  but flatten toward $S_{\min}$ and drop toward the canvas bottom, so they have
+  less and less curvature toward the front, which gives the 3D effect. Since
+  $S_{\min} \le S(x)$, no boundary rises above the silhouette.
+* **Colors:** band $j$ moves each channel $c$ of the hill's color by
+  $k = 0.08\,(\lfloor (n - 1)/2 \rfloor - j)$: to
+  $\operatorname{round}(c + (255 - c)k)$ toward white for $k > 0$, or
+  $\operatorname{round}(c(1 + k))$ toward black otherwise. With 5 bands that is
+  +16%, +8%, 0, −8%, −16%; with 3 bands, +8%, 0, −8%. The middle band is the
+  palette color itself.
+* **Rendering:** each band is a `<path class="hill-band">` from its boundary
+  closed down to the canvas bottom, drawn top band first right after the hill's
+  own path, so each deeper band covers the lower part of the one before. The
+  hill's path keeps the palette color, so its bits still decode from it.
+
 ### Rendering and order
 
 * Hills are drawn after every mountain ridge and before Trees and Vegetation:
   back hill, then front hill. Each is a `<path class="hill">` closed down to the
   canvas bottom.
+* The front hill's shading bands follow its path (see Shading bands).
 * A fog layer is drawn between the mountains and the hills, and in two-hill
   mode another between the back hill (with its trees) and the front hill
   ([Fog](fog.md)). The front hill is never fogged.

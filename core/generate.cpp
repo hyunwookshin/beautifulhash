@@ -195,6 +195,26 @@ std::string render_svg(const Scene& scene, uint32_t width, uint32_t height) {
         out += " L0,";
         append_uint(out, height);
         out += " Z\"/>\n";
+        // The front hill's shading bands, top to bottom, each closed down to the
+        // canvas bottom over the one before (subspec/hills.md, Shading bands).
+        for (size_t b = 0; b < h.bands.size(); ++b) {
+            out += "<path class=\"hill-band\" fill=\"";
+            append_hex(out, h.band_rgb[b]);
+            out += "\" d=\"";
+            for (size_t i = 0; i < h.bands[b].size(); ++i) {
+                out += i == 0 ? "M" : " L";
+                append_fixed2(out, h.bands[b][i].x * scale);
+                out += ",";
+                append_fixed2(out, (kCanvasHeight - h.bands[b][i].h) * scale);
+            }
+            out += " L";
+            append_uint(out, width);
+            out += ",";
+            append_uint(out, height);
+            out += " L0,";
+            append_uint(out, height);
+            out += " Z\"/>\n";
+        }
         // Vegetation covers the front (or only) hill's ground, under its trees
         // (subspec/vegetation.md, Rendering).
         if (n == 0 && !scene.vegetation.empty()) {

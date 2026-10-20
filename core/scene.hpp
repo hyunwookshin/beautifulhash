@@ -41,6 +41,10 @@ struct Hill {
     std::vector<Point> points;  // sampled curve, strictly increasing x, from x = 0 to x = 2048
     uint32_t rgb;
     HillProfile profile;
+    // Front hill only: shading bands, top to bottom. Each is the top edge of a
+    // region closed down to the canvas bottom, drawn over the hill in order.
+    std::vector<std::vector<Point>> bands;
+    std::vector<uint32_t> band_rgb;
 };
 
 // One drawn part of a tree: a polygon, or a circle when `poly` is empty.
