@@ -194,9 +194,24 @@ u_r = \{u_{\text{ratio}} + 0.6180339887498949\,(k+1)\},
 u_\ell = \{u_{\text{length}} + 0.3819660112501051\,(k+1)\}
 $$
 
+Each tree has its own phase, from its index $i$ and its decoded girth and
+height values $g, h \in [0, 1]$, with no extra bits:
+
+$$
+\psi = \{0.4142135623730951\,(i+1) + 0.5\,g + 0.25\,h\}
+$$
+
 A deciduous derived fork's side bit is the source fork's side bit, flipped when
-$\{0.7548776662466927\,(k+1)\} < 0.5$. A tree with no bit forks uses 0.5 for both
-base values and 0 for the side bit. Derived forks skip
+$\{0.7548776662466927\,(k+1) + \psi\} < 0.5$. The same shifted value also picks
+the large child's side for every fork that is not a conifer's. A tree with no
+bit forks uses $\psi$ and $\{\psi + 0.5\}$ as its ratio and length base values,
+and 0 as the base side bit.
+
+Without the phase, every tree lacking fork bits (most of them, in scenes with
+many trees) branched identically, and the two arms of the first Y almost always
+turned their secondary branches inward. Trees read as the same M shape. With
+it, the arms' secondary branches turn inward, outward, or one of each, varying
+from tree to tree. Derived forks skip
 branches shorter than a minimum: 12% of the trunk for conifers, 3% otherwise.
 The total number of forks is capped per species, but bit forks always run in
 full:
@@ -413,6 +428,34 @@ The shading follows the geometry, not the bits.
 Winter trees are bare and the scene reads no leaf bits, so no bit is spent
 without an effect.
 
+### Ground cover
+
+Every tree, on either hill, has a little ground cover where its trunk meets the
+ground. It is only a little wider than the trunk and deliberately irregular. It
+carries no bits; it follows from the trunk's base girth $g$ (the first limb's
+base width), the base point $(x_b, h_b)$, the tree's index $i$, the biome, and
+the season, so it shrinks with the tree's perspective. It starts at
+$h_0 = h_b - 0.1g$, just below the base, so it covers the trunk's foot.
+
+**Irregularity from the digits of pi.** The cover reads the first 64 decimal
+digits of $\pi$ (`3141592653…4592`) cyclically, starting at offset
+$7i \bmod 64$. $\delta_k$ is the $k$-th digit from that offset (0–9).
+
+| Biome and season | Cover |
+|---|---|
+| Winter, every biome | **Snow drift:** one lumpy outline of nine points across 1.6 trunk widths. Point $k$ sits at $x_b + 0.2g(k - 4)$, shifted by $0.015g(\delta_k - 4.5)$ except at the ends, and at height $h_0 + \eta_k\,g\,(0.12 + 0.035\,\delta_{k+9})$. Here $\eta = (0, 0.5, 0.8, 1, 1, 1, 0.8, 0.5, 0)$, so the drift is highest at the trunk. Color `#F8FAFC`. |
+| Desert, other seasons | **Rocks:** two rocks (three if $\delta_0 \ge 5$) at $x_b + (-0.75, 0.7, 0.05)\,g$; the third sits $0.15g$ lower, in front of the trunk. Rock $k$ has size $r = g(0.18 + 0.03\,\delta_{3k+1})$ and six outline points at fixed directions from 0° to 180° (cosines and sines to six decimals), at radii $r(0.6 + 0.05\,\delta_{7k+v+2})$ and flattened to 0.75 height. They alternate `#9A8F80` and `#7D7366`. |
+| Temperate, Alpine, Tundra, other seasons | **Grass blades:** eleven blades across 1.5 trunk widths. Blade $k$ has its root at $x_b + 0.15g(k - 5) + 0.012g(\delta_k - 4.5)$, half-width $g(0.025 + 0.004\,\delta_{k+11})$, height $g(0.2 + 0.048\,\delta_{k+22})$, and tip lean $0.04g(\delta_{k+33} - 4.5) + 0.04g(k - 5)$. One sawtooth polygon in the hill's color moved 15% toward white. |
+
+**On the front hill, grass and snow take the hill's darkest band color**
+(subspec/hills.md, Shading bands), so they blend into the ground as its darker
+edge at each trunk. The colors above apply on the back hill, which has no bands.
+Rocks keep their grays everywhere. Since the bands are built after the trees,
+this color is applied once they exist.
+
+Each cover polygon is a `<path class="ground">`, drawn right after its tree's
+group, outside it.
+
 ### SVG
 
 Each tree is a `<g class="tree" id="tree-N">` group, numbered from 1. One element
@@ -424,6 +467,8 @@ per line, in this order:
 4. deciduous leaves (forks and tips), in the tree's left-to-right order, as
    `<path>` elements (the eye shape, centered at the origin) placed by an exact
    `matrix(...)` built from the leaf's axis direction, so no angle or trigonometry is computed.
+
+The tree's ground cover follows the group (see Ground cover).
 
 ### Injectivity
 

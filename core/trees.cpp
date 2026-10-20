@@ -360,6 +360,10 @@ Tree build(const Values& v, const Plan& p, int index, const std::vector<Hill>& h
     tree.scale = scale;
     const TreeValues& tv = v.trees[index];
     double gv = unit_of(tv.girth, tv.girth_bits), hv = unit_of(tv.height, tv.height_bits);
+    // The tree's own phase for derived detail, from its index and decoded
+    // girth and height (no extra bits): trees without fork bits still differ,
+    // and the two arms of a Y do not always mirror each other.
+    double phase = frac(0.4142135623730951 * static_cast<double>(index + 1) + 0.5 * gv + 0.25 * hv);
     double girth_base = sp == Species::kCactus ? 14.0 : sp == Species::kJoshua ? 13.0 : sp == Species::kDeciduous ? 11.0 : 9.0;
     double taper = sp == Species::kCactus || sp == Species::kJoshua ? 1.0 : sp == Species::kConifer ? 0.82 : 0.7;
 
@@ -411,14 +415,14 @@ Tree build(const Values& v, const Plan& p, int index, const std::vector<Hill>& h
         // it; derived forks flip the source fork's bit by a fixed irregular
         // (plastic-number) pattern.
         uint32_t side_bit = 0;
-        double plastic = frac(0.7548776662466927 * static_cast<double>(k + 1));
+        double plastic = frac(0.7548776662466927 * static_cast<double>(k + 1) + phase);
         if (k < bit_forks) {
             ru = unit_of(tv.forks[k].ratio, tv.forks[k].ratio_bits);
             lv = unit_of(tv.forks[k].length, tv.forks[k].length_bits);
             side_bit = tv.forks[k].side;
         } else {
             if (parent.length < min_length) continue;
-            double base_r = 0.5, base_l = 0.5;
+            double base_r = phase, base_l = frac(phase + 0.5);
             uint32_t base_s = 0;
             if (bit_forks > 0) {
                 const Fork& src = tv.forks[(k - bit_forks) % bit_forks];
@@ -710,6 +714,70 @@ uint32_t shade(uint32_t rgb, double k) {
     return out;
 }
 
+// Ground cover where a tree meets the ground (subspec/trees.md, Ground cover):
+// snow in winter, rocks in the desert, grass blades elsewhere. Only a little
+// wider than the trunk, and irregular: its shape reads digits of pi from an
+// offset set by the tree's index. No bits.
+void add_cover(Tree& t, int index, uint32_t hill_rgb, Theme theme, Season season) {
+    static const char kPi[] = "3141592653589793238462643383279502884197169399375105820974944592";
+    const int kDigits = 64;
+    int start = (7 * index) % kDigits;
+    auto digit = [&](int k) { return static_cast<double>(kPi[(start + k) % kDigits] - '0'); };
+    t.cover.clear();
+    t.cover_rgb.clear();
+    t.cover_tinted = false;
+    if (t.limbs.empty()) return;
+    double g = t.limbs[0].wa;  // trunk girth at the base
+    double x0 = t.base.x, h0 = t.base.h - 0.1 * g;  // a little below the base, over the trunk's foot
+    if (season == Season::kWinter) {
+        // A lumpy drift of snow: an outline across 1.6 trunk widths whose
+        // nine heights come from the digits, highest near the trunk.
+        static const double kHump[9] = {0.0, 0.5, 0.8, 1.0, 1.0, 1.0, 0.8, 0.5, 0.0};
+        std::vector<Point> poly;
+        for (int k = 0; k < 9; ++k) {
+            double x = x0 + (k - 4) * 0.2 * g + (k > 0 && k < 8 ? (digit(k) - 4.5) * 0.015 * g : 0.0);
+            poly.push_back({x, h0 + kHump[k] * g * (0.12 + 0.035 * digit(k + 9))});
+        }
+        t.cover.push_back(poly);
+        t.cover_rgb.push_back(0xF8FAFC);
+        t.cover_tinted = true;
+    } else if (theme == Theme::kDesert) {
+        // Two or three small rocks, each a six-point outline whose radii come
+        // from the digits (fixed directions from 0 to 180 degrees).
+        static const double kCos[6] = {1.0, 0.809017, 0.309017, -0.309017, -0.809017, -1.0};
+        static const double kSin[6] = {0.0, 0.587785, 0.951057, 0.951057, 0.587785, 0.0};
+        static const double kAt[3] = {-0.75, 0.7, 0.05};
+        int rocks = digit(0) < 5.0 ? 2 : 3;
+        for (int k = 0; k < rocks; ++k) {
+            double r = g * (0.18 + 0.03 * digit(3 * k + 1)), x = x0 + kAt[k] * g;
+            double base = k == 2 ? h0 - 0.15 * g : h0;  // the third sits in front of the trunk
+            std::vector<Point> poly;
+            for (int v = 0; v < 6; ++v) {
+                double rv = r * (0.6 + 0.05 * digit(7 * k + v + 2));
+                poly.push_back({x + kCos[v] * rv, base + 0.75 * kSin[v] * rv});
+            }
+            t.cover.push_back(poly);
+            t.cover_rgb.push_back(k % 2 == 0 ? 0x9A8F80 : 0x7D7366);
+        }
+    } else {
+        // Eleven grass blades across 1.5 trunk widths, irregular in spacing,
+        // height, width, and lean, a little lighter than the hill.
+        std::vector<Point> poly;
+        for (int k = 0; k < 11; ++k) {
+            double root = x0 + (k - 5) * 0.15 * g + (digit(k) - 4.5) * 0.012 * g;
+            double half = g * (0.025 + 0.004 * digit(k + 11));
+            double height = g * (0.2 + 0.048 * digit(k + 22));
+            double lean = (digit(k + 33) - 4.5) * 0.04 * g + (k - 5) * 0.04 * g;
+            poly.push_back({root - half, h0});
+            poly.push_back({root + lean, h0 + height});
+            poly.push_back({root + half, h0});
+        }
+        t.cover.push_back(poly);
+        t.cover_rgb.push_back(shade(hill_rgb, 0.15));
+        t.cover_tinted = true;
+    }
+}
+
 }  // namespace
 
 void paint_leaves(std::vector<Tree>& trees, const Values& v, Season season) {
@@ -744,6 +812,7 @@ std::vector<Tree> generate(const Hash256& hash, const std::vector<Hill>& hills, 
     std::vector<Tree> out;
     for (int i = 0; i < v.count; ++i) out.push_back(build(v, p, i, hills, theme, season));
     paint_leaves(out, v, season);
+    for (size_t i = 0; i < out.size(); ++i) add_cover(out[i], static_cast<int>(i), hills[out[i].hill].rgb, theme, season);
     return out;
 }
 
@@ -809,6 +878,18 @@ std::string tree_svg(const Tree& tree, int index, double scale) {
     }
     out += "</g>\n";
     return out;
+}
+
+}  // namespace bh::trees
+
+namespace bh::trees {
+
+void tint_cover(std::vector<Tree>& trees, const Hill& front) {
+    if (front.band_rgb.empty()) return;
+    for (Tree& t : trees) {
+        if (t.hill != 0 || !t.cover_tinted) continue;
+        for (uint32_t& c : t.cover_rgb) c = front.band_rgb.back();
+    }
 }
 
 }  // namespace bh::trees

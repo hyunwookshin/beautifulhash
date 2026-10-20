@@ -103,6 +103,7 @@ int main(int argc, char** argv) {
                 scene.sun = celestial::generate(hashes[i]);
                 hills::add_bands(scene.hills[0], scene.sun);
                 celestial::cast_shadows(scene.trees, scene.hills[0], scene.sun);
+                trees::tint_cover(scene.trees, scene.hills[0]);
                 scene.vegetation = vegetation::generate(hashes[i], scene.trees, scene.hills, configs[v].params.theme, configs[v].params.season);
                 scene.fog = fog::generate(hashes[i], configs[v].params.theme, configs[v].params.season);
                 std::string base = "v" + std::to_string(v) + "_h" + std::to_string(i) + ".svg";

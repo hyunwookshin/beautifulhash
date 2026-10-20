@@ -75,6 +75,9 @@ struct Tree {
     double scale = 1.0;             // overall size factor (composition and size class)
     std::vector<Limb> limbs;        // trunk and branches (not foliage)
     std::vector<std::vector<Point>> shadow;  // front hill: shadow polygons on the ground
+    std::vector<std::vector<Point>> cover;   // ground cover at the base: grass, snow, or rocks
+    std::vector<uint32_t> cover_rgb;
+    bool cover_tinted = false;              // grass or snow: takes the front hill's darkest band color
 };
 
 // One foreground plant (subspec/vegetation.md): a fallen leaf or petal (an eye

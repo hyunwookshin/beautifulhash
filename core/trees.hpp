@@ -81,6 +81,10 @@ void paint_leaves(std::vector<Tree>& trees, const Values& v, Season season);
 
 std::vector<Tree> generate(const Hash256& hash, const std::vector<Hill>& hills, Theme theme, Season season);
 
+// On the front hill, grass and snow at the tree bases take the hill's darkest
+// band color (subspec/trees.md, Ground cover). Call after the bands exist.
+void tint_cover(std::vector<Tree>& trees, const Hill& front);
+
 // One tree's SVG fragment, one element per line (shared by render_svg and verify).
 std::string tree_svg(const Tree& tree, int index, double scale);
 

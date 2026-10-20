@@ -76,6 +76,7 @@ Scene generate_scene(const Hash256& hash, int version) {
     scene.sun = celestial::generate(hash);
     hills::add_bands(scene.hills[0], scene.sun);
     celestial::cast_shadows(scene.trees, scene.hills[0], scene.sun);
+    trees::tint_cover(scene.trees, scene.hills[0]);
     scene.vegetation = vegetation::generate(hash, scene.trees, scene.hills, config.params.theme, config.params.season);
     // Fog comes last: it hazes every depth gap the other layers create.
     scene.fog = fog::generate(hash, config.params.theme, config.params.season);
@@ -251,7 +252,22 @@ std::string render_svg(const Scene& scene, uint32_t width, uint32_t height) {
         }
         // Trees standing on this hill, drawn right after it.
         for (size_t t = 0; t < scene.trees.size(); ++t) {
-            if (scene.trees[t].hill == static_cast<int>(n)) out += trees::tree_svg(scene.trees[t], static_cast<int>(t), scale);
+            const Tree& tr = scene.trees[t];
+            if (tr.hill != static_cast<int>(n)) continue;
+            out += trees::tree_svg(tr, static_cast<int>(t), scale);
+            // Ground cover over the trunk's foot (subspec/trees.md, Ground cover).
+            for (size_t k = 0; k < tr.cover.size(); ++k) {
+                out += "<path class=\"ground\" fill=\"";
+                append_hex(out, tr.cover_rgb[k]);
+                out += "\" d=\"";
+                for (size_t i = 0; i < tr.cover[k].size(); ++i) {
+                    out += i == 0 ? "M" : " L";
+                    append_fixed2(out, tr.cover[k][i].x * scale);
+                    out += ",";
+                    append_fixed2(out, (kCanvasHeight - tr.cover[k][i].h) * scale);
+                }
+                out += " Z\"/>\n";
+            }
         }
         if (n > 0) append_fog(out, width, height);
     }
