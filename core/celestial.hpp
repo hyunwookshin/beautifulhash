@@ -20,7 +20,9 @@ struct Values {
 Values decode(const Hash256& hash);
 void encode(const Values& values, Hash256& hash);
 
-Sun sun(const Values& values);
+// The light for these values and the daylight field (subspec/global.md): the
+// sun by day, its direction refined to a third of a step, or the moon at night.
+Sun sun(const Values& values, uint32_t daylight);
 Sun generate(const Hash256& hash);
 
 // The front hill's ground surface: height at depth fraction f (0 on the

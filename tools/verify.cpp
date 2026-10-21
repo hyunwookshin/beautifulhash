@@ -22,6 +22,8 @@
 #include "trees.hpp"
 #include "mountains.hpp"
 #include "celestial.hpp"
+#include "global.hpp"
+#include "night.hpp"
 #include "fog.hpp"
 #include "sky.hpp"
 #include "palette.hpp"
@@ -945,7 +947,9 @@ void check_celestial(int samples) {
     check(cl::kAzimuthBits + cl::kElevationBits == kCelestial.width, "celestial layout does not consume exactly 8 bits");
 
     // The sun is decoded from the bands and shadows alone: every one of the 256
-    // suns is tried on the same hills and trees, and exactly one must match.
+    // suns is tried with each of the 4 daylight values (Global: three finer day
+    // directions and the moon) on the same hills and trees, and exactly one
+    // must match.
     // Tree foliage is dropped first; only the limbs cast shadows.
     std::mt19937_64 rng(19);
     int bad = 0, bare = 0, shadows = 0;
@@ -966,6 +970,7 @@ void check_celestial(int samples) {
             c.sun = sun;
             bh::hills::add_bands(c.hills[0], sun);
             cl::cast_shadows(c.trees, c.hills[0], sun);
+            if (sun.night) bh::night::apply(c, t, s);
             return sunlit(render_svg(c, 1024, 768));
         };
         std::string actual = lit(cl::generate(hash));
@@ -973,16 +978,23 @@ void check_celestial(int samples) {
         else ++shadows;
         int found = 0;
         cl::Values v;
+        uint32_t daylight = 0;
         for (uint32_t a = 0; a < 16; ++a) {
             for (uint32_t e = 0; e < 16; ++e) {
-                if (lit(cl::sun({a, e})) == actual) {
-                    ++found;
-                    v = {a, e};
+                for (uint32_t d = 0; d < 4; ++d) {
+                    if (lit(cl::sun({a, e}, d)) == actual) {
+                        ++found;
+                        v = {a, e};
+                        daylight = d;
+                    }
                 }
             }
         }
         Hash256 back = hash;
-        if (found == 1) cl::encode(v, back);
+        if (found == 1) {
+            cl::encode(v, back);
+            bh::global::encode({daylight}, back);
+        }
         if (found != 1 || back.bytes != hash.bytes) {
             if (bad < 5) std::printf("    no unique decode (%d): %s\n", found, hash.to_hex().c_str());
             ++bad;
@@ -1003,7 +1015,7 @@ void check_sky(int samples) {
           "sky layout does not consume exactly 24 bits");
     // Every tint gives a distinct gradient under every sun.
     for (int e = 0; e < 16; ++e) {
-        Sun sun = bh::celestial::sun({0, static_cast<uint32_t>(e)});
+        Sun sun = bh::celestial::sun({0, static_cast<uint32_t>(e)}, 0);
         std::set<std::string> grads;
         for (uint32_t t = 0; t < 256; ++t) {
             Sky s;
@@ -1013,6 +1025,20 @@ void check_sky(int samples) {
         if (grads.size() != 256) {
             std::printf("  sun step %d: %zu of 256 sky gradients distinct\n", e, grads.size());
             check(false, "sky tints collide");
+        }
+    }
+    // And at night, when the moon's height leaves the sky unchanged.
+    {
+        Sun moon = bh::celestial::sun({0, 0}, bh::global::kNight);
+        std::set<std::string> grads;
+        for (uint32_t t = 0; t < 256; ++t) {
+            Sky s;
+            s.tint = t;
+            grads.insert(sk::gradient_svg(s, moon));
+        }
+        if (grads.size() != 256) {
+            std::printf("  night: %zu of 256 sky gradients distinct\n", grads.size());
+            check(false, "night sky tints collide");
         }
     }
     // Round trip: the cloud's 16 bits from its path and gradient, the tint from
@@ -1064,6 +1090,43 @@ void check_sky(int samples) {
 
 }  // namespace
 
+// ---- 12. Night --------------------------------------------------------------
+
+void check_night() {
+    std::printf("== Night\n");
+    // Every palette keeps its colors distinct after the night shift, at every
+    // depth it is drawn at (subspec/global.md, Night), so colors still decode.
+    int bad = 0;
+    // Ridge, hill, and fog colors go through their palette's night table; the
+    // others take the plain shift.
+    auto distinct = [&](const std::vector<uint32_t>& pal, std::initializer_list<double> fars, const char* what,
+                        bool table = false) {
+        for (double far : fars) {
+            std::set<uint32_t> seen;
+            for (uint32_t c : pal) seen.insert(table ? bh::night_entry(pal, far, c) : bh::night_rgb(c, far));
+            if (seen.size() != std::set<uint32_t>(pal.begin(), pal.end()).size()) {
+                if (bad < 5) std::printf("  %s at depth %.2f: %zu of %zu colors distinct\n", what, far, seen.size(), pal.size());
+                ++bad;
+            }
+        }
+    };
+    for (Theme t : kThemes) {
+        for (Season s : kSeasons) {
+            for (int id = 0; id < 3; ++id) distinct(bh::palette(t, s, id), {0.0, 0.125, 0.25, 0.45, 0.65, 0.85}, "ridge palette", true);
+            if (bh::front_gradient(t, s)) distinct(bh::gradient_bottom(t, s), {0.0, 0.45}, "ridge gradient bottoms", true);
+            for (int id = 0; id < 3; ++id) distinct(bh::hill_palette(t, s, id), {0.12, 0.22}, "hill palette", true);
+            for (int id = 0; id < kVegetationPalettes; ++id) distinct(bh::vegetation_palette(t, s, id), {0.08}, "vegetation palette");
+            distinct(bh::fog_palette(t, s), {0.0}, "fog tints", true);
+        }
+    }
+    for (Season s : kSeasons) {
+        if (s == Season::kWinter) continue;
+        for (int id = 0; id < kLeafPalettes; ++id) distinct(bh::leaf_palette(s, id), {0.08, 0.18}, "leaf palette");
+    }
+    std::printf("  palettes distinct after the night shift: %d failures\n", bad);
+    check(bad == 0, "night colors collide");
+}
+
 int main(int argc, char** argv) {
     // Default: a quick run (a tenth of the full sampling). `make verify-full`
     // passes 20000 for the full run before releases.
@@ -1095,6 +1158,7 @@ int main(int argc, char** argv) {
     check_vegetation(std::max(1, samples / 500));
     check_celestial(std::max(16, samples / 50));
     check_sky(std::max(8, samples / 100));
+    check_night();
 
     std::printf(failures == 0 ? "\nALL CHECKS PASSED\n" : "\n%d CHECK(S) FAILED\n", failures);
     return failures == 0 ? 0 : 1;

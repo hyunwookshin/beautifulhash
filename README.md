@@ -78,7 +78,7 @@ The number of available combinations and the uniqueness of the mapping are diffe
 ### Current Status
 
 The reference implementation in `core/` (C++17) draws seven of the eight
-namespaces. Each is specified under `subspec/`:
+namespaces and part of the eighth. Each is specified under `subspec/`:
 
 | Namespace | Status |
 |---|---|
@@ -88,8 +88,8 @@ namespaces. Each is specified under `subspec/`:
 | Fog | Implemented: an 8-bit haze (density, tint, ground mist) in every depth gap |
 | Vegetation | Implemented: seasonal ground cover on the front hill (fallen leaves and snow pocks at the trees; petals, grass, and desert rosettes in the open) |
 | Sky | Implemented: a sky tint and one cloud, a curved shape in a hash-shaped trapezoid, crisp on its leading side and dissolving elsewhere, as clear as the fog allows |
-| Celestial | Implemented: an implicit, never-drawn sun that lights the front hill's bands and casts the trees' shadows |
-| Global | Not yet implemented. Theme and season are fixed per gallery configuration until Global is built |
+| Celestial | Implemented: an implicit, never-drawn sun (or moon at night) that lights the front hill's bands, the ridge faces, and casts the trees' shadows |
+| Global | Partly implemented: a daylight field makes one scene in four a moonlit dusk (deep blue sky, cooler colors, sculpted moonlit ridges) and refines the sun's direction by day. Theme and season are still fixed per gallery configuration |
 
 ### Building
 

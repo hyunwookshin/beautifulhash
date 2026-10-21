@@ -13,6 +13,7 @@
 #include "sky.hpp"
 #include "hills.hpp"
 #include "mountains.hpp"
+#include "night.hpp"
 #include "trees.hpp"
 #include "vegetation.hpp"
 
@@ -148,6 +149,8 @@ Scene generate_scene(const Hash256& hash, int version) {
     scene.fog = fog::generate(hash, config.params.theme, config.params.season);
     // The sky's cloud shows as clearly as the fog allows.
     scene.sky = sky::generate(hash, scene.fog);
+    // At night every color moves darker and bluer (subspec/global.md, Night).
+    if (scene.sun.night) night::apply(scene, config.params.theme, config.params.season);
     return scene;
 }
 
@@ -166,12 +169,14 @@ std::string render_svg(const Scene& scene, uint32_t width, uint32_t height) {
     // The sky (subspec/sky.md): a vertical gradient from its tint, whose hue a
     // low sun warms toward sunset colors (subspec/celestial.md, Sky warmth),
     // and the cloud's gradient.
-    const std::vector<uint32_t>& sky = sky_colors(scene.sun.elevation, static_cast<int>(scene.sky.tint));
+    const std::vector<uint32_t>& sky = sky_colors(scene.sun.elevation, static_cast<int>(scene.sky.tint), scene.sun.night);
     out += "<defs>" + sky::gradient_svg(scene.sky, scene.sun) + sky::cloud_defs_svg(scene.sky, scene.sun, scale);
-    int glow = scene.sun.elevation <= 6 ? static_cast<int>(std::lround(70.0 * (7 - scene.sun.elevation) / 7.0)) : 0;
+    int glow = scene.sun.night ? 30
+               : scene.sun.elevation <= 6 ? static_cast<int>(std::lround(70.0 * (7 - scene.sun.elevation) / 7.0)) : 0;
     if (glow > 0) {
-        // Warmest toward the sun: a radial glow low in the sky on its side.
-        // The sun sits left of center when shadows fall right (dx > 0).
+        // Warmest toward the sun: a radial glow low in the sky on its side;
+        // at night, the moon's cool halo. The sun (or moon) sits left of
+        // center when shadows fall right (dx > 0).
         out += "<radialGradient id=\"sun-glow\" gradientUnits=\"userSpaceOnUse\" cx=\"";
         append_fixed2(out, 0.5 * (1.0 - scene.sun.dx) * width);
         out += "\" cy=\"";
@@ -311,7 +316,7 @@ std::string render_svg(const Scene& scene, uint32_t width, uint32_t height) {
         if (!r.faces.empty()) {
             std::string num = std::to_string(n + 1);
             int shaded = scene.sun.dx >= 0.0 ? 1 : -1;  // sun on the left shades right halves
-            bool sunset = scene.sun.elevation <= 4;  // a sun at 32 degrees or lower
+            bool sunset = !scene.sun.night && scene.sun.elevation <= 4;  // a sun at 32 degrees or lower
             auto layer = [&](const std::vector<std::vector<Point>>& polys, const std::vector<int>& sides, int side,
                              const std::string& fill, const std::string& extra) {
                 std::string d;
@@ -337,24 +342,32 @@ std::string render_svg(const Scene& scene, uint32_t width, uint32_t height) {
                     out += s == 0 ? "\"><stop offset=\"0\" stop-color=\"" : "\"/><stop offset=\"1\" stop-color=\"";
                     append_hex(out, rgb);
                     out += "\" stop-opacity=\"";
-                    append_opacity(out, s == 0 ? hundredths : 0);
+                    // At night the moon lights a face evenly, following the ridge's
+                    // geometry rather than the screen height: no fade.
+                    append_opacity(out, s == 0 || scene.sun.night ? hundredths : 0);
                 }
                 out += "\"/></linearGradient>\n";
             };
-            fade("shade-" + num, mix(r.rgb, 0x000000, 0.55), 32 + 3 * (15 - scene.sun.elevation));
+            // At night the face turned from the moon sinks to a deep navy, almost
+            // merging into the sky, for a sculpted, strongly lit look.
+            if (scene.sun.night) fade("shade-" + num, mix(r.rgb, 0x0B1426, 0.7), 62);
+            else fade("shade-" + num, mix(r.rgb, 0x000000, 0.55), 32 + 3 * (15 - scene.sun.elevation));
             layer(r.faces, r.face_side, shaded, "url(#shade-" + num + ")", "");
             if (sunset) {
                 fade("glow-" + num, 0xF6A98C, 40 + 10 * (4 - scene.sun.elevation));
                 layer(r.faces, r.face_side, -shaded, "url(#glow-" + num + ")", "");
             } else {
-                // Daylight: the sunlit halves catch a warm white light.
-                fade("light-" + num, 0xFFF6E6, 20 + scene.sun.elevation);
+                // Daylight: the sunlit halves catch a warm white light. At night
+                // the moon gives them a cool whitish sheen, stronger against the
+                // darkened ridge.
+                if (scene.sun.night) fade("light-" + num, 0xAFBFD6, 22);
+                else fade("light-" + num, 0xFFF6E6, 20 + scene.sun.elevation);
                 layer(r.faces, r.face_side, -shaded, "url(#light-" + num + ")", "");
             }
             if (!r.glints.empty() && !r.snow.empty()) {
                 std::string id = "snow-clip-" + num;
                 out += "<clipPath id=\"" + id + "\"><path d=\"" + snow_d + "\"/></clipPath>\n";
-                std::string glint = "#ffffff";
+                std::string glint = scene.sun.night ? "#c4d0e2" : "#ffffff";
                 if (sunset) {
                     glint.clear();
                     append_hex(glint, mix(r.snow_rgb, 0xFFD9C2, 0.8));

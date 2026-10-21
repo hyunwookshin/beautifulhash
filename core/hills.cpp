@@ -112,6 +112,7 @@ Hill build(const Params& p, bool two, int index, const HillValues& v, const std:
                                f.right_h + (f.crest_h - f.right_h) * profile(f.exponent, u)});
     }
     hill.rgb = hill_palette(theme, season, l.palette)[v.color];
+    hill.palette = l.palette;
     return hill;
 }
 

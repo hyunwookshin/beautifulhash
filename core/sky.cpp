@@ -184,7 +184,7 @@ Sky build(const Values& v, const Fog& fog) {
 Sky generate(const Hash256& hash, const Fog& fog) { return build(decode(hash), fog); }
 
 std::string gradient_svg(const Sky& sky, const Sun& sun) {
-    const std::vector<uint32_t>& c = sky_colors(sun.elevation, static_cast<int>(sky.tint));
+    const std::vector<uint32_t>& c = sky_colors(sun.elevation, static_cast<int>(sky.tint), sun.night);
     static const char* kOffset[4] = {"0", "0.45", "0.75", "1"};
     std::string out = "<linearGradient id=\"sky\" x1=\"0\" y1=\"0\" x2=\"0\" y2=\"1\">";
     for (int s = 0; s < 4; ++s) {
@@ -207,7 +207,7 @@ std::string cloud_defs_svg(const Sky& sky, const Sun& sun, double scale) {
     // leading half at full strength, the others at half). A low sun lights
     // the cloud pink and gold. The outline clips them.
     std::string color;
-    append_hex(color, cloud_color(sun.elevation));
+    append_hex(color, cloud_color(sun.elevation, sun.night));
     std::string out;
     for (int k = 0; k < 5; ++k) {
         int full = sky.strong[k] ? 70 : 35;  // hundredths of the peak at the source

@@ -26,7 +26,7 @@ Fields are read most significant bit first, in this order:
 
 | Field | Bits | Meaning |
 |---|---:|---|
-| azimuth $a$ | 4 | Direction of the sun around the ground: $15° + 10°a$, from 15° to 165° |
+| azimuth $a$ | 4 | Direction of the sun around the ground: $15° + 10°a$, from 15° to 165°, moved on by $\tfrac{10}{3}°d$ by day (Global daylight $d$) |
 | elevation $e$ | 4 | Height of the sun above the ground: $20° + 3°e$, from 20° to 65° |
 
 The azimuth is measured in the ground plane from the left $x$ axis, turning
@@ -35,6 +35,13 @@ on the right. The elevation is measured up from that direction.
 
 **Every bit always has an effect.** The bands are always drawn, and both
 angles change them, so the sun is visible even on a front hill with no trees.
+
+**Sun or moon.** Global's daylight field $d$ (subspec/global.md) decides
+which lights the scene. By day ($d = 0, 1, 2$) it is the sun, its azimuth
+refined to a third of a step. At night ($d = 3$) it is the moon, on the plain
+steps: it casts the same shadows and lights the same faces and bands, with
+the night colors and contrast of subspec/global.md, Night, and no sky warmth.
+The moon is not drawn either.
 
 ### Angles without trigonometry
 
@@ -60,6 +67,20 @@ $\ell_e = \cot \phi_e$, also to four decimals.
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
 | $q_a$ | 1.0913 | 1.3032 | 1.5697 | 1.9210 | 2.4142 | 3.1716 | 4.5107 | 7.5958 |
 | $\ell_e$ | 1.0355 | 0.9325 | 0.8391 | 0.7536 | 0.6745 | 0.6009 | 0.5317 | 0.4663 |
+
+By day the azimuth moves on by $d$ thirds of a step, so $q$ takes these values
+(the $d = 0$ column is $q_a$ above):
+
+| $a$ | $d = 1$ | $d = 2$ | $a$ | $d = 1$ | $d = 2$ |
+|---|---:|---:|---|---:|---:|
+| 0 | 0.1614 | 0.1914 | 8 | 1.1571 | 1.2276 |
+| 1 | 0.2524 | 0.2836 | 9 | 1.3848 | 1.4733 |
+| 2 | 0.3476 | 0.3805 | 10 | 1.6753 | 1.7917 |
+| 3 | 0.4487 | 0.4841 | 11 | 2.0655 | 2.2286 |
+| 4 | 0.5581 | 0.5969 | 12 | 2.6279 | 2.8770 |
+| 5 | 0.6787 | 0.7221 | 13 | 3.5261 | 3.9617 |
+| 6 | 0.8146 | 0.8642 | 14 | 5.2257 | 6.1970 |
+| 7 | 0.9713 | 1.0295 | 15 | 9.7882 | 13.7267 |
 
 From these, the sun also sets two band parameters (subspec/hills.md, Shading
 bands):
@@ -168,8 +189,9 @@ on top of them.
 ### Verification
 
 `make verify` decodes the sun from the SVG text alone. For sample scenes in
-every biome and season, all 256 suns are tried on the same hills and trees, and
-exactly one must reproduce the bands and shadows. Scenes with bare front hills
+every biome and season, all 256 suns, each with the 4 daylight values (three
+finer day directions and the moon, with its night colors), are tried on the
+same hills and trees, and exactly one must reproduce the bands and shadows. Scenes with bare front hills
 are included.
 
 ### Dependencies

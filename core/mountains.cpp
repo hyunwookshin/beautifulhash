@@ -500,6 +500,7 @@ std::vector<Ridge> generate(const Config& config, const Hash256& hash) {
         r.points = pl.shape;
         for (Point& q : r.points) q.h = q.h + pl.offset;
         r.rgb = palette(config.params.theme, config.params.season, ridges[i].palette)[v.ridges[i].color];
+        r.palette = ridges[i].palette;
         if (role(v.three_ridge, static_cast<int>(i)) == 0 && front_gradient(config.params.theme, config.params.season)) {
             r.gradient = true;
             r.rgb_bottom = gradient_bottom(config.params.theme, config.params.season)[v.ridges[i].color];
@@ -536,7 +537,9 @@ std::vector<Ridge> generate(const Config& config, const Hash256& hash) {
                 for (const Point& q : poly) top = std::min(top, q.h);
             placed[i].fade_top = top;
             placed[i].fade_bottom = low;
-            snow_faces(pts, low - 10.0, placed[i], !placed[i].snow.empty());
+            // The faces close below the canvas bottom, so a face lit evenly at
+            // night never shows a lower edge; by day the fade hides it anyway.
+            snow_faces(pts, -10.0, placed[i], !placed[i].snow.empty());
         }
     }
     return placed;

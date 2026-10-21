@@ -114,6 +114,8 @@ L = 0.70 + 0.035\,l, \qquad C = 0.03 + 0.007\,c, \qquad h = 212° + 6°\,k
 $$
 
 A low sun then warms the gradient's hue (subspec/celestial.md, Sky warmth).
+At night the sky takes navy-to-dusk-blue colors instead, still one distinct
+gradient per tint, and the cloud is moonlit (subspec/global.md, Night).
 
 ### Rendering
 

@@ -288,8 +288,14 @@ void facet(Ridge& ridge, const std::vector<const std::vector<Point>*>& covers, c
     // between its normal (turned toward the viewer) and the light, compared
     // squared with its sign, so no square root is taken.
     double lx = -sun.dx * sun.length, lh = 1.0, ll = lx * lx + lh * lh;
-    const double kBright = 0.52, kLight = 0.40, kShaded = 0.05, kDarkest = 0.012;
-    static const double kShade[4] = {0.13, 0.06, -0.06, -0.13};
+    // At night more facets are drawn, so the moonlit faces break into shards.
+    const double kBright = sun.night ? 0.44 : 0.52, kLight = sun.night ? 0.30 : 0.40;
+    const double kShaded = sun.night ? 0.09 : 0.05, kDarkest = sun.night ? 0.025 : 0.012;
+    // At night the steps grow: the facets read like a sculpture lit from one
+    // side. The moon is dim, so the dark steps grow most, and the contrast
+    // comes from shadow rather than glare.
+    static const double kDay[4] = {0.13, 0.06, -0.06, -0.13}, kNightShade[4] = {0.24, 0.12, -0.18, -0.36};
+    const double* kShade = sun.night ? kNightShade : kDay;
     // Groups by color, in first-seen order.
     std::vector<CanopyPath> rock, snow;
     auto add = [&](std::vector<CanopyPath>& to, uint32_t rgb, std::vector<Point> poly) {

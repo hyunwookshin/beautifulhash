@@ -2,6 +2,10 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
+#include <map>
+#include <mutex>
+#include <set>
 
 namespace bh {
 
@@ -356,7 +360,29 @@ uint32_t sky_tint(uint32_t index) {
     return tints[index];
 }
 
-const std::vector<uint32_t>& sky_colors(int elevation, int tint_index) {
+const std::vector<uint32_t>& sky_colors(int elevation, int tint_index, bool night) {
+    if (night) {
+        // Night (subspec/global.md, Night): each tint's top darkens to a navy,
+        // keeping its own lightness, chroma, and hue steps, and the gradient
+        // runs to a blue glow at the horizon. The fifth color is the moon's
+        // cool halo. The moon's height does not change the sky.
+        static const std::vector<std::vector<uint32_t>> nights = [] {
+            std::vector<std::vector<uint32_t>> out;
+            const double kWeight[4] = {0.0, 0.12, 0.4, 1.0};
+            for (uint32_t t = 0; t < 256; ++t) {
+                double L, C, h;
+                to_oklch(sky_tint(t), L, C, h);
+                double tl = 0.24 + 0.8 * (L - 0.70), tc = 0.02 + 0.4 * C, th = h + 22.0;
+                const double bl = 0.50, bc = 0.11, bh = 252.0;  // a rich dusk blue at the horizon
+                std::vector<uint32_t> colors;
+                for (double w : kWeight) colors.push_back(oklch(tl + (bl - tl) * w, tc + (bc - tc) * w, th + (bh - th) * w));
+                colors.push_back(oklch(0.70, 0.04, 228.0));
+                out.push_back(colors);
+            }
+            return out;
+        }();
+        return nights[static_cast<size_t>(tint_index)];
+    }
     // Per sky tint and sun elevation step: the four sky gradient stops and the
     // sun glow. A low sun (steps 0-6) rotates the sky's hue toward sunset
     // colors, keeping its lightness, weakest at the top and strongest at the
@@ -403,7 +429,8 @@ const std::vector<uint32_t>& sky_colors(int elevation, int tint_index) {
 
 namespace bh {
 
-uint32_t cloud_color(int elevation) {
+uint32_t cloud_color(int elevation, bool night) {
+    if (night) return oklch(0.70, 0.025, 240.0);  // moonlit
     // White under a high sun; a low sun (steps 0-6) lights clouds pink and
     // gold, more as it drops.
     static const std::vector<uint32_t> table = [] {
@@ -415,6 +442,74 @@ uint32_t cloud_color(int elevation) {
         return out;
     }();
     return table[static_cast<size_t>(elevation)];
+}
+
+}  // namespace bh
+
+namespace bh {
+
+uint32_t night_rgb(uint32_t rgb, double far) {
+    // Darker, grayer, and bluer, less so with distance, so far layers stay
+    // lighter than near ones and the stacked silhouettes stay crisp.
+    double L, C, h;
+    to_oklch(rgb, L, C, h);
+    // Hues near blue turn toward it; warm hues far from it only lose their
+    // color, as reds fade first at dusk, rather than spinning through
+    // magenta or green.
+    double turn = std::fmod(245.0 - h + 540.0, 360.0) - 180.0;  // shortest way round
+    double near = std::max(0.0, 1.0 - std::fabs(turn) / 120.0);
+    double keep = (0.5 + 0.1 * far) * (0.55 + 0.45 * near);
+    return oklch(0.03 + L * (0.40 + 0.30 * far) + 0.06 * far, C * keep, h + turn * near * (0.3 + 0.25 * far));
+}
+
+}  // namespace bh
+
+namespace bh {
+
+uint32_t night_entry(const std::vector<uint32_t>& pal, double far, uint32_t rgb) {
+    // Each palette's night colors, computed once per (palette, depth): entries
+    // in index order take night_rgb, and one that would repeat an earlier
+    // entry's color moves to the nearest unused color, trying steps of one in
+    // each channel by growing distance in a fixed order. So the entries stay
+    // distinct at night and their bits still show.
+    struct Key {
+        const std::vector<uint32_t>* pal;
+        double far;
+        bool operator<(const Key& o) const { return pal != o.pal ? pal < o.pal : far < o.far; }
+    };
+    static std::map<Key, std::map<uint32_t, uint32_t>> tables;
+    static std::mutex lock;
+    std::lock_guard<std::mutex> guard(lock);
+    std::map<uint32_t, uint32_t>& table = tables[{&pal, far}];
+    if (table.empty()) {
+        std::set<uint32_t> used;
+        for (uint32_t c : pal) {
+            uint32_t n = night_rgb(c, far);
+            for (int d = 1; used.count(n) != 0; ++d) {
+                bool found = false;
+                for (int dr = -d; dr <= d && !found; ++dr) {
+                    for (int dg = -d; dg <= d && !found; ++dg) {
+                        for (int db = -d; db <= d && !found; ++db) {
+                            if (std::max({std::abs(dr), std::abs(dg), std::abs(db)}) != d) continue;
+                            int r = static_cast<int>((night_rgb(c, far) >> 16) & 255u) + dr;
+                            int g = static_cast<int>((night_rgb(c, far) >> 8) & 255u) + dg;
+                            int b = static_cast<int>(night_rgb(c, far) & 255u) + db;
+                            if (r < 0 || r > 255 || g < 0 || g > 255 || b < 0 || b > 255) continue;
+                            uint32_t m = static_cast<uint32_t>(r) << 16 | static_cast<uint32_t>(g) << 8 | static_cast<uint32_t>(b);
+                            if (used.count(m) == 0) {
+                                n = m;
+                                found = true;
+                            }
+                        }
+                    }
+                }
+            }
+            used.insert(n);
+            table[c] = n;
+        }
+    }
+    auto it = table.find(rgb);
+    return it != table.end() ? it->second : night_rgb(rgb, far);
 }
 
 }  // namespace bh

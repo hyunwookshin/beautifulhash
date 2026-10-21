@@ -713,7 +713,7 @@ previous qualifying peak (or the canvas edge) to the lowest point before the
 next one, so the stretches of neighboring peaks never overlap.
 
 * The **left half** runs from the peak along the silhouette to that left low
-  point, down to a floor 10 units below the ridge's lowest point, then back up
+  point, down to a floor 10 units below the canvas bottom, then back up
   the incoming slope. Toward a neighboring peak it reaches half the canvas
   past the low point along the floor; at the canvas edge it drops straight
   down.
@@ -771,7 +771,11 @@ straight triangle.
 
   So the snow cap reads crisply, and the rock below only hints at the facets,
   fading out as it goes down.
-* **Glints:** realistic reflective surfaces on the sunlit side, clipped to the
+* **Night:** the moon lights each face evenly, with no fade, following the
+  ridge's geometry rather than the screen height: the moon-facing half pale
+  blue-gray, the half turned away deep navy (subspec/global.md, Night). The
+  faces close below the canvas bottom, so an evenly lit face never shows a
+  lower edge.* **Glints:** realistic reflective surfaces on the sunlit side, clipped to the
   snow cap, are pure white, or at sunset the snow moved 80% toward `#FFD9C2`.
 
 **Rendering.** After the ridge's snow path (if any), each overlay is a

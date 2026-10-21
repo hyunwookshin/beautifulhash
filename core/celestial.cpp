@@ -5,6 +5,7 @@
 #include <cstdio>
 #include <cstdlib>
 
+#include "global.hpp"
 #include "mountains.hpp"
 #include "partition.hpp"
 
@@ -12,10 +13,14 @@ namespace bh::celestial {
 
 namespace {
 
-// Azimuth 15-165 degrees in steps of 10, from the left, behind the scene, as
-// tangents of the half angle: an exact rational direction, no trigonometry.
-const double kHalfTan[16] = {0.1317, 0.2217, 0.3153, 0.4142, 0.5206, 0.6371, 0.7673, 0.9163,
-                             1.0913, 1.3032, 1.5697, 1.9210, 2.4142, 3.1716, 4.5107, 7.5958};
+// Azimuth 15-165 degrees in steps of 10, from the left, behind the scene, each
+// step split in thirds by the daylight field (subspec/global.md), as tangents
+// of the half angle: an exact rational direction, no trigonometry.
+const double kHalfTan[16][3] = {
+    {0.1317, 0.1614, 0.1914}, {0.2217, 0.2524, 0.2836}, {0.3153, 0.3476, 0.3805}, {0.4142, 0.4487, 0.4841},
+    {0.5206, 0.5581, 0.5969}, {0.6371, 0.6787, 0.7221}, {0.7673, 0.8146, 0.8642}, {0.9163, 0.9713, 1.0295},
+    {1.0913, 1.1571, 1.2276}, {1.3032, 1.3848, 1.4733}, {1.5697, 1.6753, 1.7917}, {1.9210, 2.0655, 2.2286},
+    {2.4142, 2.6279, 2.8770}, {3.1716, 3.5261, 3.9617}, {4.5107, 5.2257, 6.1970}, {7.5958, 9.7882, 13.7267}};
 // Elevation 20-65 degrees in steps of 3, as shadow length per unit of height
 // (the cotangent).
 const double kShadow[16] = {2.7475, 2.3559, 2.0503, 1.8040, 1.6003, 1.4281, 1.2799, 1.1504,
@@ -45,9 +50,13 @@ void encode(const Values& values, Hash256& hash) {
     out.write(kElevationBits, values.elevation);
 }
 
-Sun sun(const Values& v) {
-    double q = kHalfTan[v.azimuth];
+Sun sun(const Values& v, uint32_t daylight) {
+    // By day the daylight field refines the azimuth to a third of a step; at
+    // night the light is the moon's, on the plain steps.
+    bool night = daylight == global::kNight;
+    double q = kHalfTan[v.azimuth][night ? 0 : daylight];
     Sun s;
+    s.night = night;
     // Shadows fall away from the sun: rightward when it is on the left, and
     // always toward the viewer, since the sun is behind the scene.
     s.dx = (1.0 - q * q) / (1.0 + q * q);
@@ -59,7 +68,7 @@ Sun sun(const Values& v) {
     return s;
 }
 
-Sun generate(const Hash256& hash) { return sun(decode(hash)); }
+Sun generate(const Hash256& hash) { return sun(decode(hash), global::decode(hash).daylight); }
 
 double surface(double s, double low, double f) {
     if (f > 1.0) return (1.0 - f) * low;  // past the canvas bottom: keeps sinking

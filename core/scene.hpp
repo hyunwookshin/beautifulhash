@@ -26,6 +26,7 @@ struct CanopyPath {
 struct Ridge {
     std::vector<Point> points;  // strictly increasing x, from x = 0 to x = 2048
     uint32_t rgb;               // 0xRRGGBB, resolved from the theme palette
+    int palette = 0;            // which ridge palette rgb comes from (PaletteId)
 
     // When set, the ridge fills with a vertical gradient from rgb at its top to
     // rgb_bottom at the canvas bottom (Temperate fall front ridge).
@@ -65,6 +66,7 @@ struct HillProfile {
 struct Hill {
     std::vector<Point> points;  // sampled curve, strictly increasing x, from x = 0 to x = 2048
     uint32_t rgb;
+    int palette = 0;            // which hill palette rgb comes from (HillPaletteId)
     HillProfile profile;
     // Front hill only: shading bands, top to bottom. Each is the top edge of a
     // region closed down to the canvas bottom, drawn over the hill in order.
@@ -174,6 +176,7 @@ struct Sun {
     double tilt = 0.0;          // band tilt toward the shaded side
     double spacing = 0.0;       // band spacing curve
     int elevation = 0;          // elevation step, 0 (20 degrees) to 15 (65 degrees)
+    bool night = false;         // the light is the moon's (subspec/global.md, Night)
 };
 
 struct Scene {

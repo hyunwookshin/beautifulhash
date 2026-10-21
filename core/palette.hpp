@@ -53,10 +53,20 @@ uint32_t sky_tint(uint32_t index);
 
 // The sky gradient's four stops (offsets 0, 0.45, 0.75, 1) and the sun glow color,
 // by sky tint and sun elevation step (subspec/celestial.md, Sky warmth).
-const std::vector<uint32_t>& sky_colors(int elevation, int tint_index);
+const std::vector<uint32_t>& sky_colors(int elevation, int tint_index, bool night);
 
-// Cloud color by sun elevation step: white, or pink and gold under a low sun.
-uint32_t cloud_color(int elevation);
+// Cloud color by sun elevation step: white, or pink and gold under a low sun;
+// moonlit gray-blue at night.
+uint32_t cloud_color(int elevation, bool night);
+
+// A color at night (subspec/global.md, Night): darker, grayer, and bluer,
+// less so for far layers (far from 0, nearest, to 1, the sky's edge).
+uint32_t night_rgb(uint32_t rgb, double far);
+
+// A palette entry at night: night_rgb, except that entries which would collide
+// move to the nearest unused color, so a palette's entries stay distinct
+// (subspec/global.md, Night). Colors not in the palette fall back to night_rgb.
+uint32_t night_entry(const std::vector<uint32_t>& pal, double far, uint32_t rgb);
 
 // Fog tints (subspec/fog.md, Tint): 8 pale colors per biome and season.
 const std::vector<uint32_t>& fog_palette(Theme theme, Season season);

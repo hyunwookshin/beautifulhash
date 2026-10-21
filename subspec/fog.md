@@ -44,6 +44,9 @@ $$
 The pair decodes uniquely: $\bar{o} = (o_{\text{top}} + o_{\text{bottom}}) / 2$
 gives $d$, and $(o_{\text{bottom}} - o_{\text{top}}) / 2$ gives $m$.
 
+At night both opacities drop by 14 hundredths, to 13–22% on average, for
+less atmospheric glow (subspec/global.md, Night). The difference and the
+shifted mean decode the same way.
 ### Tint
 
 Each biome and season has 8 pale tints near the sky's color, at OKLCH
