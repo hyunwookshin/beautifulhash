@@ -161,3 +161,20 @@ td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; white-spa
 .consent { position: fixed; left: 16px; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); z-index: 15; max-width: 640px; margin: 0 auto; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25); }
 .consent p { margin: 0; font-size: 14px; color: var(--muted); flex: 1 1 260px; }
 .consent .primary { padding: 8px 16px; }
+
+/* discoverer credit */
+.tile .cap .by { color: var(--muted); font-size: 12px; }
+.lb-by { margin: 4px 0 0; color: var(--muted); font-size: 14px; }
+
+/* gallery suggestion: a floating button and a small floating form */
+.fab { position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); z-index: 14; border-radius: 999px; padding: 12px 18px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25); }
+.consent:not([hidden]) ~ .fab { bottom: calc(150px + env(safe-area-inset-bottom)); }
+.suggest { position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); z-index: 16; width: min(360px, calc(100% - 32px)); max-height: calc(100% - 32px); overflow: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35); }
+.suggest form { display: grid; gap: 8px; padding: 18px; }
+.suggest h3 { font-size: 20px; }
+.sg-note { margin: 0 0 4px; font-size: 14px; color: var(--muted); }
+.sg-preview { display: block; width: 100%; aspect-ratio: 4 / 3; max-width: 100%; object-fit: cover; border-radius: 10px; background: var(--line); }
+.suggest label { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-top: 4px; }
+.suggest input { padding: 10px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); font: 15px var(--body); min-width: 0; }
+.suggest .actions { justify-content: flex-end; }
+.suggest .primary { padding: 8px 18px; }

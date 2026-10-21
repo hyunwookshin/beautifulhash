@@ -70,6 +70,7 @@
         <dl class="ref">
           <div id="ref-input-row"><dt>Input</dt><dd id="ref-input"></dd></div>
           <div><dt>SHA-256</dt><dd><code id="ref-hash"></code></dd></div>
+          <div id="ref-by-row" hidden><dt>Discovered by</dt><dd id="ref-by"></dd></div>
         </dl>
         <div class="actions">
           <button id="star" class="icon-btn" aria-pressed="false">
@@ -91,13 +92,13 @@
 
     <section class="strip examples">
       <div class="strip-head">
-        <h2>Examples</h2>
+        <h2>Gallery</h2>
         <div class="nav">
-          <button class="round" id="prev" aria-label="Previous examples">‹</button>
-          <button class="round" id="next" aria-label="Next examples">›</button>
+          <button class="round" id="prev" aria-label="Previous landscapes">‹</button>
+          <button class="round" id="next" aria-label="Next landscapes">›</button>
         </div>
       </div>
-      <div id="carousel" class="carousel" tabindex="0" aria-label="Example landscapes"></div>
+      <div id="carousel" class="carousel" tabindex="0" aria-label="Gallery landscapes"></div>
     </section>
   </section>
 
@@ -137,6 +138,7 @@
       <div>
         <h3 id="lb-title"></h3>
         <code id="lb-hash"></code>
+        <p id="lb-by" class="lb-by"></p>
       </div>
       <div class="actions">
         <button class="round" id="lb-prev" aria-label="Previous">‹</button>
@@ -153,6 +155,24 @@
     <button type="button" class="icon-btn" id="consent-decline">Decline</button>
     <button type="button" class="primary" id="consent-accept">Accept</button>
   </div>
+</div>
+
+<button type="button" id="suggest-fab" class="fab primary">Suggest for the gallery</button>
+<div id="suggest" class="suggest" hidden role="dialog" aria-labelledby="sg-title">
+  <form id="suggest-form" autocomplete="off">
+    <h3 id="sg-title">Suggest for the gallery</h3>
+    <p class="sg-note">Found words with a landscape worth sharing? Send them in, and your name may appear beside it as its discoverer.</p>
+    <img id="sg-preview" class="sg-preview" alt="Preview of the landscape for these words">
+    <label for="sg-words">Words</label>
+    <input id="sg-words" type="text" required maxlength="80" spellcheck="false" placeholder="e.g. chocolate muffin">
+    <label for="sg-name">Your name, as it will appear</label>
+    <input id="sg-name" type="text" required maxlength="40" placeholder="e.g. Ada L.">
+    <p id="sg-status" class="status" role="status"></p>
+    <div class="actions">
+      <button type="button" class="icon-btn" id="sg-cancel">Cancel</button>
+      <button type="submit" class="primary">Send</button>
+    </div>
+  </form>
 </div>
 
 <footer class="foot">

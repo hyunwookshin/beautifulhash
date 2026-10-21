@@ -4,20 +4,21 @@
 "use strict";
 
 // Example landscapes, each with a short title that hints at the scene without
-// naming how it was chosen. `input` is the text that hashes to it, if any.
+// naming how it was chosen. `input` is the text that hashes to it, if any;
+// `by` is who discovered it (the hash-only ones were found while testing).
 const EXAMPLES = [
-  { hash: "9e6ed8c1b2283a48a64fca7f8be20b89e01fa378280f91c631ffe62c2f144534", title: "Where the maples burn" },
-  { hash: "486ea46224d1bb4fb680f34f7c9ad96a8f24ec88be73ea8e5a6c65260e9cb8a7", input: "world", title: "Blush on the summit" },
-  { hash: "c06b0cfe0cc5e900c57784484094331f095bf441995c3c31ea6c75691c786c35", input: "flower", title: "Moonlit snow, sleeping pines" },
-  { hash: "e6f933f76267778a781c8ceed4c85da4ef68694fd2217755e5f1a7a02884b98f", input: "academy", title: "Granite under the moon" },
-  { hash: "a65a38fb4042fcbcad48b6ecc6ad70987129d51315698477282cc24a93cd7f23", title: "Rose light on stone" },
-  { hash: "1ec7d6744ab01a7dc28b67e6c477d6f67f24c8ee564a3735fd8202022879d326", input: "nonono", title: "Pink dusk, falling leaves" },
-  { hash: "3508d1ea52591c3d70d419d13f9b2cf1bb665bcc83cc7fd93d1c3ab1b03f8b8f", title: "Thorns against the sky" },
-  { hash: "1620f91609560ef7072fce277eef7962594fdf5e6f5d4e2b2fb94d1761456cac", input: "nauru", title: "One golden tree" },
-  { hash: "dbf10bee497b39492662d30a88224bd29b9e4b39c0bb6b9de047adb80220066b", title: "Leaves under moonlight" },
-  { hash: "048ed6b3c5613162835de5f53371dbc0ac45debff4a7d7b11dd9f3165639c1ef", title: "Lilac sky, quiet pines" },
-  { hash: "5075fb5ef6771b95233e332ffdfc2b947d9924416caf103c3480658403afde2e", title: "Bare branches, first snow" },
-  { hash: "099ae4672fc8922e18dc0a75b1ff155f414ef140cbe583c86e8440de05542029", input: "peel", title: "Clean air, quiet valley" },
+  { hash: "9e6ed8c1b2283a48a64fca7f8be20b89e01fa378280f91c631ffe62c2f144534", title: "Where the maples burn", by: "Claude" },
+  { hash: "486ea46224d1bb4fb680f34f7c9ad96a8f24ec88be73ea8e5a6c65260e9cb8a7", input: "world", title: "Blush on the summit", by: "Hyunwook Shin" },
+  { hash: "c06b0cfe0cc5e900c57784484094331f095bf441995c3c31ea6c75691c786c35", input: "flower", title: "Moonlit snow, sleeping pines", by: "Hyunwook Shin" },
+  { hash: "e6f933f76267778a781c8ceed4c85da4ef68694fd2217755e5f1a7a02884b98f", input: "academy", title: "Granite under the moon", by: "Hyunwook Shin" },
+  { hash: "a65a38fb4042fcbcad48b6ecc6ad70987129d51315698477282cc24a93cd7f23", title: "Rose light on stone", by: "Claude" },
+  { hash: "1ec7d6744ab01a7dc28b67e6c477d6f67f24c8ee564a3735fd8202022879d326", input: "nonono", title: "Pink dusk, falling leaves", by: "Hyunwook Shin" },
+  { hash: "3508d1ea52591c3d70d419d13f9b2cf1bb665bcc83cc7fd93d1c3ab1b03f8b8f", title: "Thorns against the sky", by: "Claude" },
+  { hash: "1620f91609560ef7072fce277eef7962594fdf5e6f5d4e2b2fb94d1761456cac", input: "nauru", title: "One golden tree", by: "Hyunwook Shin" },
+  { hash: "dbf10bee497b39492662d30a88224bd29b9e4b39c0bb6b9de047adb80220066b", title: "Leaves under moonlight", by: "Claude" },
+  { hash: "048ed6b3c5613162835de5f53371dbc0ac45debff4a7d7b11dd9f3165639c1ef", title: "Lilac sky, quiet pines", by: "Claude" },
+  { hash: "5075fb5ef6771b95233e332ffdfc2b947d9924416caf103c3480658403afde2e", title: "Bare branches, first snow", by: "Claude" },
+  { hash: "099ae4672fc8922e18dc0a75b1ff155f414ef140cbe583c86e8440de05542029", input: "peel", title: "Clean air, quiet valley", by: "Hyunwook Shin" },
 ];
 const RECOMMENDED = EXAMPLES.slice(0, 4);
 const SUGGESTIONS = ["Hello!", "chocolate muffin", "good morning", "my cat Miso", "rainy Tuesday", "happy birthday, Mom", "coffee first", "see you at sunset"];
@@ -29,6 +30,12 @@ const HEX = /^[0-9a-fA-F]{64}$/;
 function caption(hex, input) {
   const ex = EXAMPLES.find((e) => e.hash === hex);
   return ex ? ex.title : input ? `“${input}”` : `${hex.slice(0, 12)}…`;
+}
+
+// Who discovered a landscape, if it is in the gallery.
+function discoverer(hex) {
+  const ex = EXAMPLES.find((e) => e.hash === hex);
+  return ex ? ex.by : "";
 }
 
 // ---- rendering ----------------------------------------------------------------
@@ -74,8 +81,11 @@ function tile(hex, input, onClick) {
   t.className = "tile";
   t.type = "button";
   const cap = caption(hex, input);
-  t.innerHTML = `<img class="thumb" alt="" loading="lazy"><span class="cap"><b></b><code>${hex.slice(0, 16)}…</code></span>`;
+  t.innerHTML = `<img class="thumb" alt="" loading="lazy"><span class="cap"><b></b><code>${hex.slice(0, 16)}…</code><small class="by"></small></span>`;
   t.querySelector("b").textContent = cap;
+  const by = discoverer(hex);
+  t.querySelector(".by").textContent = by ? `Discovered by ${by}` : "";
+  t.querySelector(".by").hidden = !by;
   t.querySelector("img").alt = `Landscape: ${cap}`;
   t.addEventListener("click", onClick);
   return t;
@@ -108,6 +118,8 @@ async function show(hex, input) {
   $("ref-input-row").hidden = !input;
   $("ref-input").textContent = input || "";
   $("ref-hash").textContent = hex;
+  $("ref-by-row").hidden = !discoverer(hex);
+  $("ref-by").textContent = discoverer(hex);
   $("result-img").alt = `Landscape for hash ${hex}`;
   $("status").textContent = "";
   updateStar();
@@ -169,6 +181,7 @@ async function openLightbox(i) {
   const hex = ex.hash;
   $("lb-title").textContent = ex.title;
   $("lb-hash").textContent = ex.input ? `“${ex.input}” · ${hex}` : hex;
+  $("lb-by").textContent = `Discovered by ${ex.by}`;
   $("lb-img").alt = `Landscape: ${ex.title}`;
   $("lightbox").hidden = false;
   $("lb-close").focus();
@@ -314,6 +327,44 @@ function init() {
   for (const el of document.querySelectorAll("[data-tab]")) {
     el.addEventListener("click", (e) => { e.preventDefault(); selectTab(el.dataset.tab); });
   }
+
+  // Suggesting a landscape for the gallery: words (never a raw hash) and the
+  // name to credit. There is no server, so Send opens the visitor's mail app
+  // with the suggestion filled in.
+  const SUGGEST_TO = "shincontact@icloud.com";
+  const HASHLIKE = /^(0x)?[0-9a-fA-F]{32,}$/;
+  let previewTimer = 0;
+  const openSuggest = () => {
+    $("suggest").hidden = false;
+    $("suggest-fab").hidden = true;
+    $("sg-words").value = $("query").value.trim() && !HASHLIKE.test($("query").value.trim()) ? $("query").value.trim() : "";
+    $("sg-status").textContent = "";
+    $("sg-words").dispatchEvent(new Event("input"));
+    $("sg-words").focus();
+  };
+  const closeSuggest = () => { $("suggest").hidden = true; $("suggest-fab").hidden = false; $("suggest-fab").focus(); };
+  $("suggest-fab").addEventListener("click", openSuggest);
+  $("sg-cancel").addEventListener("click", closeSuggest);
+  $("suggest").addEventListener("keydown", (e) => { if (e.key === "Escape") closeSuggest(); });
+  $("sg-words").addEventListener("input", () => {
+    const words = $("sg-words").value.trim();
+    $("sg-words").setCustomValidity(HASHLIKE.test(words) ? "Please enter words, not a hash." : "");
+    clearTimeout(previewTimer);
+    if (!words || HASHLIKE.test(words)) { $("sg-preview").removeAttribute("src"); return; }
+    previewTimer = setTimeout(async () => {
+      const hex = await sha256(words);
+      if ($("sg-words").value.trim() === words) $("sg-preview").src = await svgUrl(hex);
+    }, 350);
+  });
+  $("suggest-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const words = $("sg-words").value.trim(), name = $("sg-name").value.trim();
+    if (!words || !name || HASHLIKE.test(words)) return;
+    const hex = await sha256(words);
+    const body = `Words: ${words}\nDiscovered by: ${name}\nSHA-256: ${hex}\nLink: https://beautifulhash.com/#${hex}\n`;
+    location.href = `mailto:${SUGGEST_TO}?subject=${encodeURIComponent(`Gallery suggestion: ${words}`)}&body=${encodeURIComponent(body)}`;
+    $("sg-status").textContent = "Your mail app should open with the suggestion ready to send.";
+  });
 
   // Analytics consent (Google consent mode): ask once, remember the answer.
   const CONSENT_KEY = "beautifulhash.consent";
