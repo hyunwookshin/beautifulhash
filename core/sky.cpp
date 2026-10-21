@@ -382,13 +382,15 @@ bool aurora(Theme theme, const Sun& sun, const Sky& second) {
 
 namespace {
 
-// The five points, lowest first, stretched upward about the lowest (up to four
-// times, keeping the top at most 82% of the way up the canvas), so the ribbon
-// winds up the sky like a snake and leaves room for the rays above. The
-// stretch is affine, fixed by the points, so they still decode.
+// The five points, lowest first, lowered by 12% of the canvas and stretched
+// upward about the lowest (up to four times, keeping the top at most 82% of
+// the way up the canvas), so the ribbon winds up the sky like a snake and the
+// curtain above it runs tall. The map is affine, fixed by the points, so they
+// still decode.
 std::vector<Point> ribbon_points(const Sky& s) {
     std::vector<Point> p(s.point, s.point + 5);
     std::stable_sort(p.begin(), p.end(), [](const Point& a, const Point& b) { return a.h < b.h; });
+    for (Point& q : p) q.h -= 0.12 * kCanvasHeight;
     double span = p[4].h - p[0].h;
     double k = span > 0.0 ? std::max(1.0, std::min(4.0, (0.82 * kCanvasHeight - p[0].h) / span)) : 1.0;
     for (Point& q : p) q.h = p[0].h + k * (q.h - p[0].h);
@@ -418,11 +420,33 @@ std::string ribbon_path(const std::vector<Point>& p, double scale) {
 std::string aurora_defs_svg(const Sky& s, double scale) {
     // The ribbon itself (stroked by each use), and soft blurs.
     std::string out = "<path id=\"aurora-ribbon\" d=\"" + ribbon_path(ribbon_points(s), scale) + "\"/>";
+    // The curtain blurs far more up than across, so it streaks upward like
+    // falling light rather than stacking in bands.
     out += "<filter id=\"aurora-soft\" x=\"-20%\" y=\"-50%\" width=\"140%\" height=\"200%\"><feGaussianBlur stdDeviation=\"";
-    append_fixed2(out, 0.0035 * kCanvasWidth * scale);
+    append_fixed2(out, 0.003 * kCanvasWidth * scale);
+    out += " ";
+    append_fixed2(out, 0.03 * kCanvasWidth * scale);
     out += "\"/></filter><filter id=\"aurora-line\" x=\"-10%\" y=\"-20%\" width=\"120%\" height=\"140%\"><feGaussianBlur stdDeviation=\"";
     append_fixed2(out, 0.002 * kCanvasWidth * scale);
     out += "\"/></filter>";
+    // An ellipse over the curtain's box, opaque in the middle and clear at
+    // its rim, so the curtain's ends round off instead of stopping square.
+    std::vector<Point> p = ribbon_points(s);
+    double left = p[0].x, right = p[0].x;
+    for (const Point& q : p) left = std::min(left, q.x), right = std::max(right, q.x);
+    double pad = 0.04 * kCanvasWidth;
+    left -= pad;
+    right += pad;
+    double bottom = kCanvasHeight - p[0].h + pad;
+    out += "<radialGradient id=\"aurora-rim\" cy=\"0.72\" r=\"0.62\"><stop offset=\"0.35\" stop-color=\"#fff\"/>"
+           "<stop offset=\"1\" stop-color=\"#fff\" stop-opacity=\"0\"/></radialGradient>"
+           "<mask id=\"aurora-fade\" maskUnits=\"userSpaceOnUse\"><rect x=\"";
+    append_fixed2(out, left * scale);
+    out += "\" y=\"0\" width=\"";
+    append_fixed2(out, (right - left) * scale);
+    out += "\" height=\"";
+    append_fixed2(out, bottom * scale);
+    out += "\" fill=\"url(#aurora-rim)\"/></mask>";
     return out;
 }
 
@@ -430,13 +454,13 @@ std::string aurora_svg(const Sky& s, double scale) {
     std::vector<Point> p = ribbon_points(s);
     double low = p[0].h;
     // The curtain: copies of the ribbon rising from it toward the top of the
-    // canvas, a fixed gradient from green to pinkish purple, fading as they
-    // rise, blurred only lightly so the color starts at the ribbon and stops
-    // there. The ribbon itself is only a faint line, not a neon stroke.
-    const int kCopies = 28;
+    // canvas, a fixed gradient from green to pinkish purple, dim and fading as
+    // they rise, blurred mostly upward so they streak like falling light. The
+    // ribbon itself is only a faint line, not a neon stroke.
+    const int kCopies = 40;
     static const uint32_t kGreen = 0x59F0A6, kPurple = 0xB07CF2;
     double rise = (kCanvasHeight - low) / kCopies;  // the rays reach the top from the lowest point
-    std::string out = "<g class=\"aurora\" fill=\"none\" stroke-linecap=\"round\"><g filter=\"url(#aurora-soft)\" stroke-width=\"";
+    std::string out = "<g class=\"aurora\" fill=\"none\" stroke-linecap=\"round\" mask=\"url(#aurora-fade)\"><g filter=\"url(#aurora-soft)\" stroke-width=\"";
     append_fixed2(out, 0.012 * kCanvasWidth * scale);
     out += "\">";
     for (int k = kCopies; k-- > 0;) {
@@ -451,10 +475,10 @@ std::string aurora_svg(const Sky& s, double scale) {
         out += ")\" stroke=\"";
         append_hex(out, c);
         out += "\" stroke-opacity=\"";
-        append_opacity(out, static_cast<int>(std::lround(40.0 * (1.0 - 0.9 * t))));
+        append_opacity(out, static_cast<int>(std::lround(28.0 * (1.0 - 0.7 * t))));
         out += "\"/>";
     }
-    out += "</g><use href=\"#aurora-ribbon\" filter=\"url(#aurora-line)\" stroke=\"#59f0a6\" stroke-opacity=\"0.22\" stroke-width=\"";
+    out += "</g><use href=\"#aurora-ribbon\" filter=\"url(#aurora-line)\" stroke=\"#59f0a6\" stroke-opacity=\"0.16\" stroke-width=\"";
     append_fixed2(out, 0.006 * kCanvasWidth * scale);
     out += "\"/></g>";
     return out;

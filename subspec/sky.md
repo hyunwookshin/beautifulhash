@@ -163,20 +163,28 @@ becomes an aurora instead. That is about a third of Tundra nights. Its bits are
 unchanged:
 
 * **Shape.** The cloud's five boundary points, sorted from lowest to highest,
-  are stretched upward about the lowest by a factor
-  $k = \max(1, \min(4, (0.82 \cdot 1536 - h_0) / (h_4 - h_0)))$, and joined by a
+  are lowered by 12% of the canvas ($0.12 \cdot 1536$), then stretched upward about
+  the lowest by a factor
+  $k = \max(1, \min(4, (0.82 \cdot 1536 - h_0) / (h_4 - h_0)))$, where $h_0$ and
+  $h_4$ are the lowered heights, and joined by a
   Catmull-Rom curve (cubic Béziers with control points a sixth of the way
   along the neighbors' chords). The ribbon winds up the sky, changing
   direction at each point. It is an exact function of the points, so the bits
   still decode.
-* **Curtain.** Twenty-eight copies of the ribbon rise from it to the top of the
-  canvas in equal steps, blurred only lightly (deviation $0.0035W$), so the
-  color starts at the ribbon and stops there, with no glow below it. Their color
-  runs from green `#59F0A6` at the ribbon to pinkish purple `#B07CF2` at the
-  top, at opacity $0.40\,(1 - 0.9t)$ for the copy at fraction $t$ of the way
-  up.
+* **Curtain.** Forty copies of the ribbon rise from it to the top of the
+  canvas in equal steps. Their blur is far stronger up than across (deviation
+  $0.003W$ across, $0.03W$ up), so the curtain streaks upward like falling
+  light. Their color runs from green `#59F0A6` at the ribbon to pinkish purple
+  `#B07CF2` at the top, at opacity $0.28\,(1 - 0.7t)$ for the copy at fraction
+  $t$ of the way up, dim enough to blend into the sky like a cloud.
+* **Rim.** A mask rounds the curtain off: a radial gradient over the box from
+  the ribbon's leftmost to rightmost point (widened by $0.04W$ each side) and
+  from the top of the canvas to $0.04W$ below the ribbon's lowest point,
+  centered 72% of the way down, radius 62% of the box, opaque out to 35% of the
+  radius and clear at the rim. The ends of the curtain fade in a soft curve
+  instead of stopping square.
 * **Ribbon.** The ribbon itself is only a faint line in the curtain's green,
-  `#59F0A6` at 22%, not a bright stroke, so the aurora never reads as neon.
+  `#59F0A6` at 16%, not a bright stroke, so the aurora never reads as neon.
 * **Green cast.** A radial green glow, `#6EF0B0` at 10% fading out, centered
   under the aurora and clipped to the ridges' paths, tints the mountains and
   their snow very slightly.
