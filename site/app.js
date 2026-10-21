@@ -20,6 +20,7 @@ const EXAMPLES = [
   { hash: "099ae4672fc8922e18dc0a75b1ff155f414ef140cbe583c86e8440de05542029", input: "peel", title: "Clean air, quiet valley" },
 ];
 const RECOMMENDED = EXAMPLES.slice(0, 4);
+const SUGGESTIONS = ["Hello!", "chocolate muffin", "good morning", "my cat Miso", "rainy Tuesday", "happy birthday, Mom", "coffee first", "see you at sunset"];
 
 const $ = (id) => document.getElementById(id);
 const HEX = /^[0-9a-fA-F]{64}$/;
@@ -114,7 +115,9 @@ async function show(hex, input) {
     try { history.replaceState(null, "", `#${hex}`); } catch { /* sandboxed */ }
   }
   await idle();
-  $("result-img").src = await svgUrl(hex);
+  const url = await svgUrl(hex);
+  $("result-img").src = url;
+  $("glow").style.setProperty("--glow-img", `url("${url}")`);
   $("result-loading").hidden = true;
 }
 
@@ -125,8 +128,7 @@ function updateStar() {
 }
 
 async function submit(text) {
-  text = text.trim();
-  if (!text) return;
+  text = text.trim() || $("query").placeholder;
   if (HEX.test(text)) return show(text, "");
   return show(await sha256(text), text);
 }
@@ -260,6 +262,14 @@ function init() {
     b.addEventListener("click", () => openExample(ex));
     $("chips").appendChild(b);
   }
+  // The empty search box suggests a few plain words; Generate draws the one shown.
+  let hint = 0;
+  $("query").placeholder = SUGGESTIONS[0];
+  setInterval(() => {
+    if (document.activeElement === $("query") || $("query").value) return;
+    hint = (hint + 1) % SUGGESTIONS.length;
+    $("query").placeholder = SUGGESTIONS[hint];
+  }, 3200);
   $("search").addEventListener("submit", (e) => { e.preventDefault(); submit($("query").value); });
 
   $("star").addEventListener("click", () => {
@@ -321,10 +331,10 @@ function init() {
   buildBitmap();
   renderFavs();
 
-  // A shared link opens its hash; otherwise the first example.
+  // A shared link opens its hash; otherwise "world", with the search box left empty.
   const fromLink = location.hash.slice(1);
   if (HEX.test(fromLink)) { $("query").value = fromLink; show(fromLink, ""); }
-  else openExample(EXAMPLES[0]).then(() => { if (fromLink === "bits") selectTab("bits"); });
+  else show(EXAMPLES[1].hash, EXAMPLES[1].input).then(() => { if (fromLink === "bits") selectTab("bits"); });
 }
 
 init();
