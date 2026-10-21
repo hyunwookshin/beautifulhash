@@ -49,6 +49,9 @@ struct Ridge {
     std::vector<CanopyPath> canopy;
     // Facets over the snow cap, in the snow's color, clipped to the cap.
     std::vector<CanopyPath> snow_facets;
+    // Each faced peak's top and incoming slope (subspec/mountains.md, Ridge
+    // faces), which the facets follow.
+    std::vector<Point> peak_tops, peak_slopes;
 };
 
 // A hill's defining points and shape, advertised as context to the namespaces

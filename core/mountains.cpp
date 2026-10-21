@@ -922,6 +922,8 @@ void snow_faces(const std::vector<Point>& pts, double floor_h, Ridge& ridge, boo
     sides.clear();
     ridge.faces.clear();
     ridge.face_side.clear();
+    ridge.peak_tops.clear();
+    ridge.peak_slopes.clear();
     size_t n = pts.size();
     if (n < 3) return;
     double low = pts[0].h;
@@ -949,6 +951,8 @@ void snow_faces(const std::vector<Point>& pts, double floor_h, Ridge& ridge, boo
         Point down_left = flat_unit({a.x - b.x, a.h - b.h}), down_right = flat_unit({c.x - b.x, c.h - b.h});
         double f = 0.1 + 0.8 * (std::fmod(b.h, kMod) / kMod);
         peaks.push_back({i, {down_left.x + f * (down_right.x - down_left.x), down_left.h + f * (down_right.h - down_left.h)}});
+        ridge.peak_tops.push_back(b);
+        ridge.peak_slopes.push_back(peaks.back().in);
     }
 
     // Valleys: a descent turning into a rise by more than 30 degrees. Each can

@@ -952,8 +952,8 @@ same way.
 
 #### Ridge facets
 
-Bare ridges are faceted like weathered rock: a fine triangulation over the
-face, each triangle a step lighter or darker by how it faces the sun. The
+Bare ridges are faceted like weathered rock: a coarse triangulation over the
+face, lined up with the cuts that split it, each triangle a step lighter or darker by how it faces the sun. The
 facets sit on the ridge's fill, under the peaks' lit and shaded halves (Ridge
 faces), and their steps are small, so the halves still dominate and the facets
 only fill in between them. They show at a glance as texture; the individual
@@ -969,51 +969,61 @@ shapes take a closer look. No bits are used.
   the cap, so the snow is faceted too. The fog in front softens far ridges'
   facets like the rest of the ridge.
 
-**Points.** The grid follows the slope. With $T$ the ridge's highest point,
-$F$ the lowest height that nothing in front hides, and
-$R = \lceil (T - F)/28 \rceil$ rows, row $t \in [0, 1]$ (0 at the top, 1 at the
-base) runs at
+**Columns follow the cuts.** Facets are large and tall, lined up with the
+incoming slopes that split the faces. Columns are 48 units apart. Column $i$
+starts on the silhouette at $x_i = 48(i - 1)$ and runs straight down with a
+slant (across per unit of drop) from the ridge's faced peaks: each peak's
+incoming slope weighted $1/(1 + ((x_i - p_x)/300)^2)$, plus straight down
+weighted 0.3, summed, and the slant taken as the sum's across over its drop,
+held to $[-1, 1]$. A ridge with no faced peak gets straight columns. Two passes,
+left to right and back, hold neighboring columns' slants within
+$0.5 \cdot 48 / (T - F)$ of each other, so columns never cross over the
+ridge's full depth. Here $T$ is the ridge's highest point and $F$ the lowest
+height that nothing in front hides.
 
-$$
-h(x, t) = (1 - t)\,(0.4\,T + 0.6\,S(x)) + t\,F
-$$
-
-where $S$ is the ridge's silhouette. Near the top, rows run 60% parallel to the
-silhouette; toward the base they flatten to level. So cells under a tall,
-steep peak are tall and tilted with its flanks, and cells near the base are
-wide and flat; even in a deep valley a row is at least $0.4 \cdot 28$ units
-tall. Columns are 32 units wide. Each grid corner $(i, j)$, for $j = -1$ to
-$R + 1$, is moved by the digits $D$ of $\pi$ (the first 100, cycling), keyed by
-$k = 37i + 11j + \lfloor S(32i) \rfloor$:
-
-* across by $0.8 \cdot 32\,(D_k - 4.5)/9$, and along the rows to
-  $t = (j + 0.8\,(D_{k+3} - 4.5)/9)/R$, under half a cell, so the points look
-  scattered but never cross;
-* to a depth out of the screen $z = 0.6\,(S(x) - h) + 14\,(D_{k+7} - 4.5)/9$:
-  the face leans back from the silhouette and follows its rise and fall, so
-  facets on a peak's flank tilt the way the flank does.
+**Rows follow the silhouette.** With $R = \max(2, \lceil (T - F)/90 \rceil)$
+rows, point $(i, j)$ sits a fraction $t = j/R$ of the way from the column's top
+point down to $F$: it drops $t\,(S(x_t) - F)$ from the silhouette height
+$S(x_t)$ at its top, and moves across by that drop times the column's slant.
+So rows run exactly along the silhouette at the top and close in on the base,
+and facets under a tall peak are tall. The digits $D$ of $\pi$ (the first 100,
+cycling), keyed by $k = 37i + 11j + \lfloor S(48(i - 1)) \rfloor$, move the top
+by $0.4 \cdot 48\,(D_k - 4.5)/9$ and $t$ by $0.4\,(D_{k+3} - 4.5)/(9R)$, under a
+fifth of a cell, so the structure stays precise. Each point gets a depth out
+of the screen $z = 0.6 \cdot \text{drop} + 22.5\,(D_{k+7} - 4.5)/9$: the face
+leans back from the silhouette.
 
 **Triangles.** Each cell splits into two triangles along one diagonal, chosen
-by the parity of $D_{53i + 29j}$. A triangle is kept when at least one corner
-is on or below the silhouette and at least one is at or above what hides the
-ridge; the group is clipped to the ridge.
+by the parity of $D_{53i + 29j}$. A triangle is judged by its centroid $c$:
+
+* **Brushing off:** with $c$ a height $\Delta$ above what hides the ridge, a
+  triangle is dropped when $\Delta < 30$, and drawn at 40% strength below 60,
+  70% below 90, and full strength from 90 up. The texture thins out before it
+  meets the mountain in front, so the two textures stay distinct.
+* **Patches, on all but the front ridge:** height zones a fifth of $T - F$
+  ($z = \lfloor 5(c_h - F)/(T - F) \rfloor$, clamped to 0–4), by chunks 320
+  units wide ($m = \lfloor c_x / 320 \rfloor$), are kept when
+  $D_{13z + 7m + 29r} \ge 4$ for ridge index $r$: about three in five. Farther
+  ridges are faceted in patches, not everywhere.
+
+The group is clipped to the ridge.
 
 **Light.** The light comes from the sun's side and above,
 $L = (-d_x \ell,\; 1,\; 0)$, with the sun's shadow direction $d_x$ and shadow
 length $\ell$ (subspec/celestial.md). A triangle's normal $n$, turned toward
 the viewer, gives the signed squared cosine
 $s = \operatorname{sign}(n \cdot L)\,(n \cdot L)^2 / (|n|^2 |L|^2)$, with no
-square root. By $s$:
+square root. By $s$, each step is multiplied by the triangle's strength:
 
-| $s$ | Share (typical) | Shade of the ridge color |
-|---|---:|---:|
-| above 0.52 | 6% | +9% (toward white) |
-| 0.40 to 0.52 | 12% | +4% |
-| 0.05 to 0.40 | 70% | not drawn: the ridge's own fill |
-| 0.012 to 0.05 | 7% | −4% |
-| below 0.012 | 5% | −9% (toward black) |
+| $s$ | Shade of the ridge color |
+|---|---:|
+| above 0.52 | +13% (toward white) |
+| 0.40 to 0.52 | +6% |
+| 0.05 to 0.40 | not drawn: the ridge's own fill |
+| 0.012 to 0.05 | −6% |
+| below 0.012 | −13% (toward black) |
 
-**Rendering.** Each drawn level is one `<path class="facet">`, one closed
+**Rendering.** Each drawn color is one `<path class="facet">`, one closed
 subpath per triangle, written like the canopy (tenths, relative steps), in the
 ridge's clipped group, right after its path. The snow's facets follow the snow
 path, in a group clipped by a `<clipPath id="snow-facet-clip-N">` holding the

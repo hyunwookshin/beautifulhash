@@ -217,48 +217,70 @@ namespace {
 
 // Facets over one ridge, above what the silhouettes in `covers` (the hills and
 // nearer ridges) hide. On a snow cap they also go over the snow, in its color.
-void facet(Ridge& front, const std::vector<const std::vector<Point>*>& covers, const Sun& sun) {
+// `front` marks the front ridge; farther ridges are faceted only in patches.
+void facet(Ridge& ridge, const std::vector<const std::vector<Point>*>& covers, const Sun& sun, int index, bool front) {
     static const char kPi[] =
         "3141592653589793238462643383279502884197169399375105820974944592307816406286208998628034825342117067";
     auto digit = [](long k) { return static_cast<double>(kPi[((k % 100) + 100) % 100] - '0'); };
-    auto ridge_at = [&](double x) { return mountains::height_at(front.points, clamp_x(x)); };
+    auto ridge_at = [&](double x) { return mountains::height_at(ridge.points, clamp_x(x)); };
     auto hidden_below = [&](double x) {
         double c = 0.0;
         for (const std::vector<Point>* s : covers) c = std::max(c, mountains::height_at(*s, clamp_x(x)));
         return c;
     };
-
-    // A jittered grid: one point per cell, nudged by up to 0.4 cell by the
-    // digits of pi keyed by the cell and the ridge's height above it, so the
-    // points look scattered but every cell still splits into two triangles.
-    // The rows follow the slope: near the top they run 60% parallel to the
-    // silhouette, and they flatten to level at the base, so cells under a
-    // tall, steep peak are tall and tilted with its flanks, and cells near the
-    // base are wide and flat.
-    // Each point also gets a depth z out of the screen: the face leans back
-    // from the silhouette and follows its rise and fall, with a little jitter,
-    // so facets on a peak's flank tilt the way that flank does.
-    const double kW = 32.0, kH = 28.0, kLean = 0.6;
+    const double kW = 48.0, kRow = 90.0, kLean = 0.6;
     double top = 0.0, floor_h = kCanvasHeight;
     for (int i = 0; i <= 512; ++i) {
         top = std::max(top, ridge_at(4.0 * i));
         floor_h = std::min(floor_h, hidden_below(4.0 * i));
     }
-    int cols = static_cast<int>(kCanvasWidth / kW) + 2;
-    int rows = std::max(1, static_cast<int>(std::ceil((top - floor_h) / kH)));
-    int j0 = -1, j1 = rows + 1;
-    auto row_h = [&](double x, double t) { return (1.0 - t) * (0.4 * top + 0.6 * ridge_at(x)) + t * floor_h; };
+    if (top <= floor_h) return;
+
+    // Columns run straight down from the silhouette, parallel to the nearby
+    // peaks' incoming slopes (each weighted by 1 / (1 + (distance / 300)^2),
+    // with straight down weighted 0.3), so the facets line up with the cuts
+    // that split the faces. The slant (across per unit of drop) is held to
+    // within 1, and neighboring columns differ by at most half a column width
+    // over the ridge's full depth, so columns never cross.
+    int cols = static_cast<int>(kCanvasWidth / kW) + 3;
+    std::vector<double> slant(static_cast<size_t>(cols));
+    for (int i = 0; i < cols; ++i) {
+        double x = (i - 1) * kW, dx = 0.0, dh = -0.3;
+        for (size_t k = 0; k < ridge.peak_tops.size(); ++k) {
+            double u = (x - ridge.peak_tops[k].x) / 300.0, w = 1.0 / (1.0 + u * u);
+            dx += w * ridge.peak_slopes[k].x;
+            dh += w * ridge.peak_slopes[k].h;
+        }
+        slant[static_cast<size_t>(i)] = std::min(1.0, std::max(-1.0, dx / -dh));
+    }
+    double step = 0.5 * kW / (top - floor_h);
+    for (int pass = 0; pass < 2; ++pass) {
+        for (int i = 1; i < cols; ++i) {
+            size_t a = static_cast<size_t>(pass == 0 ? i - 1 : cols - i), b = static_cast<size_t>(pass == 0 ? i : cols - 1 - i);
+            slant[b] = std::min(slant[a] + step, std::max(slant[a] - step, slant[b]));
+        }
+    }
+
+    // Rows follow the silhouette exactly near the top and close in on the
+    // base: row t (0 at the silhouette, 1 at the base) of column i drops
+    // from the column's top point by t times its height above the base. Rows
+    // are about 90 units apart under the highest point, so facets are tall.
+    // Points move by the digits of pi, under a fifth of a cell, so the
+    // structure stays precise. Each point gets a depth z out of the screen:
+    // the face leans back from the silhouette, with a little jitter.
+    int rows = std::max(2, static_cast<int>(std::ceil((top - floor_h) / kRow)));
     struct Vertex {
         double x, h, z;
     };
     auto vertex = [&](int i, int j) {
-        double x0 = i * kW;
+        double x0 = (i - 1) * kW;
         long k = static_cast<long>(i) * 37 + static_cast<long>(j) * 11 + static_cast<long>(std::floor(ridge_at(x0)));
-        double x = x0 + 0.8 * kW * (digit(k) - 4.5) / 9.0;
-        double t = (j + 0.8 * (digit(k + 3) - 4.5) / 9.0) / rows;  // 0 at the top row, 1 at the base
-        double h = row_h(x, t);
-        double z = kLean * (ridge_at(x) - h) + 0.5 * kH * (digit(k + 7) - 4.5) / 9.0;
-        return Vertex{x, h, z};
+        double xt = x0 + 0.4 * kW * (digit(k) - 4.5) / 9.0;
+        double st = ridge_at(xt);
+        double t = (j + 0.4 * (digit(k + 3) - 4.5) / 9.0) / rows;
+        double drop = t * (st - floor_h);
+        double z = kLean * drop + 0.25 * kRow * (digit(k + 7) - 4.5) / 9.0;
+        return Vertex{xt + drop * slant[static_cast<size_t>(i)], st - drop, z};
     };
 
     // The light: from the sun's side and above, (-dx * l, 1, 0) with l the
@@ -266,13 +288,21 @@ void facet(Ridge& front, const std::vector<const std::vector<Point>*>& covers, c
     // between its normal (turned toward the viewer) and the light, compared
     // squared with its sign, so no square root is taken.
     double lx = -sun.dx * sun.length, lh = 1.0, ll = lx * lx + lh * lh;
-    // Levels by the signed squared cosine: about 6% brightest, 12% light, the
-    // middle 70% left as the ridge's own fill, 7% shaded, and 5% darkest. The
-    // steps are small, so the peaks' lit and shaded halves still dominate.
     const double kBright = 0.52, kLight = 0.40, kShaded = 0.05, kDarkest = 0.012;
-    std::vector<std::vector<Point>> level[4];  // brightest, light, shaded, darkest
-    for (int i = -1; i < cols; ++i) {
-        for (int j = j0; j < j1; ++j) {
+    static const double kShade[4] = {0.13, 0.06, -0.06, -0.13};
+    // Groups by color, in first-seen order.
+    std::vector<CanopyPath> rock, snow;
+    auto add = [&](std::vector<CanopyPath>& to, uint32_t rgb, std::vector<Point> poly) {
+        auto it = std::find_if(to.begin(), to.end(), [&](const CanopyPath& p) { return p.rgb == rgb; });
+        if (it == to.end()) {
+            to.push_back({rgb, {}});
+            to.back().facet = true;
+            it = to.end() - 1;
+        }
+        it->polys.push_back(std::move(poly));
+    };
+    for (int i = 0; i + 1 < cols; ++i) {
+        for (int j = 0; j < rows; ++j) {
             Vertex a = vertex(i, j), b = vertex(i + 1, j), c = vertex(i + 1, j + 1), d = vertex(i, j + 1);
             long k = static_cast<long>(i) * 53 + static_cast<long>(j) * 29;
             Vertex tri[2][3] = {{a, b, c}, {a, c, d}};
@@ -281,12 +311,21 @@ void facet(Ridge& front, const std::vector<const std::vector<Point>*>& covers, c
                 tri[1][0] = b; tri[1][1] = c; tri[1][2] = d;
             }
             for (auto& t : tri) {
-                bool inside = false, shown = false;
-                for (const Vertex& v : t) {
-                    inside = inside || v.h <= ridge_at(v.x);
-                    shown = shown || v.h >= hidden_below(v.x);
+                double cx = (t[0].x + t[1].x + t[2].x) / 3.0, ch = (t[0].h + t[1].h + t[2].h) / 3.0;
+                // Toward the ridge in front, facets brush off: full strength
+                // from 120 units above what hides the ridge, fading in steps
+                // to nothing.
+                double clear = (ch - hidden_below(cx)) / 120.0;
+                if (clear < 0.25) continue;
+                double strength = clear < 0.5 ? 0.4 : clear < 0.75 ? 0.7 : 1.0;
+                // Farther ridges are faceted in patches: height zones a fifth
+                // of the ridge's span, by chunks 320 units wide, and the
+                // digits of pi drop two in five of them.
+                if (!front) {
+                    int zone = std::min(4, std::max(0, static_cast<int>(5.0 * (ch - floor_h) / (top - floor_h))));
+                    long chunk = static_cast<long>(std::floor(cx / 320.0));
+                    if (digit(zone * 13 + chunk * 7 + index * 29) < 4.0) continue;
                 }
-                if (!inside || !shown) continue;
                 double ux = t[1].x - t[0].x, uh = t[1].h - t[0].h, uz = t[1].z - t[0].z;
                 double vx = t[2].x - t[0].x, vh = t[2].h - t[0].h, vz = t[2].z - t[0].z;
                 double nx = uh * vz - uz * vh, nh = uz * vx - ux * vz, nz = ux * vh - uh * vx;
@@ -296,25 +335,18 @@ void facet(Ridge& front, const std::vector<const std::vector<Point>*>& covers, c
                     nz = -nz;
                 }
                 double dot = nx * lx + nh * lh, nn = nx * nx + nh * nh + nz * nz;
+                if (nn == 0.0) continue;
                 double s = (dot < 0.0 ? -1.0 : 1.0) * dot * dot / (nn * ll);
                 int lv = s > kBright ? 0 : s > kLight ? 1 : s < kDarkest ? 3 : s < kShaded ? 2 : -1;
                 if (lv < 0) continue;  // the middle tones: the ridge's own fill shows
-                level[lv].push_back({{t[0].x, t[0].h}, {t[1].x, t[1].h}, {t[2].x, t[2].h}});
+                std::vector<Point> poly = {{t[0].x, t[0].h}, {t[1].x, t[1].h}, {t[2].x, t[2].h}};
+                if (!ridge.snow.empty()) add(snow, shade(ridge.snow_rgb, kShade[lv] * strength), poly);
+                add(rock, shade(ridge.rgb, kShade[lv] * strength), std::move(poly));
             }
         }
     }
-    static const double kShade[4] = {0.09, 0.04, -0.04, -0.09};
-    for (int lv = 0; lv < 4; ++lv) {
-        if (level[lv].empty()) continue;
-        if (!front.snow.empty()) {
-            CanopyPath s{shade(front.snow_rgb, kShade[lv]), level[lv]};
-            s.facet = true;
-            front.snow_facets.push_back(std::move(s));
-        }
-        CanopyPath p{shade(front.rgb, kShade[lv]), std::move(level[lv])};
-        p.facet = true;
-        front.canopy.push_back(std::move(p));
-    }
+    for (CanopyPath& p : rock) ridge.canopy.push_back(std::move(p));
+    for (CanopyPath& p : snow) ridge.snow_facets.push_back(std::move(p));
 }
 
 }  // namespace
@@ -334,7 +366,7 @@ void facet_ridges(std::vector<Ridge>& ridges, const std::vector<Hill>& hills, co
     std::vector<const std::vector<Point>*> covers;
     for (const Hill& h : hills) covers.push_back(&h.points);
     for (size_t k = 0; k < last; ++k) {
-        if (k >= first) facet(ridges[k], covers, sun);
+        if (k >= first) facet(ridges[k], covers, sun, static_cast<int>(k), k == 0);
         covers.push_back(&ridges[k].points);
     }
 }
