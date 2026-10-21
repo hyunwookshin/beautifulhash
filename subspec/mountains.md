@@ -585,7 +585,8 @@ changes styling only:
   geometry and decoded values. Styling consumes no bits.
 * **Injectivity preserved:** the injectivity claim already holds for a fixed
   theme. Textures only insert vertices with a fixed structure and never move a
-  bit-driven point, so decoding is unchanged. Snow is a separate SVG element.
+  bit-driven point, so decoding is unchanged. Snow and the front-ridge canopy
+  are separate SVG elements.
 * **Provisional:** all styling parameters are tuned from rendered galleries.
 
 #### Color families
@@ -845,6 +846,93 @@ ceiling and visibility guarantees are unaffected. Ranges marked with a dash vary
   ridge, so tree tips never rise above the ceiling.
 * **Visibility:** trees can cover at most about 22 of a back ridge's exposure.
   Required exposure is at least $E_{\min} = 48$, so at least 26 stays visible.
+
+#### Front-ridge canopy
+
+Below its tree-line silhouette, the front ridge's face is covered by a canopy of
+small template trees, so it reads as forested slope rather than a flat fill:
+conifers in Alpine, needle sprays in Temperate. Tundra and Desert get none. The
+canopy carries no bits and never moves a ridge point: it is a separate group of
+paths clipped to the ridge, a fixed function of the ridge, the hills, the sun
+(subspec/celestial.md), and the biome and season.
+
+**Treetop line.** Sample the ridge every 4 units, and take at each sample the
+highest sample within 32 units on either side. This envelope $T(x)$ runs along
+the tree tips rather than into the tree-line texture's cuts. Linear
+interpolation reads it between samples.
+
+**Rows.** Row $r$ hangs at depth $d$ below the treetop line, starting at
+$d = 4.5$ and stepping by $0.35\sigma$, where the template size is
+$\sigma = 18\,(0.85 + 0.15\min(1, d / h_{\max}))$ and $h_{\max}$ is the ridge's
+highest point. Templates are spaced $0.44\sigma$ (conifers) or $0.35\sigma$
+(needle sprays) along the row; odd rows start half a spacing in. Rows continue
+until the deepest row is a template below everything the hills leave visible.
+
+**One template.** At grid position $x_0$ in a row at depth $d$, the key is
+$\kappa = \lfloor 7x_0 + 131d \rfloor$. The template stands at
+$x = x_0 + 0.125\,(\kappa \bmod 5 - 2)\,s_p$ (with $s_p$ the spacing) and
+$h = T(x) - d + 0.12\sigma\,(\lfloor\kappa/25\rfloor \bmod 3 - 1)$, with height
+$z = \sigma\,(0.8 + 0.1\,(\lfloor\kappa/5\rfloor \bmod 5))$. A template whose top
+$h + z$ is at or below the hills' highest silhouette at $x$ is hidden and
+skipped.
+
+* **Conifer** (7 points): a two-tier spire of width $0.46z$, its tiers
+  meeting at $0.45z$.
+* **Needle spray** (7 points): a base $0.14z$ wide, a center needle to the top,
+  and a needle to each side tipped at height $0.78z$ and out $0.4z$ times
+  $0.7 + 0.05\,(\kappa \bmod 3)$ on the left and
+  $0.7 + 0.05\,(\lfloor\kappa/3\rfloor \bmod 3)$ on the right.
+
+**Color.** A template starts from the ridge's own color at its base height:
+the palette color, or in Temperate fall the ridge's gradient at
+$t = 1 - h/h_{\max}$. It then moves by one of ten steps
+$k = \lfloor x h \rfloor \bmod 10$, from the template's coordinates. If $k$
+equals its left neighbor's step, it becomes $(k + 3) \bmod 10$, so neighbors
+always differ.
+
+* Every step shades the color by $0.025\,(k - 4.5)$, toward white above 0 and
+  toward black below, as the hill bands do: the canopy keeps the ridge's color
+  and gradient and varies almost only in brightness.
+* Temperate fall adds foliage: steps 1, 3, 6, and 8 are mixed 38% toward
+  `#B8432A` (red), `#D9802E` (orange), `#D6B03C` (yellow), and `#C25E2C`
+  (rust).
+
+**Sunlit faces.** Sample the treetop line every 64 units. A sample higher than
+the one before and at least as high as the one after is a peak. Each side's
+valley is the lowest sample before the line rises above the peak, or reaches
+the canvas edge. A peak is **sharp** when both hold:
+
+* it stands at least 40 units above both valleys;
+* its two valleys meet at an angle of 140° or less at its top, tested on the
+  cosine without trigonometry.
+
+The sun lights the face on its side of a sharp peak (left when $d_x > 0$). The
+face is the part of the mountain under the sunward slope, the line from the
+peak to that side's valley:
+
+* within 60° of that slope, turning down into the mountain;
+* on the peak's side of the line equidistant from the peak and the valley.
+
+So each face is a triangle hugging the sunlit slope. Inside it, a template is
+lightened further by $0.05\,\ell$ with light level $\ell = 3, 2, 1$ for
+$e < 0.5$, $e < 0.8$, and otherwise. Here $e$ is the larger of how far the base
+is from the face's middle direction (0 at 30° from the slope, measured on
+$\sin^2$; 1 at its sides) and its squared distance to the peak over that to the
+valley. The patch is brightest in its middle and fades toward its edges, and
+the neighbor steps still vary inside it. The front ridge is low and wide, so
+peaks this sharp are rare: about one front ridge in five has one.
+
+**Rendering.** Right after the front ridge's path, a
+`<clipPath id="ridge-1-clip">` uses the ridge's path, and a group clipped to it
+holds the canopy. Over blocks of four rows from the top down, the templates of
+one color form one `<path class="canopy">`. Rows overlap only their neighbors,
+so the order within a block barely shows.
+
+Canopy templates are a few pixels tall, so their points are written to tenths
+of a pixel, not hundredths. Each template is an absolute move to its first
+rounded point, then relative steps between its rounded points, so the drawn
+points are exactly the rounded ones. The hill's grass blades are written the
+same way.
 
 #### Tundra and Desert
 

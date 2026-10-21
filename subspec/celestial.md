@@ -7,9 +7,10 @@
 ### Overview
 
 The Celestial namespace sets the sun. The sun is never drawn: it is implicit,
-and the scene shows it only through its light. It shades the faces of Alpine, Tundra, and Desert ridges
-(subspec/mountains.md, Ridge faces), and it does two things on the front (or
-only) hill:
+and the scene shows it only through its light. It shades the faces of Alpine,
+Tundra, and Desert ridges (subspec/mountains.md, Ridge faces), lights the faces
+of sharp peaks in the front ridge's canopy (subspec/mountains.md, Front-ridge
+canopy), and does two things on the front (or only) hill:
 
 * It lights the hill's shading bands, tilting and spacing them
   (subspec/hills.md, Shading bands).
@@ -176,7 +177,7 @@ are included.
 * Consumes: the front hill's silhouette from Hills, and the tree bases and
   limbs from Trees.
 * Provides: the sun's light on the front hill (bands and shadows), on the ridge
-  faces, and on the sky (Sky warmth).
+  faces, on the front ridge's canopy, and on the sky (Sky warmth).
 
 ### Open decisions
 

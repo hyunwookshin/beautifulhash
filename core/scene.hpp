@@ -15,6 +15,13 @@ struct Point {
     double h;
 };
 
+// One path of small templates (trees or grass blades) of one color, one closed
+// subpath each.
+struct CanopyPath {
+    uint32_t rgb;
+    std::vector<std::vector<Point>> polys;
+};
+
 struct Ridge {
     std::vector<Point> points;  // strictly increasing x, from x = 0 to x = 2048
     uint32_t rgb;               // 0xRRGGBB, resolved from the theme palette
@@ -35,6 +42,9 @@ struct Ridge {
     std::vector<std::vector<Point>> glints;
     std::vector<int> glint_side;
     double fade_top = 0.0, fade_bottom = 0.0;  // faces: full strength above fade_top, gone by fade_bottom
+    // Front ridge only, Alpine and Temperate: a canopy of small template trees
+    // (subspec/mountains.md, Front-ridge canopy), clipped to the ridge.
+    std::vector<CanopyPath> canopy;
 };
 
 // A hill's defining points and shape, advertised as context to the namespaces
@@ -57,6 +67,9 @@ struct Hill {
     // Each shape is one path: an outline, then any holes (even-odd fill).
     std::vector<std::vector<std::vector<Point>>> crest_trees;
     std::vector<uint32_t> crest_rgb;
+    // Front hill only, Alpine and Temperate: grass blades over the bands
+    // (subspec/hills.md, Grass blades).
+    std::vector<CanopyPath> canopy;
 };
 
 // One drawn part of a tree: a polygon, or a circle when `poly` is empty.

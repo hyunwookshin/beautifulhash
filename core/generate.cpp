@@ -1,9 +1,11 @@
 #include "generate.hpp"
 
 #include <cmath>
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 
+#include "canopy.hpp"
 #include "celestial.hpp"
 #include "fog.hpp"
 #include "format.hpp"
@@ -60,6 +62,55 @@ void append_opacity(std::string& out, int hundredths) {
     out.push_back(static_cast<char>('0' + hundredths % 10));
 }
 
+// A signed count of tenths as a short decimal: 15 -> "1.5", -7 -> "-.7",
+// 30 -> "3". A separating space is added unless a minus sign separates.
+void append_tenths(std::string& out, int64_t v, bool separate) {
+    if (v < 0) {
+        out.push_back('-');
+        v = -v;
+    } else if (separate) {
+        out.push_back(' ');
+    }
+    if (v >= 10) append_uint(out, static_cast<uint32_t>(v / 10));
+    if (v % 10 != 0 || v == 0) {
+        if (v % 10 != 0) out.push_back('.');
+        out.push_back(static_cast<char>('0' + v % 10));
+    }
+}
+
+// Canopy templates, one path per color (subspec/hills.md, Grass blades;
+// subspec/mountains.md, Front-ridge canopy). Templates are a few pixels tall,
+// so their points are rounded to tenths of a pixel. Each starts with an
+// absolute move and continues with relative steps between its rounded points,
+// so the drawn points are exactly the rounded absolute ones.
+void append_canopy(std::string& out, const std::vector<CanopyPath>& paths, double scale) {
+    for (const CanopyPath& c : paths) {
+        out += "<path class=\"canopy\" fill=\"";
+        append_hex(out, c.rgb);
+        out += "\" d=\"";
+        for (const std::vector<Point>& poly : c.polys) {
+            int64_t px = 0, py = 0;
+            for (size_t i = 0; i < poly.size(); ++i) {
+                int64_t x = static_cast<int64_t>(std::nearbyint(poly[i].x * scale * 10.0));
+                int64_t y = static_cast<int64_t>(std::nearbyint((kCanvasHeight - poly[i].h) * scale * 10.0));
+                if (i == 0) {
+                    out += "M";
+                    append_tenths(out, x, false);
+                    append_tenths(out, y, true);
+                    out += "l";
+                } else {
+                    append_tenths(out, x - px, i > 1);
+                    append_tenths(out, y - py, true);
+                }
+                px = x;
+                py = y;
+            }
+            out += "z";
+        }
+        out += "\"/>\n";
+    }
+}
+
 // One haze layer over the whole canvas (subspec/fog.md, Rendering).
 void append_fog(std::string& out, uint32_t width, uint32_t height) {
     out += "<rect class=\"fog\" ";
@@ -86,6 +137,8 @@ Scene generate_scene(const Hash256& hash, int version) {
     // The implicit sun lights the front hill and casts the trees' shadows.
     scene.sun = celestial::generate(hash);
     hills::add_bands(scene.hills[0], scene.sun);
+    canopy::cover_hill(scene.hills[0], scene.sun, config.params.theme, config.params.season);
+    canopy::cover_ridge(scene.ridges[0], scene.hills, scene.sun, config.params.theme, config.params.season);
     celestial::cast_shadows(scene.trees, scene.hills[0], scene.sun);
     trees::tint_cover(scene.trees, scene.hills[0]);
     scene.vegetation = vegetation::generate(hash, scene.trees, scene.hills, config.params.theme, config.params.season);
@@ -207,6 +260,15 @@ std::string render_svg(const Scene& scene, uint32_t width, uint32_t height) {
         out += " L0,";
         append_uint(out, height);
         out += " Z\"/>\n";
+        // The front ridge's canopy of template trees, clipped to the ridge
+        // (subspec/mountains.md, Front-ridge canopy).
+        if (!r.canopy.empty()) {
+            std::string id = "ridge-" + std::to_string(n + 1) + "-clip";
+            out += "<clipPath id=\"" + id + "\"><use href=\"#ridge-" + std::to_string(n + 1) + "\"/></clipPath>\n";
+            out += "<g clip-path=\"url(#" + id + ")\">\n";
+            append_canopy(out, r.canopy, scale);
+            out += "</g>\n";
+        }
 
         // Snow caps: a separate element over the ridge, so the ridge path itself
         // is unchanged. Drawn before the haze in front of this ridge.
@@ -351,6 +413,9 @@ std::string render_svg(const Scene& scene, uint32_t width, uint32_t height) {
             append_uint(out, height);
             out += " Z\"/>\n";
         }
+        // The front hill's grass blades over the bands (subspec/hills.md,
+        // Grass blades).
+        append_canopy(out, h.canopy, scale);
         // Tree shadows on the front hill, in its darkest band color, under the
         // ground cover (subspec/celestial.md, Shadows).
         for (size_t t = 0; t < scene.trees.size(); ++t) {

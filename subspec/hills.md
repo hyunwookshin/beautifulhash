@@ -179,12 +179,55 @@ banded.
   own path, so each deeper band covers the lower part of the one before. The
   hill's path keeps the palette color, so its bits still decode from it.
 
+### Grass blades
+
+In Alpine and Temperate, the front (or only) hill is covered by small grass
+tufts over its bands, so it reads as a grassy slope rather than a flat fill. A
+winter hill is clean, flat snow, so it keeps only a sprinkle of one tuft in ten
+(see One tuft). Tundra and Desert get none, and the back hill gets none. The
+tufts carry no bits: they follow from the hill, its bands, the sun, and the
+biome and season.
+They share their templates' coloring and rendering with the front ridge's
+canopy (subspec/mountains.md, Front-ridge canopy).
+
+**Rows.** Tufts stand in rows on the ground surface $H$ (subspec/celestial.md,
+The ground surface), from the silhouette ($f = 0$) down to the canvas bottom.
+
+* Row size $\sigma = 12\,(0.75 + 0.25f)$ logical units: smaller toward the
+  crest, but only mildly, since the hill is steep and near.
+* Spacing along the row $0.5\sigma$; odd rows start half a spacing in.
+* The next row lies at depth $f + 0.5\sigma / \max(g, 0.25\bar S)$, where
+  $g = 2(1 - f)\bar S - (1 - 2f)S_{\min}$ is the surface's slope at the hill's
+  mean height $\bar S$. So each row is about half a tuft below the last, and
+  rows overlap.
+
+**One tuft.** At grid position $x_0$ in a row at depth $f$, the key is
+$\kappa = \lfloor 7x_0 + 9973f \rfloor$. The tuft stands at
+$x = x_0 + 0.125\,(\kappa \bmod 5 - 2)\,s_p$ (with $s_p$ the spacing), on the
+row's tilted band surface $H(x, f)\,(1 + \tau f(2x/2048 - 1))$, raised or
+lowered by $0.12\sigma\,(\lfloor\kappa/25\rfloor \bmod 3 - 1)$ so rows are
+uneven. Its height is $z = \sigma\,(0.8 + 0.1\,(\lfloor\kappa/5\rfloor \bmod 5))$.
+It is three blades in one 7-point outline, all leaning by
+$0.1z\,(\lfloor\kappa/9\rfloor \bmod 3 - 1)$: a middle blade to the full
+height, and side blades to $0.75z$ and $0.7z$. In winter, only the tufts with
+$\lfloor\kappa/7\rfloor \bmod 10 = 0$ are drawn.
+
+**Color.** A tuft takes the color of the band its base stands in (the deepest
+band whose boundary is at or above the base) and moves it by its step, as for
+the canopy (subspec/mountains.md, Front-ridge canopy, Color), Temperate fall
+accents included. The hill has no sunlit faces.
+
+**Rendering.** Row by row from the crest down, each row's tufts of one color
+form one `<path class="canopy">`. The tufts are drawn after the bands and
+before the shadows, vegetation, and trees.
+
 ### Rendering and order
 
 * Hills are drawn after every mountain ridge and before Trees and Vegetation:
   back hill, then front hill. Each is a `<path class="hill">` closed down to the
   canvas bottom.
 * The front hill's shading bands follow its path (see Shading bands).
+* In Alpine and Temperate, its grass blades follow the bands (see Grass blades).
 * A fog layer is drawn between the mountains and the hills, and in two-hill
   mode another between the back hill (with its trees) and the front hill
   ([Fog](fog.md)). The front hill is never fogged.
