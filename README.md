@@ -89,7 +89,7 @@ reads every one of the 256 input bits. Each is specified under `subspec/`:
 | Vegetation | Implemented: seasonal ground cover on the front hill (fallen leaves and snow pocks at the trees; petals, grass, and desert rosettes in the open) |
 | Sky | Implemented: a sky tint and two clouds, each a curved shape in a hash-shaped trapezoid, crisp on its leading side and dissolving elsewhere, as clear as the fog allows; on some Tundra nights the second cloud becomes an aurora |
 | Celestial | Implemented: an implicit, never-drawn sun (or moon at night) that lights the front hill's bands, the ridge faces, and casts the trees' shadows |
-| Global | Implemented: the biome and season, a daylight field that makes one scene in four a moonlit dusk (and refines the sun's direction by day), and 10 bits that shape the second cloud. The gallery overrides biome and season to show every combination on the same hashes |
+| Global | Implemented: the biome and season, a daylight field that makes one scene in four a moonlit dusk (and refines the sun's direction by day), and 10 spare bits, "Global (extra)", that shape the second cloud. The gallery overrides biome and season to show every combination on the same hashes |
 
 ### Building
 

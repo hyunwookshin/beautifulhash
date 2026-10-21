@@ -221,8 +221,11 @@ function closeLightbox() { $("lightbox").hidden = true; }
 
 // ---- bit map tab --------------------------------------------------------------
 const NS = [
-  { key: "global", name: "Global", from: 0, width: 16,
-    fields: [["daylight (day or night)", 2], ["biome", 2], ["season", 2], ["second cloud top", 3], ["second cloud width", 3], ["second cloud center", 3], ["second cloud lead", 1]] },
+  { key: "global", name: "Global", from: 0, width: 6,
+    fields: [["daylight (day or night)", 2], ["biome", 2], ["season", 2]] },
+  { key: "global-extra", name: "Global (extra)", from: 6, width: 10,
+    fields: [["second cloud top", 3], ["second cloud width", 3], ["second cloud center", 3], ["second cloud lead", 1]],
+    note: "Global's spare bits: the second cloud, and easter eggs such as the aurora" },
   { key: "sky", name: "Sky", from: 16, width: 24,
     fields: [["cloud top", 3], ["cloud height", 2], ["cloud width", 3], ["cloud center", 3], ["bottom width", 2], ["skew", 2], ["leading side", 1], ["sky tint", 8]] },
   { key: "celestial", name: "Celestial", from: 40, width: 8, fields: [["sun or moon azimuth", 4], ["elevation", 4]] },

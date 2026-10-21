@@ -15,7 +15,7 @@
   --body: "Figtree", "Helvetica Neue", Arial, sans-serif;
   --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
   /* bit map namespace colors */
-  --ns-global: #9aa19c; --ns-sky: #8fb8d8; --ns-celestial: #e2a43c; --ns-mountains: #6f7f98;
+  --ns-global: #9aa19c; --ns-global-extra: #ab9f91; --ns-sky: #8fb8d8; --ns-celestial: #e2a43c; --ns-mountains: #6f7f98;
   --ns-hills: #8fae6e; --ns-trees: #3f6b4a; --ns-vegetation: #c1b36a; --ns-fog: #b9a9c9;
   --cell-ink: #ffffff;
   --glow: 0.38;
@@ -25,7 +25,7 @@
   :root {
     --bg: #0f151c; --panel: #16202a; --ink: #e5ecf1; --muted: #8fa0ad; --line: #26323d;
     --accent: #8db4e8; --accent-ink: #0f151c; --star: #f0b545; --scrim: rgba(4, 7, 10, 0.8);
-    --ns-global: #59615c; --ns-sky: #5f8fb4; --ns-celestial: #c98a22; --ns-mountains: #5a6a86;
+    --ns-global: #59615c; --ns-global-extra: #6f665b; --ns-sky: #5f8fb4; --ns-celestial: #c98a22; --ns-mountains: #5a6a86;
     --ns-hills: #6d8f4f; --ns-trees: #4f8a5e; --ns-vegetation: #a39553; --ns-fog: #8f7fa3;
     --cell-ink: #f4f7f5;
     --glow: 0.26;

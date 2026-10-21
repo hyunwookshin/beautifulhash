@@ -120,7 +120,8 @@ gradient per tint, and the cloud is moonlit (subspec/global.md, Night).
 
 ### Second cloud
 
-A second cloud takes the 10 bits left in Global (bits 6–15, subspec/global.md):
+A second cloud takes the 10 spare bits of Global, labeled Global (extra) (bits
+6–15, subspec/global.md):
 
 | Field | Bits | Meaning |
 |---|---:|---|

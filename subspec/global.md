@@ -20,12 +20,19 @@ Every other namespace builds on these choices, so Global is generated first.
 | Daylight | 0–1 | 0–1 | 2 | Day, refining the sun's direction (0–2), or night (3) |
 | Theme | 2–3 | 2–3 | 2 | Alpine, Temperate, Tundra, Desert |
 | Season | 4–5 | 4–5 | 2 | Winter, spring, summer, fall |
-| Second cloud | 6–15 | 6–15 | 10 | Top 3, width 3, center 3, lead 1 (subspec/sky.md, Second cloud) |
+| Global (extra): second cloud | 6–15 | 6–15 | 10 | Top 3, width 3, center 3, lead 1 (subspec/sky.md, Second cloud) |
 
 Theme and season are each read directly as a 2-bit value, in the orders listed
 (theme 0 Alpine to 3 Desert; season 0 winter to 3 fall), so all four biomes and
 all four seasons are equally likely. The season's effects cascade through
 Mountains, Hills, Trees, and Vegetation (see SPECIFICATIONS.md, Seasons).
+
+Bits 0–5 are scene-wide choices. Bits 6–15, labeled **Global (extra)** in the bit
+map, are Global's spare bits: they decide nothing scene-wide. They shape the
+second cloud, and they may also be used for easter eggs: the first is the
+aurora, which replaces the second cloud on some Tundra nights. They stay in
+Global so that every bit keeps its position and existing hashes draw
+the same landscapes.
 
 Every field is implemented: the scene's biome and season come from these bits
 (the gallery overrides them, to show every combination on the same hashes).
