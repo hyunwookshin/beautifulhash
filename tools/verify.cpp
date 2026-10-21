@@ -1213,6 +1213,30 @@ void check_global(int samples) {
     check(bad == 0, "theme or season bits do not show");
 }
 
+// ---- 15. Precomputed budgets ---------------------------------------------------
+
+void check_budget_table() {
+    std::printf("== Budget table\n");
+    // core/budgets.inc must equal a fresh height search for every biome and
+    // season, bit for bit (regenerate with `make budgets`).
+    int bad = 0;
+    for (Theme t : kThemes) {
+        for (Season s : kSeasons) {
+            mt::Params p;
+            p.theme = t;
+            p.season = s;
+            mt::Config fresh = mt::make_config(p);
+            const mt::Config& table = mt::config_for(t, s);
+            for (bool three : {false, true}) {
+                const mt::Budget &a = fresh.budget(three), &b = table.budget(three);
+                if (a.max_height != b.max_height || a.reserve != b.reserve || a.slack != b.slack) ++bad;
+            }
+        }
+    }
+    std::printf("  16 biome and season budgets: %d stale\n", bad);
+    check(bad == 0, "core/budgets.inc is stale: run make budgets");
+}
+
 int main(int argc, char** argv) {
     // Default: a quick run (a tenth of the full sampling). `make verify-full`
     // passes 20000 for the full run before releases.
@@ -1247,6 +1271,7 @@ int main(int argc, char** argv) {
     check_night();
     check_second_cloud(std::max(24, samples / 50));
     check_global(std::max(3, samples / 400));
+    check_budget_table();
 
     std::printf(failures == 0 ? "\nALL CHECKS PASSED\n" : "\n%d CHECK(S) FAILED\n", failures);
     return failures == 0 ? 0 : 1;

@@ -98,6 +98,10 @@ make              # build into build/
 make verify       # quick checks (a tenth of full sampling); must print ALL CHECKS PASSED
 make verify-full  # the same checks with 10x the samples, before releases
 make gallery      # render gallery/index.html: every biome and season on the same hashes
+./build/render <hash> # one SVG on stdout (built by make)
+make wasm         # site/bh.js + bh.wasm (needs Emscripten)
+make wasm-check   # native and WebAssembly SVGs match wasm/golden.txt
+make budgets      # regenerate core/budgets.inc after mountain layout changes
 ```
 
 The build needs only a C++17 compiler.

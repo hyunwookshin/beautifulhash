@@ -1,0 +1,320 @@
+// BeautifulHash site: renders landscapes in the browser with the WebAssembly
+// build of core/ (bh.js, bh.wasm). No server: hashing, rendering, favorites, and
+// downloads all happen here.
+"use strict";
+
+const THEMES = ["Alpine", "Temperate", "Tundra", "Desert"];
+const SEASONS = ["winter", "spring", "summer", "fall"];
+
+// Example hashes, each the gallery scene it was reviewed as.
+const EXAMPLES = [
+  "9e6ed8c1b2283a48a64fca7f8be20b89e01fa378280f91c631ffe62c2f144534",
+  "826ed8c1b2283a48a64fca7f8be20b89e01fa378280f91c631ffe62c2f144534",
+  "e1569e3dd4aa6b575aafa013a52adaadd069636e7e1222384de6fc172ecd5f73",
+  "fbf10bee497b39492662d30a88224bd29b9e4b39c0bb6b9de047adb80220066b",
+  "a65a38fb4042fcbcad48b6ecc6ad70987129d51315698477282cc24a93cd7f23",
+  "8b78c264dd573dde8985a34ac1e2d7c2f9e596589ab0a83f2310ea2a81cf3730",
+  "3508d1ea52591c3d70d419d13f9b2cf1bb665bcc83cc7fd93d1c3ab1b03f8b8f",
+  "eff10bee497b39492662d30a88224bd29b9e4b39c0bb6b9de047adb80220066b",
+  "dbf10bee497b39492662d30a88224bd29b9e4b39c0bb6b9de047adb80220066b",
+  "048ed6b3c5613162835de5f53371dbc0ac45debff4a7d7b11dd9f3165639c1ef",
+  "5075fb5ef6771b95233e332ffdfc2b947d9924416caf103c3480658403afde2e",
+  "7ea69fd20d9b89be8765f97abe52d06c97ed877690b47c2eb3c762deec3b9b6c",
+];
+const RECOMMENDED = EXAMPLES.slice(0, 4);
+
+const $ = (id) => document.getElementById(id);
+const HEX = /^[0-9a-fA-F]{64}$/;
+
+// ---- decoding the Global bits (subspec/global.md): read MSB first ----------
+function describe(hex) {
+  const b = parseInt(hex.slice(0, 2), 16);
+  const night = (b >> 6) === 3;
+  const theme = THEMES[(b >> 4) & 3];
+  const season = SEASONS[(b >> 2) & 3];
+  return { theme, season, night, label: `${theme} ${season}${night ? " night" : ""}` };
+}
+
+// ---- rendering ----------------------------------------------------------------
+let render = null;
+const ready = BeautifulHash().then((mod) => {
+  render = mod.cwrap("bh_render", "string", ["string", "number", "number"]);
+});
+const urls = new Map();  // hash -> object URL of its SVG (renders are deterministic)
+
+async function svgUrl(hex) {
+  hex = hex.toLowerCase();
+  if (urls.has(hex)) return urls.get(hex);
+  await ready;
+  const svg = render(hex, 1024, 768);
+  const url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" }));
+  urls.set(hex, url);
+  return url;
+}
+
+// Yields to the browser between renders, so the page stays responsive.
+const idle = () => new Promise((r) => setTimeout(r, 0));
+
+async function sha256(text) {
+  const data = new TextEncoder().encode(text);
+  const digest = await crypto.subtle.digest("SHA-256", data);
+  return [...new Uint8Array(digest)].map((x) => x.toString(16).padStart(2, "0")).join("");
+}
+
+// ---- favorites (this browser only) --------------------------------------------
+const FAV_KEY = "beautifulhash.favorites";
+function loadFavs() {
+  try { return JSON.parse(localStorage.getItem(FAV_KEY)) || []; } catch { return []; }
+}
+function saveFavs(list) {
+  try { localStorage.setItem(FAV_KEY, JSON.stringify(list)); } catch { /* storage unavailable */ }
+}
+let favs = loadFavs();
+const isFav = (hex) => favs.some((f) => f.hash === hex);
+
+// ---- tiles --------------------------------------------------------------------
+function tile(hex, onClick) {
+  const t = document.createElement("button");
+  t.className = "tile";
+  t.type = "button";
+  const d = describe(hex);
+  t.innerHTML = `<img class="thumb" alt="${d.label} landscape" loading="lazy"><span class="cap"><b>${d.label}</b><code>${hex.slice(0, 16)}…</code></span>`;
+  t.addEventListener("click", onClick);
+  return t;
+}
+
+// Renders tiles' images as they come into view.
+const io = new IntersectionObserver(async (entries) => {
+  for (const e of entries) {
+    if (!e.isIntersecting) continue;
+    io.unobserve(e.target);
+    await idle();
+    e.target.querySelector("img").src = await svgUrl(e.target.dataset.hash);
+  }
+}, { rootMargin: "200px" });
+
+function lazy(t, hex) {
+  t.dataset.hash = hex;
+  io.observe(t);
+  return t;
+}
+
+// ---- the current result -------------------------------------------------------
+let current = null;  // { hash, input }
+
+async function show(hex, input) {
+  hex = hex.toLowerCase();
+  current = { hash: hex, input };
+  const d = describe(hex);
+  $("result").hidden = false;
+  $("result-loading").hidden = false;
+  $("ref-input-row").hidden = !input;
+  $("ref-input").textContent = input || "";
+  $("ref-hash").textContent = hex;
+  $("ref-scene").textContent = d.label;
+  $("result-img").alt = `${d.label} landscape for hash ${hex}`;
+  $("status").textContent = "";
+  updateStar();
+  if ($("panel-create").hidden === false) {
+    try { history.replaceState(null, "", `#${hex}`); } catch { /* sandboxed */ }
+  }
+  await idle();
+  $("result-img").src = await svgUrl(hex);
+  $("result-loading").hidden = true;
+}
+
+function updateStar() {
+  const on = current && isFav(current.hash);
+  $("star").setAttribute("aria-pressed", on ? "true" : "false");
+  $("star").querySelector("span").textContent = on ? "Favorited" : "Favorite";
+}
+
+async function submit(text) {
+  text = text.trim();
+  if (!text) return;
+  if (HEX.test(text)) return show(text, "");
+  return show(await sha256(text), text);
+}
+
+// ---- downloads ----------------------------------------------------------------
+function save(url, name) {
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
+async function downloadPng(hex) {
+  const img = new Image();
+  img.src = await svgUrl(hex);
+  await img.decode();
+  const canvas = document.createElement("canvas");
+  canvas.width = 2048;
+  canvas.height = 1536;
+  canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+  canvas.toBlob((blob) => save(URL.createObjectURL(blob), `beautifulhash-${hex.slice(0, 12)}.png`), "image/png");
+}
+
+// ---- favorites strip ----------------------------------------------------------
+function renderFavs() {
+  const list = $("fav-list");
+  list.replaceChildren(...favs.map((f) => lazy(tile(f.hash, () => show(f.hash, f.input)), f.hash)));
+  $("favorites").hidden = favs.length === 0;
+}
+
+// ---- examples carousel and lightbox ------------------------------------------
+let lbIndex = 0;
+async function openLightbox(i) {
+  lbIndex = (i + EXAMPLES.length) % EXAMPLES.length;
+  const hex = EXAMPLES[lbIndex];
+  const d = describe(hex);
+  $("lb-title").textContent = d.label;
+  $("lb-hash").textContent = hex;
+  $("lb-img").alt = `${d.label} landscape`;
+  $("lightbox").hidden = false;
+  $("lb-close").focus();
+  $("lb-img").src = await svgUrl(hex);
+}
+function closeLightbox() { $("lightbox").hidden = true; }
+
+// ---- bit map tab --------------------------------------------------------------
+const NS = [
+  { key: "global", name: "Global", from: 0, width: 16,
+    fields: [["daylight (day or night)", 2], ["biome", 2], ["season", 2], ["second cloud top", 3], ["second cloud width", 3], ["second cloud center", 3], ["second cloud lead", 1]] },
+  { key: "sky", name: "Sky", from: 16, width: 24,
+    fields: [["cloud top", 3], ["cloud height", 2], ["cloud width", 3], ["cloud center", 3], ["bottom width", 2], ["skew", 2], ["leading side", 1], ["sky tint", 8]] },
+  { key: "celestial", name: "Celestial", from: 40, width: 8, fields: [["sun or moon azimuth", 4], ["elevation", 4]] },
+  { key: "mountains", name: "Mountains", from: 48, width: 88,
+    fields: [["ridge layout header", 1], ["ridge shapes, placement, colors", 87]], note: "two- or three-ridge layout; both read all 88" },
+  { key: "hills", name: "Hills", from: 136, width: 40, fields: [["one or two hills", 1], ["crest, edges, shape, color per hill", 39]] },
+  { key: "trees", name: "Trees", from: 176, width: 48,
+    fields: [["count code", 4], ["arrangement", 2], ["size", 2], ["leaf palette", 4], ["girth, height, forks per tree", 36]],
+    note: "count code is 3 or 4 bits and the leaf palette 4 or 0; the rest goes to the trees" },
+  { key: "vegetation", name: "Vegetation", from: 224, width: 24, fields: [["palette", 4], ["density", 2], ["spread", 2], ["seed", 16]] },
+  { key: "fog", name: "Fog", from: 248, width: 8, fields: [["density", 2], ["tint", 3], ["mist", 3]] },
+];
+
+function buildBitmap() {
+  const fieldAt = (ns, bit) => {
+    let at = ns.from;
+    for (const [label, w] of ns.fields) { if (bit < at + w) return label; at += w; }
+    return "";
+  };
+  const bits = $("bits");
+  bits.appendChild(document.createElement("div"));
+  for (let c = 0; c < 16; c++) {
+    const l = document.createElement("div");
+    l.className = "collabel";
+    l.textContent = "+" + c.toString(16).toUpperCase();
+    bits.appendChild(l);
+  }
+  for (let r = 0; r < 16; r++) {
+    const rl = document.createElement("div");
+    rl.className = "rowlabel";
+    rl.textContent = String(r * 16);
+    bits.appendChild(rl);
+    for (let c = 0; c < 16; c++) {
+      const bit = r * 16 + c;
+      const ns = NS.find((n) => bit >= n.from && bit < n.from + n.width);
+      const cell = document.createElement("div");
+      cell.className = "cell";
+      cell.tabIndex = 0;
+      cell.textContent = bit;
+      cell.style.background = `var(--ns-${ns.key})`;
+      const label = `bit ${bit} · ${ns.name} · ${fieldAt(ns, bit)}`;
+      cell.title = label;
+      cell.setAttribute("aria-label", label);
+      const showHint = () => { $("bit-hint").textContent = label; };
+      cell.addEventListener("mouseenter", showHint);
+      cell.addEventListener("focus", showHint);
+      bits.appendChild(cell);
+    }
+  }
+  for (const ns of NS) {
+    $("legend").insertAdjacentHTML("beforeend", `<span><i class="sw" style="background: var(--ns-${ns.key})"></i>${ns.name}</span>`);
+    const fields = ns.fields.map(([l, w]) => `${l} ${w}`).join(" · ") + (ns.note ? `<br>(${ns.note})` : "");
+    $("ledger").insertAdjacentHTML("beforeend", `<tr><td><span class="ns"><i class="sw" style="background: var(--ns-${ns.key})"></i>${ns.name}</span></td>
+      <td class="num">${ns.from}–${ns.from + ns.width - 1}</td><td class="num">${ns.width}</td><td class="fields">${fields}</td></tr>`);
+  }
+}
+
+// ---- tabs ---------------------------------------------------------------------
+function selectTab(name) {
+  for (const b of document.querySelectorAll(".tabs button")) b.setAttribute("aria-selected", b.dataset.tab === name ? "true" : "false");
+  $("panel-create").hidden = name !== "create";
+  $("panel-bits").hidden = name !== "bits";
+  // The bit map has its own link; the create tab keeps the current hash.
+  try {
+    if (name === "bits") history.replaceState(null, "", "#bits");
+    else if (current) history.replaceState(null, "", `#${current.hash}`);
+  } catch { /* sandboxed */ }
+}
+
+// ---- wiring -------------------------------------------------------------------
+function init() {
+  for (const hex of RECOMMENDED) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "chip";
+    b.innerHTML = `<b>${describe(hex).label}</b><code>${hex.slice(0, 12)}…</code>`;
+    b.addEventListener("click", () => { $("query").value = hex; submit(hex); });
+    $("chips").appendChild(b);
+  }
+  $("search").addEventListener("submit", (e) => { e.preventDefault(); submit($("query").value); });
+
+  $("star").addEventListener("click", () => {
+    if (!current) return;
+    favs = isFav(current.hash) ? favs.filter((f) => f.hash !== current.hash)
+                               : [{ hash: current.hash, input: current.input || "" }, ...favs];
+    saveFavs(favs);
+    updateStar();
+    renderFavs();
+  });
+  $("dl-svg").addEventListener("click", async () => current && save(await svgUrl(current.hash), `beautifulhash-${current.hash.slice(0, 12)}.svg`));
+  $("dl-png").addEventListener("click", () => current && downloadPng(current.hash));
+  $("copy-link").addEventListener("click", async () => {
+    if (!current) return;
+    const link = `${location.origin}${location.pathname}#${current.hash}`;
+    try { await navigator.clipboard.writeText(link); $("status").textContent = "Link copied."; }
+    catch { $("status").textContent = link; }
+  });
+
+  $("carousel").replaceChildren(...EXAMPLES.map((hex, i) => lazy(tile(hex, () => openLightbox(i)), hex)));
+  const step = () => $("carousel").clientWidth * 0.8;
+  $("prev").addEventListener("click", () => $("carousel").scrollBy({ left: -step(), behavior: "smooth" }));
+  $("next").addEventListener("click", () => $("carousel").scrollBy({ left: step(), behavior: "smooth" }));
+
+  $("lb-close").addEventListener("click", closeLightbox);
+  $("lightbox").addEventListener("click", (e) => { if (e.target === $("lightbox")) closeLightbox(); });
+  $("lb-prev").addEventListener("click", () => openLightbox(lbIndex - 1));
+  $("lb-next").addEventListener("click", () => openLightbox(lbIndex + 1));
+  $("lb-open").addEventListener("click", () => {
+    const hex = EXAMPLES[lbIndex];
+    closeLightbox();
+    $("query").value = hex;
+    show(hex, "");
+    $("result").scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+  document.addEventListener("keydown", (e) => {
+    if ($("lightbox").hidden) return;
+    if (e.key === "Escape") closeLightbox();
+    if (e.key === "ArrowLeft") openLightbox(lbIndex - 1);
+    if (e.key === "ArrowRight") openLightbox(lbIndex + 1);
+  });
+
+  for (const el of document.querySelectorAll("[data-tab]")) {
+    el.addEventListener("click", (e) => { e.preventDefault(); selectTab(el.dataset.tab); });
+  }
+
+  buildBitmap();
+  renderFavs();
+
+  // A shared link opens its hash; otherwise the first example.
+  const fromLink = location.hash.slice(1);
+  if (HEX.test(fromLink)) { $("query").value = fromLink; show(fromLink, ""); }
+  else show(EXAMPLES[0], "").then(() => { if (fromLink === "bits") selectTab("bits"); });
+}
+
+init();

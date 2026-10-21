@@ -1,3 +1,5 @@
 build/
 gallery/
 .DS_Store
+site/bh.js
+site/bh.wasm

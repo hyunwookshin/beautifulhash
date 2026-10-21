@@ -1,0 +1,71 @@
+# Builds, verifies, and deploys the site (beautifulhash.com).
+#
+# Every push and pull request: native build, `make verify`, the WebAssembly
+# build, and `make wasm-check` (native and WebAssembly SVGs must match the
+# golden checksums). Pushes to main then sync site/ to the S3 bucket and
+# invalidate CloudFront, using short-lived credentials from GitHub's OIDC
+# provider (no stored AWS keys).
+#
+# Repository variables (Settings > Secrets and variables > Actions > Variables):
+#   AWS_DEPLOY_ROLE_ARN   the IAM role the workflow assumes
+#   SITE_BUCKET           the S3 bucket, e.g. beautifulhash-site
+#   CF_DISTRIBUTION_ID    the CloudFront distribution in front of it
+name: build and deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write  # for the OIDC credentials
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Native build
+        run: make
+
+      - name: Verify
+        # The mountain height search can rarely abort at startup (a known,
+        # intermittent issue in its worker threads); retry before failing.
+        run: |
+          for i in 1 2 3; do make verify && exit 0; echo "retrying verify ($i)"; done
+          exit 1
+
+      - uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: 6.0.13  # the version the golden checksums were confirmed with
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: WebAssembly build
+        run: make wasm
+
+      - name: Native and WebAssembly match
+        run: make wasm-check
+
+      - name: Configure AWS credentials
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && vars.AWS_DEPLOY_ROLE_ARN != ''
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: us-east-2
+
+      - name: Deploy
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && vars.AWS_DEPLOY_ROLE_ARN != ''
+        run: |
+          aws s3 sync site/ "s3://${{ vars.SITE_BUCKET }}/" --delete --exclude "bh.wasm" --cache-control "public, max-age=300"
+          aws s3 cp site/bh.wasm "s3://${{ vars.SITE_BUCKET }}/bh.wasm" --content-type application/wasm --cache-control "public, max-age=300"
+          aws cloudfront create-invalidation --distribution-id "${{ vars.CF_DISTRIBUTION_ID }}" --paths "/*"

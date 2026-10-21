@@ -322,16 +322,33 @@ const Config& default_config() {
     return c;
 }
 
+namespace {
+
+struct BudgetPair {
+    Budget two, three;
+};
+
+// The budgets for every biome and season, precomputed by tools/budgets.cpp as
+// exact hex floats: the height search takes minutes, the values never change.
+const BudgetPair kBudgets[16] = {
+#include "budgets.inc"
+};
+
+}  // namespace
+
 const Config& config_for(Theme theme, Season season) {
-    // One configuration per biome and season, built once.
+    // One configuration per biome and season, from the precomputed budgets.
     static const std::vector<Config> configs = [] {
         std::vector<Config> out;
         for (Theme t : kThemes) {
             for (Season s : kSeasons) {
-                Params p;
-                p.theme = t;
-                p.season = s;
-                out.push_back(make_config(p));
+                Config c;
+                c.params.theme = t;
+                c.params.season = s;
+                const BudgetPair& b = kBudgets[static_cast<size_t>(t) * 4 + static_cast<size_t>(s)];
+                c.two = b.two;
+                c.three = b.three;
+                out.push_back(c);
             }
         }
         return out;
@@ -436,11 +453,16 @@ std::vector<Point> shape(const RidgeLayout& layout, uint32_t tilt,
 double max_shape_height(const RidgeLayout& layout, const Params& p, int depth) {
     uint32_t tilts = 1u << layout.tilt;
     std::vector<double> best(tilts, 0.0);
+#ifdef BH_SINGLE_THREAD
+    // WebAssembly without threads: the same searches, one after another.
+    for (uint32_t t = 0; t < tilts; ++t) best[t] = HeightSearch(layout, p, depth).run(t);
+#else
     std::vector<std::thread> workers;
     for (uint32_t t = 0; t < tilts; ++t) {
         workers.emplace_back([&, t] { best[t] = HeightSearch(layout, p, depth).run(t); });
     }
     for (auto& w : workers) w.join();
+#endif
     return *std::max_element(best.begin(), best.end());
 }
 
