@@ -1,0 +1,59 @@
+# BeautifulHash Source-Available License
+
+Copyright (c) 2026 Hyunwook Shin. All rights reserved except as expressly granted below.
+
+## 1. Permission to Use
+
+Permission is granted, free of charge, to any person obtaining a copy of the BeautifulHash software to:
+
+- View, study, and examine its source code.
+- Compile and execute the software for personal, educational, research, and internal commercial purposes.
+- Modify the software for personal, educational, research, or internal use, subject to the restrictions below.
+- Generate landscape artwork using the software for personal or commercial purposes.
+
+## 2. Restrictions on Software Distribution and Commercialization
+
+Without prior written permission from the copyright holder, you may not:
+
+- Redistribute, sublicense, sell, or publish copies of the BeautifulHash source code, modified versions, or compiled software.
+- Incorporate protected portions of the BeautifulHash implementation into another distributed software product or service.
+- Offer the BeautifulHash renderer or a derivative of its protected implementation as a hosted generation service, API, software library, or commercial product.
+- Remove, alter, or misrepresent copyright or attribution notices.
+
+## 3. Derivative Software Works and Attribution
+
+Any derivative software work created from the BeautifulHash source code must retain the following notice in its source code:
+
+"Based on BeautifulHash. Copyright (c) 2026 Hyunwook Shin. Used under the BeautifulHash Source-Available License."
+
+This requirement does not authorize redistribution of derivative software works. Redistribution requires separate written permission from the copyright holder.
+
+## 4. Generated Artwork
+
+Artwork generated through authorized use of BeautifulHash may be used, reproduced, displayed, modified, shared, printed, distributed, and sold for personal or commercial purposes without royalties or attribution requirements under this license.
+
+This permission does not grant rights to the BeautifulHash name, logos, or trademarks.
+
+Nothing in this license represents or guarantees that automatically generated artwork qualifies for copyright protection or that exclusive copyright ownership is transferred to any person.
+
+## 5. Ideas, Algorithms, and Independent Implementations
+
+The general idea of generating landscape artwork from cryptographic hashes is not claimed as proprietary.
+
+The copyright holder reserves rights in the original source code and protectable expressive implementation of BeautifulHash, including its implementations of procedural tree generation, mountain ridges, lighting, and landscape composition.
+
+This license does not restrict independently developed implementations that do not infringe protected rights.
+
+No ownership is claimed over abstract ideas, mathematical principles, algorithms as such, or methods that are not protected under applicable law.
+
+## 6. Reservation of Rights
+
+All rights not expressly granted are reserved.
+
+No patent or trademark license is granted.
+
+## 7. Disclaimer of Warranty and Liability
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT.
+
+TO THE EXTENT PERMITTED BY LAW, THE COPYRIGHT HOLDER SHALL NOT BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY ARISING FROM THE SOFTWARE OR ITS USE.

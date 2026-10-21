@@ -236,3 +236,7 @@ V0 is ready to freeze when:
 * All algorithm-affecting implementation decisions are documented.
 
 Guiding principle: BeautifulHash should produce artwork worth keeping, not merely demonstrate that SHA-256 can generate a large number of pictures.
+
+### License
+
+BeautifulHash is source-available under the [BeautifulHash Source-Available License](LICENSE). You may study, run, and modify it for personal, educational, research, and internal use, and use or sell the artwork it generates. Redistributing the software or offering it as a product or service requires written permission. The idea of generating landscapes from hashes is not claimed.
