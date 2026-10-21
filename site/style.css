@@ -102,7 +102,8 @@ main { max-width: 1160px; margin: 0 auto; padding-inline: 20px; padding-block: 4
 .nav { display: flex; gap: 8px; }
 .round { width: 36px; height: 36px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel); font-size: 20px; line-height: 1; display: grid; place-items: center; }
 .round:hover { border-color: var(--accent); }
-.thumbs, .carousel { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(220px, 280px); gap: 14px; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 8px; scrollbar-width: thin; }
+.thumbs, .carousel { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(220px, 280px); gap: 14px; overflow-x: auto; scroll-snap-type: x proximity; padding-bottom: 8px; scrollbar-width: thin; }
+.dragging { cursor: grabbing; scroll-snap-type: none; user-select: none; }
 .tile { scroll-snap-align: start; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; padding: 0; text-align: left; display: grid; }
 .tile:hover { border-color: var(--accent); }
 .tile .thumb { aspect-ratio: 4 / 3; max-width: 100%; background: var(--line); display: block; width: 100%; object-fit: cover; }

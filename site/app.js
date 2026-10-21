@@ -21,7 +21,7 @@ const EXAMPLES = [
   { hash: "099ae4672fc8922e18dc0a75b1ff155f414ef140cbe583c86e8440de05542029", input: "peel", title: "Clean air, quiet valley", by: "Hyunwook Shin" },
 ];
 const RECOMMENDED = EXAMPLES.slice(0, 4);
-const SUGGESTIONS = ["Hello!", "chocolate muffin", "good morning", "my cat Miso", "rainy Tuesday", "happy birthday, Mom", "coffee first", "see you at sunset"];
+const SUGGESTIONS = ["Hello!", "chocolate muffin", "good morning", "my cat Miso", "rainy Tuesday", "Happy Birthday", "coffee first", "see you at sunset"];
 
 const $ = (id) => document.getElementById(id);
 const HEX = /^[0-9a-fA-F]{64}$/;
@@ -176,6 +176,33 @@ function renderFavs() {
   $("favorites").hidden = favs.length === 0;
 }
 
+// A vertical wheel scrolls a strip sideways while it can still move that way,
+// and dragging pans it; a drag never counts as a click on a tile.
+function dragScroll(el) {
+  el.addEventListener("wheel", (e) => {
+    if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+    const max = el.scrollWidth - el.clientWidth;
+    if ((e.deltaY < 0 && el.scrollLeft <= 0) || (e.deltaY > 0 && el.scrollLeft >= max - 1)) return;
+    e.preventDefault();
+    el.scrollLeft += e.deltaY;
+  }, { passive: false });
+  let x0 = 0, left0 = 0, moved = false, down = false;
+  el.addEventListener("pointerdown", (e) => {
+    if (e.pointerType !== "mouse" || e.button !== 0) return;
+    down = true; moved = false; x0 = e.clientX; left0 = el.scrollLeft;
+  });
+  el.addEventListener("pointermove", (e) => {
+    if (!down) return;
+    if (!moved && Math.abs(e.clientX - x0) > 5) { moved = true; el.classList.add("dragging"); }
+    if (moved) el.scrollLeft = left0 - (e.clientX - x0);
+  });
+  const up = () => { down = false; el.classList.remove("dragging"); };
+  el.addEventListener("pointerup", up);
+  el.addEventListener("pointerleave", up);
+  el.addEventListener("click", (e) => { if (moved) { e.stopPropagation(); e.preventDefault(); moved = false; } }, true);
+  el.addEventListener("dragstart", (e) => e.preventDefault());
+}
+
 // ---- examples carousel and lightbox ------------------------------------------
 let lbIndex = 0;
 async function openLightbox(i) {
@@ -282,7 +309,7 @@ function init() {
   let hint = 0;
   $("query").placeholder = SUGGESTIONS[0];
   setInterval(() => {
-    if (document.activeElement === $("query") || $("query").value) return;
+    if ($("query").value) return;
     hint = (hint + 1) % SUGGESTIONS.length;
     $("query").placeholder = SUGGESTIONS[hint];
   }, 3200);
@@ -306,6 +333,9 @@ function init() {
   });
 
   $("carousel").replaceChildren(...EXAMPLES.map((ex, i) => lazy(tile(ex.hash, ex.input, () => openLightbox(i)), ex.hash)));
+  // The gallery scrolls sideways with a mouse wheel too, and by dragging.
+  dragScroll($("carousel"));
+  dragScroll($("fav-list"));
   const step = () => $("carousel").clientWidth * 0.8;
   $("prev").addEventListener("click", () => $("carousel").scrollBy({ left: -step(), behavior: "smooth" }));
   $("next").addEventListener("click", () => $("carousel").scrollBy({ left: step(), behavior: "smooth" }));
@@ -328,15 +358,15 @@ function init() {
   });
 
   // The clear button shows while the search box has text; it and the logo
-  // both empty the box.
-  const clearQuery = () => { $("query").value = ""; $("clear").hidden = true; };
+  // both empty the box and put the cursor in it.
+  const clearQuery = () => { $("query").value = ""; $("clear").hidden = true; $("query").focus({ preventScroll: true }); };
   $("query").addEventListener("input", () => { $("clear").hidden = !$("query").value; });
-  $("clear").addEventListener("click", () => { clearQuery(); $("query").focus(); });
-  document.querySelector(".wordmark").addEventListener("click", clearQuery);
+  $("clear").addEventListener("click", clearQuery);
 
   for (const el of document.querySelectorAll("[data-tab]")) {
     el.addEventListener("click", (e) => { e.preventDefault(); selectTab(el.dataset.tab); });
   }
+  document.querySelector(".wordmark").addEventListener("click", clearQuery);
 
   // Suggesting a landscape for the gallery: words (never a raw hash) and the
   // name to credit. There is no server, so Send opens the visitor's mail app
@@ -390,6 +420,8 @@ function init() {
 
   buildBitmap();
   renderFavs();
+
+  $("query").focus({ preventScroll: true });
 
   // A shared link opens its hash; otherwise "world", with the search box left empty.
   const fromLink = location.hash.slice(1);
