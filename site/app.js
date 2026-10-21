@@ -8,7 +8,7 @@
 const EXAMPLES = [
   { hash: "9e6ed8c1b2283a48a64fca7f8be20b89e01fa378280f91c631ffe62c2f144534", title: "Where the maples burn" },
   { hash: "486ea46224d1bb4fb680f34f7c9ad96a8f24ec88be73ea8e5a6c65260e9cb8a7", input: "world", title: "Blush on the summit" },
-  { hash: "e1569e3dd4aa6b575aafa013a52adaadd069636e7e1222384de6fc172ecd5f73", title: "Green fire overhead" },
+  { hash: "c06b0cfe0cc5e900c57784484094331f095bf441995c3c31ea6c75691c786c35", input: "flower", title: "Moonlit snow, sleeping pines" },
   { hash: "fbf10bee497b39492662d30a88224bd29b9e4b39c0bb6b9de047adb80220066b", title: "Joshua trees keep watch" },
   { hash: "a65a38fb4042fcbcad48b6ecc6ad70987129d51315698477282cc24a93cd7f23", title: "Rose light on stone" },
   { hash: "8b78c264dd573dde8985a34ac1e2d7c2f9e596589ab0a83f2310ea2a81cf3730", title: "Snowcap above the pines" },
