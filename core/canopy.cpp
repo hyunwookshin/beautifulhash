@@ -215,10 +215,11 @@ void cover_ridge(Ridge& front, const std::vector<Hill>& hills, const Sun& sun, T
 
 void cover_hill(Hill& hill, const Sun& sun, Theme theme, Season season) {
     hill.canopy.clear();
-    if (theme != Theme::kAlpine && theme != Theme::kTemperate) return;
     if (hill.bands.empty()) return;
-    // Winter hills are clean, flat snow: only a sprinkle of tufts, one in ten.
+    // Winter hills are clean, flat snow: only a sprinkle of tufts, one in ten,
+    // in every biome. Otherwise Desert sand stays bare.
     bool winter = season == Season::kWinter;
+    if (theme == Theme::kDesert && !winter) return;
     bool fall = theme == Theme::kTemperate && season == Season::kFall;
     const std::vector<Point>& s = hill.points;
     double mean = 0.0, low = s.front().h;

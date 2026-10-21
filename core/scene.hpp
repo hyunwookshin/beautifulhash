@@ -19,7 +19,7 @@ struct Point {
 // subpath each.
 struct CanopyPath {
     uint32_t rgb;
-    std::vector<std::vector<Point>> polys;
+    std::vector<std::vector<Point>> polys = {};
 };
 
 struct Ridge {
@@ -82,6 +82,9 @@ struct TreeShape {
     // unit direction), ry the widest half-width; darker leaves render narrower.
     double ry = 0;
     Point axis{1, 0};
+    // Many small polygons in one path when set (cactus spines), written as
+    // relative steps; poly is then empty.
+    std::vector<std::vector<Point>> polys = {};
 };
 
 // One trunk or branch segment, for casting shadows: its ends and widths.

@@ -659,6 +659,10 @@ $(u \cdot v)^2 < 0.75\,|u|^2 |v|^2$, with no square root.
 * **Width:** a peak counts only if its key valleys are at least 10% of the
   canvas apart (204.8 logical units). Its key valley on each side is the lowest
   point before the ridge climbs higher than the peak, or the canvas edge.
+* **Relaxed for Tundra and Desert:** their bare ridges otherwise look plain, so
+  a peak there needs only a turn of more than 15° (cos² 15° = 0.9330127 in
+  place of 0.75) and key valleys 5% of the canvas apart (102.4 units). Valleys
+  keep the 30° rule.
 * **Peak height** $H$: the peak's height minus the ridge's lowest point.
 
 **Incoming slope.** From each qualifying peak, a ray runs down into the face,
@@ -773,7 +777,8 @@ unaffected.
 * 58% of two-ridge caps also carry a glint; in three-ridge mode about 4% do,
   because the far ridge is mostly a single summit with few sharp valleys.
 * In the gallery, every Tundra and Desert scene and 10 of 12 Alpine scenes
-  show faces.
+  show faces. With the relaxed rule, 98% of Tundra ridges have a qualifying
+  peak, about 3.3 per ridge (200 random hashes).
 
 #### Front-ridge trees: Alpine and Temperate
 

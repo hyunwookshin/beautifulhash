@@ -181,13 +181,12 @@ banded.
 
 ### Grass blades
 
-In Alpine and Temperate, the front (or only) hill is covered by small grass
-tufts over its bands, so it reads as a grassy slope rather than a flat fill. A
-winter hill is clean, flat snow, so it keeps only a sprinkle of one tuft in ten
-(see One tuft). Tundra and Desert get none, and the back hill gets none. The
-tufts carry no bits: they follow from the hill, its bands, the sun, and the
-biome and season.
-They share their templates' coloring and rendering with the front ridge's
+In Alpine, Temperate, and Tundra, the front (or only) hill is covered by small
+grass tufts over its bands, so it reads as a grassy slope rather than a flat
+fill. A winter hill is clean, flat snow, so in every biome it keeps only a
+sprinkle of one tuft in ten (see One tuft). Desert sand gets tufts only then,
+as the winter sprinkle. The back hill gets none. The tufts carry no bits: they
+follow from the hill, its bands, the sun, and the biome and season. They share their templates' coloring and rendering with the front ridge's
 canopy (subspec/mountains.md, Front-ridge canopy).
 
 **Rows.** Tufts stand in rows on the ground surface $H$ (subspec/celestial.md,
@@ -227,7 +226,7 @@ before the shadows, vegetation, and trees.
   back hill, then front hill. Each is a `<path class="hill">` closed down to the
   canvas bottom.
 * The front hill's shading bands follow its path (see Shading bands).
-* In Alpine and Temperate, its grass blades follow the bands (see Grass blades).
+* Its grass blades follow the bands (see Grass blades).
 * A fog layer is drawn between the mountains and the hills, and in two-hill
   mode another between the back hill (with its trees) and the front hill
   ([Fog](fog.md)). The front hill is never fogged.

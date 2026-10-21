@@ -387,6 +387,11 @@ Tree build(const Values& v, const Plan& p, int index, const std::vector<Hill>& h
     // 6% of the trunk or 63 forks are made. This adds detail but no entropy.
     Range rr = ratio_range(sp);
     std::vector<Branch> open = {trunk};
+    // Desert plants: round joints where limbs meet at an angle, drawn after
+    // every limb, so a bend reads as one continuous stem instead of two
+    // blocks with a notch between them.
+    std::vector<TreeShape> joints;
+    std::vector<Branch> bodies = {trunk};  // cactus segments, for spines
     std::vector<bool> forked = {false};
     std::vector<bool> stem = {true};  // on the main stem (trunk, then each large child)
     std::vector<int> depth = {0};     // forks between the trunk and this branch
@@ -555,14 +560,19 @@ Tree build(const Values& v, const Plan& p, int index, const std::vector<Hill>& h
             if (sp == Species::kCactus) {
                 // Cactus arms leave at the fork angle, then turn straight up.
                 Point elbow = add(b.start, b.dir, 0.3 * b.length);
+                joints.push_back(circle(b.start, b.girth / 2.0, col.trunk));
+                joints.push_back(circle(elbow, b.girth / 2.0, col.trunk));
                 tree.shapes.push_back(quad(b.start, elbow, b.dir, b.girth, b.girth, col.trunk));
+                bodies.push_back({b.start, elbow, b.dir, 0.3 * b.length, b.girth});
                 tree.limbs.push_back({b.start, elbow, b.girth, b.girth});
                 b.dir = {0.0, 1.0};
                 b.end = add(elbow, b.dir, 0.7 * b.length);
                 tree.shapes.push_back(quad(elbow, b.end, b.dir, b.girth, b.girth, col.trunk));
+                bodies.push_back({elbow, b.end, b.dir, 0.7 * b.length, b.girth});
                 tree.limbs.push_back({elbow, b.end, b.girth, b.girth});
             } else {
                 b.end = add(b.start, b.dir, b.length);
+                if (sp == Species::kJoshua) joints.push_back(circle(b.start, b.girth / 2.0, col.trunk));
                 tree.shapes.push_back(quad(b.start, b.end, b.dir, b.girth, b.girth * taper, col.trunk));
                 tree.limbs.push_back({b.start, b.end, b.girth, b.girth * taper});
             }
@@ -576,6 +586,52 @@ Tree build(const Values& v, const Plan& p, int index, const std::vector<Hill>& h
             depth.push_back(depth[idx] + 1);
         }
         ++k;
+    }
+
+    tree.shapes.insert(tree.shapes.end(), joints.begin(), joints.end());
+
+    // Cactus spines: hair-thin needles packed along both edges of every
+    // segment and along two ribs on its face, in a pale straw shade so they
+    // show as fuzz over the dark body. Each spine's tilt, length, and place
+    // follow the digits of pi, so they are irregular but carry no bits.
+    if (sp == Species::kCactus) {
+        static const char kPiDigits[] =
+            "3141592653589793238462643383279502884197169399375105820974944592307816406286208998628034825342117067";
+        const int kDigits = static_cast<int>(sizeof(kPiDigits)) - 1;
+        auto digit = [&](int j) { return static_cast<double>(kPiDigits[j % kDigits] - '0'); };
+        TreeShape spines, outline;  // pale fuzz, and long dark spines that break the silhouette
+        outline.rgb = col.trunk;
+        for (int shift = 16; shift >= 0; shift -= 8) {
+            double c = static_cast<double>((col.trunk >> shift) & 255u), pale = static_cast<double>((0xE6DDB4u >> shift) & 255u);
+            spines.rgb |= static_cast<uint32_t>(std::lround(c + (pale - c) * 0.4)) << shift;
+        }
+        static const double kLines[4] = {-0.5, -0.2, 0.2, 0.5};  // across the girth: edges and ribs
+        int j = 0;
+        for (const Branch& b : bodies) {
+            Point u = b.dir, n{-b.dir.h, b.dir.x};
+            // Spines grow with the girth, but less than proportionally, so a
+            // near, thick cactus keeps short, dense spines rather than whiskers.
+            double g = std::min(b.girth, 14.0 + 0.25 * b.girth);
+            double step = 0.12 * g;
+            for (double off : kLines) {
+                double side = off < 0.0 ? -1.0 : 1.0, edge = std::fabs(off) == 0.5 ? 1.0 : 0.6;
+                for (double t = 0.5 * step; t < b.length; t += step, ++j) {
+                    double tilt = (digit(j) - 4.5) / 10.0 + 0.15;  // along the stem, leaning slightly up
+                    double len = g * (0.18 + 0.02 * digit(7 * j + 3)) * edge;
+                    double at = t + 0.4 * step * (digit(13 * j + 5) - 4.5) / 9.0;
+                    Point p = add(add(b.start, u, at), n, off * b.girth);
+                    Point d{side * n.x + tilt * u.x, side * n.h + tilt * u.h};
+                    if (edge == 1.0 && digit(3 * j + 1) >= 6.0) {
+                        // Four in ten edge spines stick far out, dark against the sky.
+                        outline.polys.push_back({add(p, u, -0.25), add(p, d, 2.6 * len), add(p, u, 0.25)});
+                    } else {
+                        spines.polys.push_back({add(p, u, -0.15), add(p, d, len), add(p, u, 0.15)});
+                    }
+                }
+            }
+        }
+        tree.shapes.push_back(spines);
+        if (!outline.polys.empty()) tree.shapes.push_back(outline);
     }
 
     // Conifers: a straight feather of needles around every branch, widest
@@ -855,6 +911,25 @@ std::string tree_svg(const Tree& tree, int index, double scale) {
                 append_fixed2(out, m[q]);
             }
             out += ")\"/>\n";
+        } else if (!s.polys.empty()) {
+            // Many hair-thin polygons in one path: an absolute move to each
+            // one's first point, then relative steps.
+            out += "<path fill=\"";
+            append_hex(out, s.rgb);
+            out += "\" d=\"";
+            for (const std::vector<Point>& p : s.polys) {
+                out += "M";
+                append_point(out, p[0], scale);
+                out += "l";
+                for (size_t i = 1; i < p.size(); ++i) {
+                    if (i > 1) out += " ";
+                    append_fixed2(out, (p[i].x - p[i - 1].x) * scale);
+                    out += ",";
+                    append_fixed2(out, -(p[i].h - p[i - 1].h) * scale);
+                }
+                out += "z";
+            }
+            out += "\"/>\n";
         } else if (s.poly.empty()) {
             out += "<circle fill=\"";
             append_hex(out, s.rgb);

@@ -16,8 +16,9 @@ namespace bh::canopy {
 // peaks. Other biomes get none.
 void cover_ridge(Ridge& front, const std::vector<Hill>& hills, const Sun& sun, Theme theme, Season season);
 
-// Covers the front hill with grass blades over its bands, in Alpine and
-// Temperate, sparsely in winter. Needs the bands.
+// Covers the front hill with grass blades over its bands: in Alpine, Temperate,
+// and Tundra, and a winter sprinkle in every biome (Desert only then). Needs
+// the bands.
 void cover_hill(Hill& hill, const Sun& sun, Theme theme, Season season);
 
 }  // namespace bh::canopy

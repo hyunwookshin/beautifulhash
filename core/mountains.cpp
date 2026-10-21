@@ -536,7 +536,7 @@ std::vector<Ridge> generate(const Config& config, const Hash256& hash) {
                 for (const Point& q : poly) top = std::min(top, q.h);
             placed[i].fade_top = top;
             placed[i].fade_bottom = low;
-            snow_faces(pts, low - 10.0, placed[i], !placed[i].snow.empty());
+            snow_faces(pts, low - 10.0, placed[i], !placed[i].snow.empty(), p.theme != Theme::kAlpine);
         }
     }
     return placed;
@@ -837,14 +837,15 @@ namespace bh::mountains {
 
 namespace {
 
-// Whether the ridge turns by more than 30 degrees at b, without a square
-// root: the angle between a->b and b->c exceeds 30 degrees exactly when
-// their dot product is below cos(30) times the product of their lengths.
-bool sharp_turn(Point a, Point b, Point c) {
+// Whether the ridge turns by more than 30 degrees at b (or the angle whose
+// squared cosine is cos2), without a square root: the angle between a->b and
+// b->c exceeds it exactly when their dot product is below its cosine times
+// the product of their lengths.
+bool sharp_turn(Point a, Point b, Point c, double cos2 = 0.75) {
     double ux = b.x - a.x, uh = b.h - a.h, vx = c.x - b.x, vh = c.h - b.h;
     double dot = ux * vx + uh * vh;
     if (dot < 0.0) return true;
-    return dot * dot < 0.75 * (ux * ux + uh * uh) * (vx * vx + vh * vh);
+    return dot * dot < cos2 * (ux * ux + uh * uh) * (vx * vx + vh * vh);
 }
 
 // A direction scaled so its larger component is 1 (no square root).
@@ -895,7 +896,7 @@ std::vector<Point> bend(Point a, Point b, const std::vector<Point>& pts, size_t 
 }
 }  // namespace
 
-void snow_faces(const std::vector<Point>& pts, double floor_h, Ridge& ridge, bool with_glints) {
+void snow_faces(const std::vector<Point>& pts, double floor_h, Ridge& ridge, bool with_glints, bool relaxed) {
     const double kMod = 37.0;  // N: the height modulus that picks directions
     std::vector<std::vector<Point>>& faces = ridge.glints;
     std::vector<int>& sides = ridge.glint_side;
@@ -910,7 +911,10 @@ void snow_faces(const std::vector<Point>& pts, double floor_h, Ridge& ridge, boo
 
     // Peaks: a rise turning into a descent by more than 30 degrees, at least
     // 10% of the canvas wide between its key valleys (the lowest points
-    // before the ridge climbs higher than the peak on either side).
+    // before the ridge climbs higher than the peak on either side). Relaxed
+    // (Tundra and Desert, whose bare ridges otherwise look plain): more than
+    // 15 degrees and 5% of the canvas.
+    const double kRelaxedCos2 = 0.9330127;  // cos^2(15 degrees)
     struct Peak {
         size_t i;
         Point in;  // incoming slope direction, down into the face
@@ -918,11 +922,11 @@ void snow_faces(const std::vector<Point>& pts, double floor_h, Ridge& ridge, boo
     std::vector<Peak> peaks;
     for (size_t i = 1; i + 1 < n; ++i) {
         const Point &a = pts[i - 1], &b = pts[i], &c = pts[i + 1];
-        if (!(b.h > a.h && b.h > c.h && sharp_turn(a, b, c))) continue;
+        if (!(b.h > a.h && b.h > c.h && sharp_turn(a, b, c, relaxed ? kRelaxedCos2 : 0.75))) continue;
         size_t l = i, r = i;
         for (size_t k = i; k-- > 0 && pts[k].h <= b.h;) if (pts[k].h < pts[l].h) l = k;
         for (size_t k = i + 1; k < n && pts[k].h <= b.h; ++k) if (pts[k].h < pts[r].h) r = k;
-        if (pts[r].x - pts[l].x < 0.10 * kCanvasWidth) continue;
+        if (pts[r].x - pts[l].x < (relaxed ? 0.05 : 0.10) * kCanvasWidth) continue;
         // The incoming slope: between the rising slope (down-left from the
         // peak) and the descending one (down-right), at a fraction set by the
         // peak's height modulo N, padded to 10-90%.
