@@ -85,7 +85,7 @@ void append_tenths(std::string& out, int64_t v, bool separate) {
 // so the drawn points are exactly the rounded absolute ones.
 void append_canopy(std::string& out, const std::vector<CanopyPath>& paths, double scale) {
     for (const CanopyPath& c : paths) {
-        out += "<path class=\"canopy\" fill=\"";
+        out += c.facet ? "<path class=\"facet\" fill=\"" : "<path class=\"canopy\" fill=\"";
         append_hex(out, c.rgb);
         out += "\" d=\"";
         for (const std::vector<Point>& poly : c.polys) {
@@ -139,6 +139,7 @@ Scene generate_scene(const Hash256& hash, int version) {
     hills::add_bands(scene.hills[0], scene.sun);
     canopy::cover_hill(scene.hills[0], scene.sun, config.params.theme, config.params.season);
     canopy::cover_ridge(scene.ridges[0], scene.hills, scene.sun, config.params.theme, config.params.season);
+    canopy::facet_ridge(scene.ridges[0], scene.hills, scene.sun, config.params.theme);
     celestial::cast_shadows(scene.trees, scene.hills[0], scene.sun);
     trees::tint_cover(scene.trees, scene.hills[0]);
     scene.vegetation = vegetation::generate(hash, scene.trees, scene.hills, config.params.theme, config.params.season);

@@ -939,9 +939,57 @@ rounded point, then relative steps between its rounded points, so the drawn
 points are exactly the rounded ones. The hill's grass blades are written the
 same way.
 
+#### Front-ridge facets: Tundra and Desert
+
+A bare front ridge is faceted like weathered rock: a fine triangulation over
+its face, each triangle a step lighter or darker by how it faces the sun. The
+facets sit on the ridge's fill, under the peaks' lit and shaded halves (Ridge
+faces), and their steps are small, so the halves still dominate and the facets
+only fill in between them. They show at a glance as texture; the individual
+shapes take a closer look. Only the front ridge gets them, and no bits are
+used.
+
+**Points.** A grid of cells 32 units wide and 28 tall covers the canvas from
+one row below the lowest visible point (the hills' highest silhouette) to one
+row above the ridge's highest point. Each grid corner $(i, j)$ is moved by the
+digits $D$ of $\pi$ (the first 100, cycling), keyed by
+$k = 37i + 11j + \lfloor S(32i) \rfloor$, where $S$ is the ridge's silhouette:
+
+* by $0.8 \cdot 32\,(D_k - 4.5)/9$ across and $0.8 \cdot 28\,(D_{k+3} - 4.5)/9$
+  up, under half a cell, so the points look scattered but never cross;
+* to a depth out of the screen $z = 0.6\,(S(x) - h) + 14\,(D_{k+7} - 4.5)/9$:
+  the face leans back from the silhouette and follows its rise and fall, so
+  facets on a peak's flank tilt the way the flank does.
+
+**Triangles.** Each cell splits into two triangles along one diagonal, chosen
+by the parity of $D_{53i + 29j}$. A triangle is kept when at least one corner
+is on or below the silhouette and at least one is at or above the hills; the
+group is clipped to the ridge.
+
+**Light.** The light comes from the sun's side and above,
+$L = (-d_x \ell,\; 1,\; 0)$, with the sun's shadow direction $d_x$ and shadow
+length $\ell$ (subspec/celestial.md). A triangle's normal $n$, turned toward
+the viewer, gives the signed squared cosine
+$s = \operatorname{sign}(n \cdot L)\,(n \cdot L)^2 / (|n|^2 |L|^2)$, with no
+square root. By $s$:
+
+| $s$ | Share (typical) | Shade of the ridge color |
+|---|---:|---:|
+| above 0.52 | 6% | +9% (toward white) |
+| 0.40 to 0.52 | 12% | +4% |
+| 0.05 to 0.40 | 70% | not drawn: the ridge's own fill |
+| 0.012 to 0.05 | 7% | −4% |
+| below 0.012 | 5% | −9% (toward black) |
+
+**Rendering.** Each drawn level is one `<path class="facet">`, one closed
+subpath per triangle, written like the canopy (tenths, relative steps), in the
+front ridge's clipped group. Leaving the middle tones undrawn also keeps
+neighboring facets from showing seams.
+
 #### Tundra and Desert
 
-Palette only; no textures or overlays.
+No textures in the ridge paths: the palette, the lit and shaded ridge faces,
+and on the front ridge the facets above.
 
 #### Seasons
 

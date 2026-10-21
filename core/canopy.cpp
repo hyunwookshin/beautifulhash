@@ -213,6 +213,95 @@ void cover_ridge(Ridge& front, const std::vector<Hill>& hills, const Sun& sun, T
     out.flush(front.canopy);
 }
 
+void facet_ridge(Ridge& front, const std::vector<Hill>& hills, const Sun& sun, Theme theme) {
+    if (theme != Theme::kTundra && theme != Theme::kDesert) return;
+    static const char kPi[] =
+        "3141592653589793238462643383279502884197169399375105820974944592307816406286208998628034825342117067";
+    auto digit = [](long k) { return static_cast<double>(kPi[((k % 100) + 100) % 100] - '0'); };
+    auto ridge_at = [&](double x) { return mountains::height_at(front.points, clamp_x(x)); };
+    auto hidden_below = [&](double x) {
+        double c = 0.0;
+        for (const Hill& h : hills) c = std::max(c, mountains::height_at(h.points, clamp_x(x)));
+        return c;
+    };
+
+    // A jittered grid: one point per cell, nudged by up to 0.4 cell by the
+    // digits of pi keyed by the cell and the ridge's height above it, so the
+    // points look scattered but every cell still splits into two triangles.
+    // Each point also gets a depth z out of the screen: the face leans back
+    // from the silhouette and follows its rise and fall, with a little jitter,
+    // so facets on a peak's flank tilt the way that flank does.
+    const double kW = 32.0, kH = 28.0, kLean = 0.6;
+    double top = 0.0, floor_h = kCanvasHeight;
+    for (int i = 0; i <= 512; ++i) {
+        top = std::max(top, ridge_at(4.0 * i));
+        floor_h = std::min(floor_h, hidden_below(4.0 * i));
+    }
+    int cols = static_cast<int>(kCanvasWidth / kW) + 2;
+    int j0 = static_cast<int>(std::floor(floor_h / kH)) - 1, j1 = static_cast<int>(std::ceil(top / kH)) + 1;
+    struct Vertex {
+        double x, h, z;
+    };
+    auto vertex = [&](int i, int j) {
+        double x0 = i * kW, h0 = j * kH;
+        long k = static_cast<long>(i) * 37 + static_cast<long>(j) * 11 + static_cast<long>(std::floor(ridge_at(x0)));
+        double x = x0 + 0.8 * kW * (digit(k) - 4.5) / 9.0;
+        double h = h0 + 0.8 * kH * (digit(k + 3) - 4.5) / 9.0;
+        double z = kLean * (ridge_at(x) - h) + 0.5 * kH * (digit(k + 7) - 4.5) / 9.0;
+        return Vertex{x, h, z};
+    };
+
+    // The light: from the sun's side and above, (-dx * l, 1, 0) with l the
+    // shadow length per unit height. A facet's brightness is the cosine
+    // between its normal (turned toward the viewer) and the light, compared
+    // squared with its sign, so no square root is taken.
+    double lx = -sun.dx * sun.length, lh = 1.0, ll = lx * lx + lh * lh;
+    // Levels by the signed squared cosine: about 6% brightest, 12% light, the
+    // middle 70% left as the ridge's own fill, 7% shaded, and 5% darkest. The
+    // steps are small, so the peaks' lit and shaded halves still dominate.
+    const double kBright = 0.52, kLight = 0.40, kShaded = 0.05, kDarkest = 0.012;
+    std::vector<std::vector<Point>> level[4];  // brightest, light, shaded, darkest
+    for (int i = -1; i < cols; ++i) {
+        for (int j = j0; j < j1; ++j) {
+            Vertex a = vertex(i, j), b = vertex(i + 1, j), c = vertex(i + 1, j + 1), d = vertex(i, j + 1);
+            long k = static_cast<long>(i) * 53 + static_cast<long>(j) * 29;
+            Vertex tri[2][3] = {{a, b, c}, {a, c, d}};
+            if (static_cast<int>(digit(k)) % 2 == 1) {
+                tri[0][0] = a; tri[0][1] = b; tri[0][2] = d;
+                tri[1][0] = b; tri[1][1] = c; tri[1][2] = d;
+            }
+            for (auto& t : tri) {
+                bool inside = false, shown = false;
+                for (const Vertex& v : t) {
+                    inside = inside || v.h <= ridge_at(v.x);
+                    shown = shown || v.h >= hidden_below(v.x);
+                }
+                if (!inside || !shown) continue;
+                double ux = t[1].x - t[0].x, uh = t[1].h - t[0].h, uz = t[1].z - t[0].z;
+                double vx = t[2].x - t[0].x, vh = t[2].h - t[0].h, vz = t[2].z - t[0].z;
+                double nx = uh * vz - uz * vh, nh = uz * vx - ux * vz, nz = ux * vh - uh * vx;
+                if (nz < 0.0) {
+                    nx = -nx;
+                    nh = -nh;
+                    nz = -nz;
+                }
+                double dot = nx * lx + nh * lh, nn = nx * nx + nh * nh + nz * nz;
+                double s = (dot < 0.0 ? -1.0 : 1.0) * dot * dot / (nn * ll);
+                int lv = s > kBright ? 0 : s > kLight ? 1 : s < kDarkest ? 3 : s < kShaded ? 2 : -1;
+                if (lv < 0) continue;  // the middle tones: the ridge's own fill shows
+                level[lv].push_back({{t[0].x, t[0].h}, {t[1].x, t[1].h}, {t[2].x, t[2].h}});
+            }
+        }
+    }
+    static const double kShade[4] = {0.09, 0.04, -0.04, -0.09};
+    for (int lv = 0; lv < 4; ++lv) {
+        if (level[lv].empty()) continue;
+        CanopyPath p{shade(front.rgb, kShade[lv]), std::move(level[lv])};
+        p.facet = true;
+        front.canopy.push_back(std::move(p));
+    }
+}
+
 void cover_hill(Hill& hill, const Sun& sun, Theme theme, Season season) {
     hill.canopy.clear();
     if (hill.bands.empty()) return;

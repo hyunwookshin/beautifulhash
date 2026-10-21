@@ -82,7 +82,7 @@ namespaces. Each is specified under `subspec/`:
 
 | Namespace | Status |
 |---|---|
-| Mountains | Implemented: two or three layered ridges, biome styling (snow caps, conifer and canopy tree lines, and a forest canopy of small conifers or needle sprays over the front ridge with sunlit faces on sharp peaks), and seasonal palettes |
+| Mountains | Implemented: two or three layered ridges, biome styling (snow caps, conifer and canopy tree lines, and a forest canopy of small conifers or needle sprays over the front ridge with sunlit faces on sharp peaks; faceted rock on bare Tundra and Desert front ridges), and seasonal palettes |
 | Hills | Implemented: one or two smooth hills below the mountains; in Alpine, Temperate, and Tundra the front hill is textured with grass tufts, and every winter hill gets a sprinkle on its snow |
 | Trees | Implemented, visual tuning in progress: 1 to 10 fractal trees per scene (conifers, deciduous trees with seasonal leaves, cacti, Joshua trees) |
 | Fog | Implemented: an 8-bit haze (density, tint, ground mist) in every depth gap |

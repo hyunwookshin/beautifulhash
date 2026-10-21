@@ -20,6 +20,7 @@ struct Point {
 struct CanopyPath {
     uint32_t rgb;
     std::vector<std::vector<Point>> polys = {};
+    bool facet = false;  // a front-ridge facet (class "facet") rather than a canopy template
 };
 
 struct Ridge {
