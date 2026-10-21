@@ -122,6 +122,9 @@ async function show(hex, input) {
   $("ref-by").textContent = discoverer(hex);
   $("result-img").alt = `Landscape for hash ${hex}`;
   $("status").textContent = "";
+  // Only words that are not in the gallery yet can be suggested for it.
+  $("clear").hidden = !$("query").value;
+  $("suggest-btn").hidden = !input || !!discoverer(hex);
   updateStar();
   if ($("panel-create").hidden === false) {
     try { history.replaceState(null, "", `#${hex}`); } catch { /* sandboxed */ }
@@ -324,6 +327,13 @@ function init() {
     if (e.key === "ArrowRight") openLightbox(lbIndex + 1);
   });
 
+  // The clear button shows while the search box has text; it and the logo
+  // both empty the box.
+  const clearQuery = () => { $("query").value = ""; $("clear").hidden = true; };
+  $("query").addEventListener("input", () => { $("clear").hidden = !$("query").value; });
+  $("clear").addEventListener("click", () => { clearQuery(); $("query").focus(); });
+  document.querySelector(".wordmark").addEventListener("click", clearQuery);
+
   for (const el of document.querySelectorAll("[data-tab]")) {
     el.addEventListener("click", (e) => { e.preventDefault(); selectTab(el.dataset.tab); });
   }
@@ -336,14 +346,13 @@ function init() {
   let previewTimer = 0;
   const openSuggest = () => {
     $("suggest").hidden = false;
-    $("suggest-fab").hidden = true;
-    $("sg-words").value = $("query").value.trim() && !HASHLIKE.test($("query").value.trim()) ? $("query").value.trim() : "";
+    $("sg-words").value = current ? current.input : "";
     $("sg-status").textContent = "";
     $("sg-words").dispatchEvent(new Event("input"));
     $("sg-words").focus();
   };
-  const closeSuggest = () => { $("suggest").hidden = true; $("suggest-fab").hidden = false; $("suggest-fab").focus(); };
-  $("suggest-fab").addEventListener("click", openSuggest);
+  const closeSuggest = () => { $("suggest").hidden = true; $("suggest-btn").focus(); };
+  $("suggest-btn").addEventListener("click", openSuggest);
   $("sg-cancel").addEventListener("click", closeSuggest);
   $("suggest").addEventListener("keydown", (e) => { if (e.key === "Escape") closeSuggest(); });
   $("sg-words").addEventListener("input", () => {

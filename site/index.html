@@ -53,7 +53,10 @@
       <p class="lede">Type anything or paste a SHA-256 hash. The same input always draws the same mountains, hills, trees, sky, and light: every one of its 256 bits shows up somewhere.</p>
       <form id="search" class="search" autocomplete="off">
         <label for="query" class="visually-hidden">Text or 64-character hash</label>
-        <input id="query" name="query" type="text" spellcheck="false" placeholder="Type anything, or paste a 64-character hash">
+        <div class="field">
+          <input id="query" name="query" type="text" spellcheck="false" placeholder="Type anything, or paste a 64-character hash">
+          <button type="button" id="clear" class="clear" aria-label="Clear the search" hidden>×</button>
+        </div>
         <button type="submit" class="primary">Generate</button>
       </form>
       <div class="try" aria-label="Recommended hashes">
@@ -80,6 +83,7 @@
           <button id="dl-svg" class="icon-btn">Download SVG</button>
           <button id="dl-png" class="icon-btn">Download PNG</button>
           <button id="copy-link" class="icon-btn">Copy link</button>
+          <button id="suggest-btn" class="icon-btn" hidden>Suggest for the gallery</button>
         </div>
         <p id="status" class="status" role="status"></p>
       </aside>
@@ -157,7 +161,6 @@
   </div>
 </div>
 
-<button type="button" id="suggest-fab" class="fab primary">Suggest for the gallery</button>
 <div id="suggest" class="suggest" hidden role="dialog" aria-labelledby="sg-title">
   <form id="suggest-form" autocomplete="off">
     <h3 id="sg-title">Suggest for the gallery</h3>

@@ -65,7 +65,10 @@ main { max-width: 1160px; margin: 0 auto; padding-inline: 20px; padding-block: 4
 .hero h1 { font-size: clamp(32px, 5vw, 52px); line-height: 1.08; letter-spacing: -0.01em; }
 .lede { color: var(--muted); margin: 0; max-width: 62ch; }
 .search { display: flex; gap: 8px; margin-top: 10px; width: 100%; max-width: 640px; }
-.search input { flex: 1; min-width: 0; padding: 14px 16px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); font: 15px var(--mono); }
+.field { position: relative; flex: 1; display: flex; min-width: 0; }
+.search input { flex: 1; min-width: 0; padding: 14px 44px 14px 16px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); font: 15px var(--mono); }
+.clear { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); width: 30px; height: 30px; border: 0; border-radius: 999px; background: none; color: var(--muted); font-size: 20px; line-height: 1; display: grid; place-items: center; }
+.clear:hover { color: var(--ink); background: var(--line); }
 .primary { background: var(--accent); color: var(--accent-ink); border: 0; padding: 12px 20px; border-radius: 10px; font-weight: 600; }
 .primary:hover { filter: brightness(1.08); }
 .try { display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; }
@@ -166,9 +169,7 @@ td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; white-spa
 .tile .cap .by { color: var(--muted); font-size: 12px; }
 .lb-by { margin: 4px 0 0; color: var(--muted); font-size: 14px; }
 
-/* gallery suggestion: a floating button and a small floating form */
-.fab { position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); z-index: 14; border-radius: 999px; padding: 12px 18px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25); }
-.consent:not([hidden]) ~ .fab { bottom: calc(150px + env(safe-area-inset-bottom)); }
+/* gallery suggestion: a small floating form, opened from the result card */
 .suggest { position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); z-index: 16; width: min(360px, calc(100% - 32px)); max-height: calc(100% - 32px); overflow: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35); }
 .suggest form { display: grid; gap: 8px; padding: 18px; }
 .suggest h3 { font-size: 20px; }
