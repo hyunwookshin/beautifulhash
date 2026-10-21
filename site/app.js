@@ -9,15 +9,15 @@ const EXAMPLES = [
   { hash: "9e6ed8c1b2283a48a64fca7f8be20b89e01fa378280f91c631ffe62c2f144534", title: "Where the maples burn" },
   { hash: "486ea46224d1bb4fb680f34f7c9ad96a8f24ec88be73ea8e5a6c65260e9cb8a7", input: "world", title: "Blush on the summit" },
   { hash: "c06b0cfe0cc5e900c57784484094331f095bf441995c3c31ea6c75691c786c35", input: "flower", title: "Moonlit snow, sleeping pines" },
-  { hash: "fbf10bee497b39492662d30a88224bd29b9e4b39c0bb6b9de047adb80220066b", title: "Joshua trees keep watch" },
+  { hash: "e6f933f76267778a781c8ceed4c85da4ef68694fd2217755e5f1a7a02884b98f", input: "academy", title: "Granite under the moon" },
   { hash: "a65a38fb4042fcbcad48b6ecc6ad70987129d51315698477282cc24a93cd7f23", title: "Rose light on stone" },
-  { hash: "8b78c264dd573dde8985a34ac1e2d7c2f9e596589ab0a83f2310ea2a81cf3730", title: "Snowcap above the pines" },
+  { hash: "1ec7d6744ab01a7dc28b67e6c477d6f67f24c8ee564a3735fd8202022879d326", input: "nonono", title: "Pink dusk, falling leaves" },
   { hash: "3508d1ea52591c3d70d419d13f9b2cf1bb665bcc83cc7fd93d1c3ab1b03f8b8f", title: "Thorns against the sky" },
   { hash: "1620f91609560ef7072fce277eef7962594fdf5e6f5d4e2b2fb94d1761456cac", input: "nauru", title: "One golden tree" },
   { hash: "dbf10bee497b39492662d30a88224bd29b9e4b39c0bb6b9de047adb80220066b", title: "Leaves under moonlight" },
   { hash: "048ed6b3c5613162835de5f53371dbc0ac45debff4a7d7b11dd9f3165639c1ef", title: "Lilac sky, quiet pines" },
   { hash: "5075fb5ef6771b95233e332ffdfc2b947d9924416caf103c3480658403afde2e", title: "Bare branches, first snow" },
-  { hash: "7ea69fd20d9b89be8765f97abe52d06c97ed877690b47c2eb3c762deec3b9b6c", title: "A sandstone afternoon" },
+  { hash: "099ae4672fc8922e18dc0a75b1ff155f414ef140cbe583c86e8440de05542029", input: "peel", title: "Clean air, quiet valley" },
 ];
 const RECOMMENDED = EXAMPLES.slice(0, 4);
 
