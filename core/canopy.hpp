@@ -19,7 +19,7 @@ void cover_ridge(Ridge& front, const std::vector<Hill>& hills, const Sun& sun, T
 // Faceted rock (subspec/mountains.md, Ridge facets): every Tundra ridge, the
 // front two in Desert, and the Alpine back ridge with its snow. A pi-jittered
 // grid of points split into triangles, each lit by how its tilt faces the sun.
-void facet_ridges(std::vector<Ridge>& ridges, const std::vector<Hill>& hills, const Sun& sun, Theme theme);
+void facet_ridges(std::vector<Ridge>& ridges, const std::vector<Hill>& hills, const Sun& sun, Theme theme, Season season);
 
 // Covers the front hill with grass blades over its bands: in Alpine, Temperate,
 // and Tundra, and a winter sprinkle in every biome (Desert only then). Needs

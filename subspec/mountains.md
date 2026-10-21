@@ -643,10 +643,13 @@ the lit and shaded halves of their peaks, and on snow, reflective triangles
 that catch the light. All of it is lit by the implicit sun
 (subspec/celestial.md) and carries no bits.
 
-* **Which ridges:** every Alpine ridge except the tree-covered front one, and
-  every Tundra and Desert ridge.
-* **Not Temperate:** its wooded ridges lack that clear-cut contrast.
-* **Source:** each ridge's final silhouette $P_0, \dots, P_{n-1}$, after any
+* **Which ridges:** every Alpine ridge except the tree-covered front one, the
+  same Temperate ridges in fall and winter, and every Tundra and Desert ridge.
+* **Not Temperate in spring and summer:** its ridges are in full leaf, without
+  that clear-cut contrast.
+* **Muted in Temperate:** Temperate's faces are a little softer than Alpine's
+  or Tundra's: every face opacity is scaled by 0.7, rounded to whole
+  hundredths, and its facets' brightness steps by 0.7 too (Ridge facets).* **Source:** each ridge's final silhouette $P_0, \dots, P_{n-1}$, after any
   styling.
 
 **Sharp turns.** A vertex $b$ between $a$ and $c$ turns by more than an angle
@@ -964,8 +967,10 @@ only fill in between them. They show at a glance as texture; the individual
 shapes take a closer look. No bits are used.
 
 * **Which ridges:** every Tundra ridge, the front two Desert ridges, and the
-  Alpine back ridge (its front ridge is forested). Temperate ridges are
-  wooded and get none.
+  back ridge in Alpine, and in Temperate in fall and winter (the front ridge
+  is forested). Temperate ridges in spring and summer are in full leaf and get
+  none; Temperate's facets have their brightness steps scaled by 0.7, a
+  little more muted than the other biomes'.
 * **What hides a ridge:** the hills' silhouettes and those of every nearer
   ridge. Below their highest point, triangles are skipped.
 * **Snow:** on a ridge with a snow cap, each drawn triangle is drawn twice: in

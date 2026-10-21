@@ -144,7 +144,7 @@ Scene generate_scene(const Hash256& hash, int version) {
     hills::add_bands(scene.hills[0], scene.sun);
     canopy::cover_hill(scene.hills[0], scene.sun, config.params.theme, config.params.season);
     canopy::cover_ridge(scene.ridges[0], scene.hills, scene.sun, config.params.theme, config.params.season);
-    canopy::facet_ridges(scene.ridges, scene.hills, scene.sun, config.params.theme);
+    canopy::facet_ridges(scene.ridges, scene.hills, scene.sun, config.params.theme, config.params.season);
     celestial::cast_shadows(scene.trees, scene.hills[0], scene.sun);
     trees::finish(scene.trees, scene.sun);
     trees::tint_cover(scene.trees, scene.hills[0]);
@@ -345,6 +345,7 @@ std::string render_svg(const Scene& scene, uint32_t width, uint32_t height) {
                 out += "<path class=\"ridge-face\" fill=\"" + fill + "\"" + extra + " d=\"" + d + "\"/>\n";
             };
             auto fade = [&](const std::string& id, uint32_t rgb, int hundredths) {
+            hundredths = static_cast<int>(std::lround(hundredths * r.face_strength));
                 out += "<linearGradient id=\"" + id + "\" gradientUnits=\"userSpaceOnUse\" x1=\"0\" y1=\"";
                 append_fixed2(out, (kCanvasHeight - r.fade_top) * scale);
                 out += "\" x2=\"0\" y2=\"";

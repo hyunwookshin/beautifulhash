@@ -557,11 +557,13 @@ std::vector<Ridge> generate(const Config& config, const Hash256& hash) {
             placed[i].snow_rgb = p.snow_rgb;
         }
         placed[i].points = style_points(placed[i].points, p, v.three_ridge, index, v.ridges[i]);
-        // Lit and shaded faces on bare and snowy ridges: Alpine (except its
-        // tree-covered front ridge), Tundra, and Desert. Temperate ridges are
-        // wooded, without that clear-cut contrast.
-        bool faced = (p.theme == Theme::kAlpine && role(v.three_ridge, index) != 0) || p.theme == Theme::kTundra ||
-                     p.theme == Theme::kDesert;
+        // Lit and shaded faces on bare and snowy ridges: Alpine and Temperate
+        // in fall and winter (except their wooded front ridges), Tundra, and
+        // Desert. Temperate ridges in spring and summer are in full leaf,
+        // without that clear-cut contrast.
+        bool bare = p.theme == Theme::kAlpine ||
+                    (p.theme == Theme::kTemperate && (p.season == Season::kFall || p.season == Season::kWinter));
+        bool faced = (bare && role(v.three_ridge, index) != 0) || p.theme == Theme::kTundra || p.theme == Theme::kDesert;
         if (faced) {
             const std::vector<Point>& pts = placed[i].points;
             double low = pts[0].h, high = pts[0].h;
@@ -576,6 +578,9 @@ std::vector<Ridge> generate(const Config& config, const Hash256& hash) {
                 for (const Point& q : poly) top = std::min(top, q.h);
             placed[i].fade_top = top;
             placed[i].fade_bottom = low;
+            // Temperate's bare ridges stay a little softer than Alpine's or
+            // Tundra's: their faces and facets at 70% strength.
+            if (p.theme == Theme::kTemperate) placed[i].face_strength = 0.7;
             // The faces close below the canvas bottom, so a face lit evenly at
             // night never shows a lower edge; by day the fade hides it anyway.
             snow_faces(pts, -10.0, placed[i], !placed[i].snow.empty());

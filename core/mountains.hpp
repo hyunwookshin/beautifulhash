@@ -72,7 +72,7 @@ struct Params {
     // Biome styling. Applied after placement, so it never changes placement or
     // the hash-derived geometry. Provisional; tuned from rendered samples.
     Theme theme = Theme::kAlpine;
-    Season season = Season::kSummer;  // context from Global; changes only Temperate mountain colors
+    Season season = Season::kSummer;  // context from Global; changes Temperate mountain colors, faces, and facets
     int conifer_subdivisions = 1;     // alpine front ridge: straight subdivisions per segment
     double conifer_height = 18.0;     // alpine front ridge: nominal tooth height (varies 0.6-1.2x)
     double conifer_depth = 60.0;      // alpine front ridge: deepest valley cut below the silhouette (varies 0.5-1x)

@@ -1,6 +1,8 @@
 ## BeautifulHash
 
-| ![A Temperate autumn BeautifulHash landscape: a small orange tree on a green hill and a tall one at the right edge, a russet wooded ridge, a gray-green mountain range, and two soft clouds in a pale sky](docs/scenery.svg) | ![An Alpine winter BeautifulHash landscape: a faceted snowy peak behind a dense conifer-covered ridge, two soft clouds in a pale sky, and conifers on a snowy hill](docs/alpine-winter.svg) |
+[![Try it at beautifulhash.com](https://img.shields.io/badge/try_it-beautifulhash.com-2f4e7a)](https://beautifulhash.com)
+
+| ![A Temperate autumn BeautifulHash landscape: a small orange tree on a green hill and a tall one at the right edge, a russet wooded ridge, a faceted gray-green mountain range, and two soft clouds in a pale sky](docs/scenery.svg) | ![An Alpine winter BeautifulHash landscape: a faceted snowy peak behind a dense conifer-covered ridge, two soft clouds in a pale sky, and conifers on a snowy hill](docs/alpine-winter.svg) |
 |---|---|
 | `9e6ed8c1b2283a48a64fca7f8be20b89e01fa378280f91c631ffe62c2f144534` | `826ed8c1b2283a48a64fca7f8be20b89e01fa378280f91c631ffe62c2f144534` |
 

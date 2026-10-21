@@ -323,7 +323,7 @@ void facet(Ridge& ridge, const std::vector<const std::vector<Point>*>& covers, c
                 // to nothing.
                 double clear = (ch - hidden_below(cx)) / 120.0;
                 if (clear < 0.25) continue;
-                double strength = clear < 0.5 ? 0.4 : clear < 0.75 ? 0.7 : 1.0;
+                double strength = (clear < 0.5 ? 0.4 : clear < 0.75 ? 0.7 : 1.0) * ridge.face_strength;
                 // Farther ridges are faceted in patches: height zones a fifth
                 // of the ridge's span, by chunks 320 units wide, and the
                 // digits of pi drop two in five of them.
@@ -357,15 +357,18 @@ void facet(Ridge& ridge, const std::vector<const std::vector<Point>*>& covers, c
 
 }  // namespace
 
-void facet_ridges(std::vector<Ridge>& ridges, const std::vector<Hill>& hills, const Sun& sun, Theme theme) {
-    // Tundra: every ridge. Desert: the front two. Alpine: the back ridge, whose
-    // rock and snow are bare (its front ridge is forested).
+void facet_ridges(std::vector<Ridge>& ridges, const std::vector<Hill>& hills, const Sun& sun, Theme theme, Season season) {
+    // Tundra: every ridge. Desert: the front two. Alpine, and Temperate in fall
+    // and winter: the back ridge, whose rock and snow are bare (the front ridge
+    // is forested).
+    bool bare = theme == Theme::kAlpine ||
+                (theme == Theme::kTemperate && (season == Season::kFall || season == Season::kWinter));
     size_t first = 0, last = 0;
     if (theme == Theme::kTundra) {
         last = ridges.size();
     } else if (theme == Theme::kDesert) {
         last = std::min<size_t>(2, ridges.size());
-    } else if (theme == Theme::kAlpine && ridges.size() >= 2) {
+    } else if (bare && ridges.size() >= 2) {
         first = ridges.size() - 1;
         last = ridges.size();
     }

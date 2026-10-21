@@ -45,6 +45,7 @@ struct Ridge {
     std::vector<std::vector<Point>> glints;
     std::vector<int> glint_side;
     double fade_top = 0.0, fade_bottom = 0.0;  // faces: full strength above fade_top, gone by fade_bottom
+    double face_strength = 1.0;  // faces and facets: 1, or 0.7 on Temperate's muted fall and winter ridges
     // Clipped to the ridge: the front ridge's canopy of small template trees
     // in Alpine and Temperate (subspec/mountains.md, Front-ridge canopy), or
     // rock facets (subspec/mountains.md, Ridge facets).
