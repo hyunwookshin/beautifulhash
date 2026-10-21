@@ -65,7 +65,4 @@ jobs:
 
       - name: Deploy
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && vars.AWS_DEPLOY_ROLE_ARN != ''
-        run: |
-          aws s3 sync site/ "s3://${{ vars.SITE_BUCKET }}/" --delete --exclude "bh.wasm" --cache-control "public, max-age=300"
-          aws s3 cp site/bh.wasm "s3://${{ vars.SITE_BUCKET }}/bh.wasm" --content-type application/wasm --cache-control "public, max-age=300"
-          aws cloudfront create-invalidation --distribution-id "${{ vars.CF_DISTRIBUTION_ID }}" --paths "/*"
+        run: tools/deploy.sh "${{ vars.SITE_BUCKET }}" "${{ vars.CF_DISTRIBUTION_ID }}" "${GITHUB_SHA::8}"
