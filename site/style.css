@@ -148,3 +148,8 @@ td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; white-spa
   .search { flex-direction: column; }
 }
 @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+
+/* analytics consent banner */
+.consent { position: fixed; left: 16px; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); z-index: 15; max-width: 640px; margin: 0 auto; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25); }
+.consent p { margin: 0; font-size: 14px; color: var(--muted); flex: 1 1 260px; }
+.consent .primary { padding: 8px 16px; }

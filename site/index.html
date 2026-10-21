@@ -6,6 +6,15 @@
 <script>
   window.dataLayer = window.dataLayer || [];
   function gtag(){dataLayer.push(arguments);}
+  // Consent mode: no ads, so ad storage is always denied. Analytics storage
+  // waits for consent in the EU, UK, and Switzerland, and a visitor's saved
+  // choice (from the banner) applies everywhere.
+  gtag('consent', 'default', { ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied', analytics_storage: 'granted' });
+  gtag('consent', 'default', { analytics_storage: 'denied', region: ['AT', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 'DE', 'GR', 'HU', 'IS', 'IE', 'IT', 'LV', 'LI', 'LT', 'LU', 'MT', 'NL', 'NO', 'PL', 'PT', 'RO', 'SK', 'SI', 'ES', 'SE', 'GB', 'CH'] });
+  try {
+    var choice = localStorage.getItem('beautifulhash.consent');
+    if (choice) gtag('consent', 'update', { analytics_storage: choice });
+  } catch (e) {}
   gtag('js', new Date());
 
   gtag('config', 'G-1FQ62HMFZR');
@@ -134,6 +143,14 @@
         <button class="primary" id="lb-open">Open in generator</button>
       </div>
     </div>
+  </div>
+</div>
+
+<div id="consent" class="consent" hidden role="region" aria-label="Analytics consent">
+  <p>We use Google Analytics cookies to count visits. Your text and images never leave your browser.</p>
+  <div class="actions">
+    <button type="button" class="icon-btn" id="consent-decline">Decline</button>
+    <button type="button" class="primary" id="consent-accept">Accept</button>
   </div>
 </div>
 
