@@ -261,27 +261,11 @@ outer corner, so a desert plant would read as separate blocks. A disc of
 diameter equal to the girth, in the trunk color, rounds every joint: at the
 start and elbow of each cactus arm, and at the start of each Joshua tree branch.
 
-**Cactus spines.** Hair-thin spines cover every cactus segment (the trunk and
-both parts of each arm), along four lines across its girth: both edges and two
-ribs at ±0.2 of the girth from the axis. They are drawn in the trunk color mixed
-40% toward `#E6DDB4`, so they show as pale fuzz over the dark body. With the
-segment's unit direction  its left normal  the effective girth
- = \min(G, 14 + 0.25G)20 20 12 61 79 80 81 98 33 100 204 250 395 398 399 400so thick, near cacti keep short, dense spines), and
-a running spine index   the first 100 digits of pi20 20 12 61 79 80 81 98 33 100 204 250 395 398 399 400cycling):
-
-* spines sit every -e.12g each line, each moved by
-  -e.4 \cdot 0.12g\,(D_{13j+5} - 4.5)/9 the segment;
-* each points outward on its line's side, pm n + \tau u tilted by
-  	au = (D_j - 4.5)/10 + 0.15 so the angles vary and lean slightly up;
-* its length is \,(0.18 + 0.02\,D_{7j+3}) the edges and 60% of that on
-  the ribs;
-* it is a triangle with a base 0.3 logical units wide, along the segment;
-* four in ten edge spines (those with $D_{3j+1} \ge 6$) stick far out instead:
-  2.6 times as long, with a base 0.5 units wide, in the trunk color itself, so
-  they break the outline and form a spiky silhouette against the sky.
-
-A tree's pale spines form one path and its long dark ones a second, each spine
-an absolute move followed by relative steps. They carry no bits.
+**Waisted Joshua limbs.** Each Joshua tree segment, the trunk included,
+narrows toward its middle: through five stations at $t = 0, \tfrac14, \dots, 1$
+its width is the straight taper times $1 - 0.6\,t(1 - t)$, which is 85% at the
+middle. With the round joints, the branching reads smooth and organic rather
+than geometric.
 
 **Conifers use fixed angles.**
 
@@ -365,7 +349,7 @@ darker than their hill and follow its biome and season:
 | Conifer | A straight feather of needles around every branch: a hexagon widest near the branch base (half-width $0.18L + G$, times 0.6 on stem segments) and tapering past the tip. Stem feathers clothe the main trunk in needles; they use no bits. Feathers shrink toward their branch to stay above the bottom-10% floor, or are dropped. The stem ends in a needle-sharp tip, at least three times its end width. |
 | Deciduous | Leaf dots (see Leaves) in spring, summer, and fall; bare in winter |
 | Cactus | A round cap (radius = girth / 2) on each arm, in the trunk color |
-| Joshua tree | A tuft of five spikes at each branch tip, at −60° to 60° from a constant table, of length $0.45L + 2G$ |
+| Joshua tree | A tuft of 9 to 13 varied, curved spikes at each branch tip, added once the sun is known (see Desert plants in the sun) |
 
 ### Leaves
 
@@ -537,6 +521,67 @@ is one per needle, then one per leaf dot), drawn right after
 the back hill and before the trees standing on it. The hill's path is
 unchanged, so decoding is unaffected.
 
+### Desert plants in the sun
+
+Cacti and Joshua trees are finished once the sun is known
+(subspec/celestial.md), after all bits are decoded, so none of this carries
+bits. The sun lights the side of a stem it stands on: the left when shadows
+fall right ($d_x > 0$). Spikes use the screen-space light of the ridge facets,
+$L = (-d_x \ell,\; 1)$ (subspec/mountains.md, Ridge facets). $D$ is the first
+100 digits of $\pi$, cycling.
+
+**Sunlit side.** The Joshua tree's trunk and every upright cactus segment get
+two bands along their lit edge, so the stem reads round: an outer band from
+the edge to 0.3 of the girth from the axis, the trunk color mixed 12% toward
+white, and an inner one from 0.3 to 0.12, mixed 5%. Through eleven stations
+they follow a waisted limb's narrowing, and over the first and last fifth of
+the segment the inner edge closes onto the outer, so a band tapers away
+instead of ending in a block.
+
+**Cactus spines.** Hair-thin spines cover every cactus segment (the trunk and
+both parts of each arm), along four lines across its girth: both edges and two
+ribs at $\pm 0.2$ of the girth from the axis. With the segment's unit direction
+$u$, its left normal $n$, the effective girth $g = \min(G, 14 + 0.25G)$ (so
+thick, near cacti keep short, dense spines), and a running spine index $j$:
+
+* spines sit every $0.12g$ along each line, each moved by
+  $0.4 \cdot 0.12g\,(D_{13j+5} - 4.5)/9$ along the segment;
+* each points outward on its line's side, $\pm n + \tau u$, tilted by
+  $\tau = (D_j - 4.5)/10 + 0.15$, so the angles vary and lean slightly up;
+* its length is $g\,(0.18 + 0.02\,D_{7j+3})$ on the edges and 60% of that on
+  the ribs, and it is a triangle with a base 0.3 logical units wide;
+* four in ten edge spines (those with $D_{3j+1} \ge 6$) stick far out instead:
+  2.6 times as long, with a base 0.5 units wide, in the trunk color itself, so
+  they break the outline and form a spiky silhouette against the sky.
+
+Near the edges the spines are lit the other way round, for depth: on the
+sunlit edge they are dark (the trunk color mixed 35% toward black), and on the
+shaded edge light (mixed 65% toward `#F2EBC8`). The ribs stay pale straw
+(mixed 40% toward `#E6DDB4`).
+
+**Joshua tree spikes.** Every branch tip holds a tuft, laid out like the
+deciduous tips: 9, 11, then 13 spikes, cycling over the tips. Spike $m$ of $c$
+fans to $a = \operatorname{round}(-8 + 16m/(c - 1))$ tens of degrees off the
+branch, nudged by $D_j \bmod 3 - 1$ steps and held to $\pm 80°$, from constant
+tables of the cosines and sines of $0°, 10°, \dots, 80°$. For a running spike
+index $j$, with the branch's length $L$ and girth $G$:
+
+* length $(0.45L + 2G)(0.75 + 0.05\,D_{7j+2})$;
+* half-width $G\,(0.08 + 0.025\,D_{11j+4})$ at the base, so thickness varies;
+* a curve: the middle shifts sideways by $0.12 \cdot (D_{13j+6} - 4.5)/4.5$ of
+  the length, and the tip by 1.6 times that;
+* a 5-point outline: the base's two corners, the middle at 0.6 of the
+  half-width on each side, and the tip.
+
+Spikes take the tree's three leaf colors in turn. A thin spike
+($D_{11j+4} \le 3$) turned within 45° of the light ($\cos^2 \ge 0.5$, with a
+positive cosine) catches it: its color mixed 45% toward `#DCE6A0`.
+
+**Rendering.** All of this follows the tree's own elements, in its group: the
+sunlit bands, one path each; then the spines, and then the spikes, each
+grouped into one path per color, each spine or spike an absolute move followed
+by relative steps.
+
 ### SVG
 
 Each tree is a `<g class="tree" id="tree-N">` group, numbered from 1. One element
@@ -544,12 +589,13 @@ per line, in this order:
 
 1. the trunk and every branch, breadth-first (a cactus arm is two paths),
 2. round joints of cacti and Joshua trees, in branch order (`<circle>`s),
-   then, for cacti, one path of pale spines and one of long dark spines,
 3. conifer feathers, in branch order,
 4. foliage on terminal branches, in branch order (paths, and circles for cacti),
 5. deciduous leaves (forks and tips), in the tree's left-to-right order, as
    `<path>` elements (the eye shape, centered at the origin) placed by an exact
-   `matrix(...)` built from the leaf's axis direction, so no angle or trigonometry is computed.
+   `matrix(...)` built from the leaf's axis direction, so no angle or trigonometry is computed,
+6. for cacti and Joshua trees, the sunlit bands, then the spines or spikes
+   (see Desert plants in the sun).
 
 The tree's ground cover follows the group (see Ground cover).
 

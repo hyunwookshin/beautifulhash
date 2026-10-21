@@ -141,6 +141,7 @@ Scene generate_scene(const Hash256& hash, int version) {
     canopy::cover_ridge(scene.ridges[0], scene.hills, scene.sun, config.params.theme, config.params.season);
     canopy::facet_ridges(scene.ridges, scene.hills, scene.sun, config.params.theme);
     celestial::cast_shadows(scene.trees, scene.hills[0], scene.sun);
+    trees::finish(scene.trees, scene.sun);
     trees::tint_cover(scene.trees, scene.hills[0]);
     scene.vegetation = vegetation::generate(hash, scene.trees, scene.hills, config.params.theme, config.params.season);
     // Fog comes last: it hazes every depth gap the other layers create.

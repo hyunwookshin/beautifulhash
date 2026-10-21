@@ -144,6 +144,24 @@ TreeShape quad(Point s, Point e, Point d, double w0, double w1, uint32_t rgb) {
     return {{add(s, n, w0 / 2), add(e, n, w1 / 2), add(e, n, -w1 / 2), add(s, n, -w0 / 2)}, {0, 0}, 0, rgb};
 }
 
+// The width factor along a waisted limb: 1 at both ends, 0.85 at the middle.
+double waist_at(double t) { return 1.0 - 0.6 * t * (1.0 - t); }
+
+// A Joshua tree limb: like quad, but narrowing toward its middle through five
+// stations, so the plant reads as organic rather than built of blocks.
+TreeShape waist(Point s, Point e, Point d, double w0, double w1, uint32_t rgb) {
+    Point n{-d.h, d.x};
+    std::vector<Point> left, right;
+    for (int k = 0; k <= 4; ++k) {
+        double t = k / 4.0, w = (w0 + (w1 - w0) * t) * waist_at(t);
+        Point c{s.x + (e.x - s.x) * t, s.h + (e.h - s.h) * t};
+        left.push_back(add(c, n, w / 2));
+        right.push_back(add(c, n, -w / 2));
+    }
+    for (size_t k = right.size(); k-- > 0;) left.push_back(right[k]);
+    return {left, {0, 0}, 0, rgb};
+}
+
 TreeShape circle(Point c, double r, uint32_t rgb) { return {{}, c, r, rgb}; }
 
 // A leaf: an eye shape tapering to a point at both ends, its long axis along
@@ -355,6 +373,10 @@ Tree build(const Values& v, const Plan& p, int index, const std::vector<Hill>& h
 
     Species sp = species_of(theme, index, v.arrangement);
     Colors col = hill_colors(hills[tree.hill].rgb);
+    tree.desert = sp == Species::kCactus ? 1 : sp == Species::kJoshua ? 2 : 0;
+    tree.waisted = sp == Species::kJoshua;
+    tree.trunk_rgb = col.trunk;
+    for (int c = 0; c < 3; ++c) tree.leaf_rgb[c] = col.foliage[c];
     double scale = kSizeClass[v.size] * p.scale[index];
     tree.base = {x, base_h};
     tree.scale = scale;
@@ -373,7 +395,9 @@ Tree build(const Values& v, const Plan& p, int index, const std::vector<Hill>& h
     trunk.length = scale * 130.0 * (0.6 + 0.8 * hv) * (sp == Species::kConifer ? 0.38 : 1.0);
     trunk.girth = scale * girth_base * (1.0 + 1.5 * gv);
     trunk.end = add(trunk.start, trunk.dir, trunk.length);
-    tree.shapes.push_back(quad(trunk.start, trunk.end, trunk.dir, trunk.girth, trunk.girth * taper, col.trunk));
+    tree.shapes.push_back(sp == Species::kJoshua ? waist(trunk.start, trunk.end, trunk.dir, trunk.girth, trunk.girth * taper, col.trunk)
+                                                 : quad(trunk.start, trunk.end, trunk.dir, trunk.girth, trunk.girth * taper, col.trunk));
+    if (tree.desert != 0) tree.stems.push_back({trunk.start, trunk.end, trunk.dir, trunk.length, trunk.girth});
     tree.limbs.push_back({trunk.start, trunk.end, trunk.girth, trunk.girth * taper});
 
     // Forks, breadth-first. The split ratio sets both shares and both angles:
@@ -391,7 +415,6 @@ Tree build(const Values& v, const Plan& p, int index, const std::vector<Hill>& h
     // every limb, so a bend reads as one continuous stem instead of two
     // blocks with a notch between them.
     std::vector<TreeShape> joints;
-    std::vector<Branch> bodies = {trunk};  // cactus segments, for spines
     std::vector<bool> forked = {false};
     std::vector<bool> stem = {true};  // on the main stem (trunk, then each large child)
     std::vector<int> depth = {0};     // forks between the trunk and this branch
@@ -563,17 +586,18 @@ Tree build(const Values& v, const Plan& p, int index, const std::vector<Hill>& h
                 joints.push_back(circle(b.start, b.girth / 2.0, col.trunk));
                 joints.push_back(circle(elbow, b.girth / 2.0, col.trunk));
                 tree.shapes.push_back(quad(b.start, elbow, b.dir, b.girth, b.girth, col.trunk));
-                bodies.push_back({b.start, elbow, b.dir, 0.3 * b.length, b.girth});
+                tree.stems.push_back({b.start, elbow, b.dir, 0.3 * b.length, b.girth});
                 tree.limbs.push_back({b.start, elbow, b.girth, b.girth});
                 b.dir = {0.0, 1.0};
                 b.end = add(elbow, b.dir, 0.7 * b.length);
                 tree.shapes.push_back(quad(elbow, b.end, b.dir, b.girth, b.girth, col.trunk));
-                bodies.push_back({elbow, b.end, b.dir, 0.7 * b.length, b.girth});
+                tree.stems.push_back({elbow, b.end, b.dir, 0.7 * b.length, b.girth});
                 tree.limbs.push_back({elbow, b.end, b.girth, b.girth});
             } else {
                 b.end = add(b.start, b.dir, b.length);
                 if (sp == Species::kJoshua) joints.push_back(circle(b.start, b.girth / 2.0, col.trunk));
-                tree.shapes.push_back(quad(b.start, b.end, b.dir, b.girth, b.girth * taper, col.trunk));
+                tree.shapes.push_back(sp == Species::kJoshua ? waist(b.start, b.end, b.dir, b.girth, b.girth * taper, col.trunk)
+                                                             : quad(b.start, b.end, b.dir, b.girth, b.girth * taper, col.trunk));
                 tree.limbs.push_back({b.start, b.end, b.girth, b.girth * taper});
             }
             kids[idx].push_back(open.size());
@@ -589,50 +613,6 @@ Tree build(const Values& v, const Plan& p, int index, const std::vector<Hill>& h
     }
 
     tree.shapes.insert(tree.shapes.end(), joints.begin(), joints.end());
-
-    // Cactus spines: hair-thin needles packed along both edges of every
-    // segment and along two ribs on its face, in a pale straw shade so they
-    // show as fuzz over the dark body. Each spine's tilt, length, and place
-    // follow the digits of pi, so they are irregular but carry no bits.
-    if (sp == Species::kCactus) {
-        static const char kPiDigits[] =
-            "3141592653589793238462643383279502884197169399375105820974944592307816406286208998628034825342117067";
-        const int kDigits = static_cast<int>(sizeof(kPiDigits)) - 1;
-        auto digit = [&](int j) { return static_cast<double>(kPiDigits[j % kDigits] - '0'); };
-        TreeShape spines, outline;  // pale fuzz, and long dark spines that break the silhouette
-        outline.rgb = col.trunk;
-        for (int shift = 16; shift >= 0; shift -= 8) {
-            double c = static_cast<double>((col.trunk >> shift) & 255u), pale = static_cast<double>((0xE6DDB4u >> shift) & 255u);
-            spines.rgb |= static_cast<uint32_t>(std::lround(c + (pale - c) * 0.4)) << shift;
-        }
-        static const double kLines[4] = {-0.5, -0.2, 0.2, 0.5};  // across the girth: edges and ribs
-        int j = 0;
-        for (const Branch& b : bodies) {
-            Point u = b.dir, n{-b.dir.h, b.dir.x};
-            // Spines grow with the girth, but less than proportionally, so a
-            // near, thick cactus keeps short, dense spines rather than whiskers.
-            double g = std::min(b.girth, 14.0 + 0.25 * b.girth);
-            double step = 0.12 * g;
-            for (double off : kLines) {
-                double side = off < 0.0 ? -1.0 : 1.0, edge = std::fabs(off) == 0.5 ? 1.0 : 0.6;
-                for (double t = 0.5 * step; t < b.length; t += step, ++j) {
-                    double tilt = (digit(j) - 4.5) / 10.0 + 0.15;  // along the stem, leaning slightly up
-                    double len = g * (0.18 + 0.02 * digit(7 * j + 3)) * edge;
-                    double at = t + 0.4 * step * (digit(13 * j + 5) - 4.5) / 9.0;
-                    Point p = add(add(b.start, u, at), n, off * b.girth);
-                    Point d{side * n.x + tilt * u.x, side * n.h + tilt * u.h};
-                    if (edge == 1.0 && digit(3 * j + 1) >= 6.0) {
-                        // Four in ten edge spines stick far out, dark against the sky.
-                        outline.polys.push_back({add(p, u, -0.25), add(p, d, 2.6 * len), add(p, u, 0.25)});
-                    } else {
-                        spines.polys.push_back({add(p, u, -0.15), add(p, d, len), add(p, u, 0.15)});
-                    }
-                }
-            }
-        }
-        tree.shapes.push_back(spines);
-        if (!outline.polys.empty()) tree.shapes.push_back(outline);
-    }
 
     // Conifers: a straight feather of needles around every branch, widest
     // near its base and tapering past its tip, so the branches read as pine
@@ -667,7 +647,6 @@ Tree build(const Values& v, const Plan& p, int index, const std::vector<Hill>& h
     for (size_t k = 0; k < open.size(); ++k) {
         if (forked[k]) continue;
         const Branch& b = open[k];
-        uint32_t leaf = col.foliage[k % 3];
         switch (sp) {
             case Species::kDeciduous:
                 break;  // canopy deferred: deciduous trees are drawn as bare skeletons for now
@@ -683,18 +662,10 @@ Tree build(const Values& v, const Plan& p, int index, const std::vector<Hill>& h
             case Species::kCactus:
                 tree.shapes.push_back(circle(b.end, b.girth / 2.0, col.trunk));
                 break;
-            case Species::kJoshua: {
-                // A tuft of five spikes at -60, -30, 0, 30, and 60 degrees.
-                static const double kCos[5] = {0.5, 0.8660254037844386, 1.0, 0.8660254037844386, 0.5};
-                static const double kSin[5] = {-0.8660254037844386, -0.5, 0.0, 0.5, 0.8660254037844386};
-                for (int a = 0; a < 5; ++a) {
-                    Point d{b.dir.x * kCos[a] - b.dir.h * kSin[a], b.dir.x * kSin[a] + b.dir.h * kCos[a]};
-                    Point m{-d.h, d.x};
-                    Point tip = add(b.end, d, 0.45 * b.length + 2.0 * b.girth);
-                    tree.shapes.push_back({{add(b.end, m, 0.3 * b.girth), tip, add(b.end, m, -0.3 * b.girth)}, {0, 0}, 0, leaf});
-                }
+            case Species::kJoshua:
+                // Spike tufts are added once the sun is known (finish).
+                tree.tips.push_back({b.start, b.end, b.dir, b.length, b.girth});
                 break;
-            }
         }
     }
 
@@ -1102,6 +1073,156 @@ void add_crest_trees(std::vector<Hill>& hills, const Hash256& hash, Theme theme,
         shape.push_back(poly);
         back.crest_trees.push_back(shape);
         back.crest_rgb.push_back(kDarkGreen);
+    }
+}
+
+}  // namespace bh::trees
+
+namespace bh::trees {
+
+namespace {
+
+// Each channel moved a fraction t of the way from a to b.
+uint32_t blend(uint32_t a, uint32_t b, double t) {
+    uint32_t out = 0;
+    for (int shift = 16; shift >= 0; shift -= 8) {
+        double ca = static_cast<double>((a >> shift) & 255u), cb = static_cast<double>((b >> shift) & 255u);
+        out |= static_cast<uint32_t>(std::lround(ca + (cb - ca) * t)) << shift;
+    }
+    return out;
+}
+
+// Collects many small polygons into one shape per color, in first-seen order.
+struct Batch {
+    std::vector<TreeShape> shapes;
+    void add(uint32_t rgb, std::vector<Point> poly) {
+        auto it = std::find_if(shapes.begin(), shapes.end(), [&](const TreeShape& s) { return s.rgb == rgb; });
+        if (it == shapes.end()) {
+            TreeShape s;
+            s.rgb = rgb;
+            shapes.push_back(s);
+            it = shapes.end() - 1;
+        }
+        it->polys.push_back(std::move(poly));
+    }
+};
+
+const char kPiDigits[] =
+    "3141592653589793238462643383279502884197169399375105820974944592307816406286208998628034825342117067";
+double pi_digit(long j) { return static_cast<double>(kPiDigits[((j % 100) + 100) % 100] - '0'); }
+
+// cos and sin of 0, 10, ..., 80 degrees, so spike angles need no trigonometry.
+const double kCos10[9] = {1.0, 0.98480775, 0.93969262, 0.8660254, 0.76604444, 0.64278761, 0.5, 0.34202014, 0.17364818};
+const double kSin10[9] = {0.0, 0.17364818, 0.34202014, 0.5, 0.64278761, 0.76604444, 0.8660254, 0.93969262, 0.98480775};
+
+}  // namespace
+
+void finish(std::vector<Tree>& trees, const Sun& sun) {
+    // The sun lights the side of each stem it stands on: the left when
+    // shadows fall right (dx > 0). The screen-space light for spikes comes
+    // from that side and above, as for the ridge facets.
+    double lit_x = sun.dx > 0.0 ? -1.0 : 1.0;
+    double lx = -sun.dx * sun.length, lh = 1.0, ll = lx * lx + lh * lh;
+    for (Tree& tree : trees) {
+        if (tree.desert == 0) continue;
+        uint32_t trunk = tree.trunk_rgb;
+
+        // Sunlit side: two bands along the lit edge of the Joshua tree's
+        // trunk and of every upright cactus segment, the outer brighter, so
+        // the stem reads round. They follow a waisted limb's narrowing and
+        // taper into the edge over the first and last fifth of the segment, so
+        // they never end in a block.
+        for (const Tree::Stem& s : tree.stems) {
+            bool upright = s.dir.x == 0.0;
+            if (tree.desert == 1 && !upright) continue;
+            Point n{-s.dir.h, s.dir.x};
+            double side = n.x * lit_x > 0.0 ? 1.0 : -1.0;  // toward the sun along n
+            static const double kBands[2][3] = {{0.5, 0.3, 0.12}, {0.3, 0.12, 0.05}};  // outer, inner offsets; lightening
+            for (const auto& band : kBands) {
+                std::vector<Point> out, in;
+                for (int k = 0; k <= 10; ++k) {
+                    double t = k / 10.0, w = s.girth * (tree.waisted ? waist_at(t) : 1.0);
+                    double grow = std::min(1.0, std::min(t, 1.0 - t) / 0.2);  // 0 at the ends
+                    Point c{s.a.x + (s.b.x - s.a.x) * t, s.a.h + (s.b.h - s.a.h) * t};
+                    out.push_back(add(c, n, side * band[0] * w));
+                    in.push_back(add(c, n, side * (band[0] - (band[0] - band[1]) * grow) * w));
+                }
+                for (size_t k = in.size(); k-- > 0;) out.push_back(in[k]);
+                tree.shapes.push_back({out, {0, 0}, 0, blend(trunk, 0xFFFFFF, band[2])});
+            }
+        }
+
+        // Cactus spines: hair-thin needles packed along both edges of every
+        // segment and along two ribs on its face, their tilt, length, and
+        // place from the digits of pi. Near the edges they are lit the other
+        // way round, for depth: dark against the bright side, pale against the
+        // shaded side. Ribs stay pale straw, and four in ten edge spines stick
+        // far out in the trunk color, a spiky silhouette.
+        if (tree.desert == 1) {
+            uint32_t pale = blend(trunk, 0xE6DDB4, 0.4), light = blend(trunk, 0xF2EBC8, 0.65), dark = blend(trunk, 0x000000, 0.35);
+            Batch spines;
+            static const double kLines[4] = {-0.5, -0.2, 0.2, 0.5};
+            int j = 0;
+            for (const Tree::Stem& s : tree.stems) {
+                Point u = s.dir, n{-s.dir.h, s.dir.x};
+                double g = std::min(s.girth, 14.0 + 0.25 * s.girth);
+                double step = 0.12 * g;
+                for (double off : kLines) {
+                    double side = off < 0.0 ? -1.0 : 1.0;
+                    bool edge = std::fabs(off) == 0.5;
+                    bool sunny = side * n.x * lit_x > 0.0;
+                    uint32_t rgb = edge ? (sunny ? dark : light) : pale;
+                    for (double t = 0.5 * step; t < s.length; t += step, ++j) {
+                        double tilt = (pi_digit(j) - 4.5) / 10.0 + 0.15;
+                        double len = g * (0.18 + 0.02 * pi_digit(7 * j + 3)) * (edge ? 1.0 : 0.6);
+                        double at = t + 0.4 * step * (pi_digit(13 * j + 5) - 4.5) / 9.0;
+                        Point p = add(add(s.a, u, at), n, off * s.girth);
+                        Point d{side * n.x + tilt * u.x, side * n.h + tilt * u.h};
+                        if (edge && pi_digit(3 * j + 1) >= 6.0) {
+                            spines.add(trunk, {add(p, u, -0.25), add(p, d, 2.6 * len), add(p, u, 0.25)});
+                        } else {
+                            spines.add(rgb, {add(p, u, -0.15), add(p, d, len), add(p, u, 0.15)});
+                        }
+                    }
+                }
+            }
+            for (TreeShape& s : spines.shapes) tree.shapes.push_back(std::move(s));
+        }
+
+        // Joshua tree spikes: a tuft at every branch tip, laid out like the
+        // deciduous tips: 9, 11, then 13 spikes, cycling, fanned from -80 to
+        // 80 degrees off the branch, each nudged a step by the digits of pi,
+        // with its own length, thickness, and a slight curve. Thin spikes
+        // turned toward the sun catch the light.
+        if (tree.desert == 2) {
+            Batch spikes;
+            static const int kCounts[3] = {9, 11, 13};
+            int j = 0;
+            for (size_t k = 0; k < tree.tips.size(); ++k) {
+                const Tree::Stem& b = tree.tips[k];
+                int count = kCounts[k % 3];
+                for (int m = 0; m < count; ++m, ++j) {
+                    int a = static_cast<int>(std::lround(-8.0 + 16.0 * m / (count - 1)));
+                    a += static_cast<int>(pi_digit(j)) % 3 - 1;
+                    a = std::min(8, std::max(-8, a));
+                    double c = kCos10[a < 0 ? -a : a], sn = a < 0 ? -kSin10[-a] : kSin10[a];
+                    Point d{b.dir.x * c - b.dir.h * sn, b.dir.x * sn + b.dir.h * c};
+                    Point side{-d.h, d.x};
+                    double len = (0.45 * b.length + 2.0 * b.girth) * (0.75 + 0.05 * pi_digit(7 * j + 2));
+                    double thick = pi_digit(11 * j + 4);
+                    double w = b.girth * (0.08 + 0.025 * thick);
+                    double bend = (pi_digit(13 * j + 6) - 4.5) / 4.5 * 0.12 * len;
+                    Point mid = add(add(b.b, d, 0.5 * len), side, bend);
+                    std::vector<Point> poly = {add(b.b, side, w), add(mid, side, 0.6 * w), add(add(b.b, d, len), side, 1.6 * bend),
+                                               add(mid, side, -0.6 * w), add(b.b, side, -w)};
+                    double dot = d.x * lx + d.h * lh, dd = d.x * d.x + d.h * d.h;
+                    bool bright = thick <= 3.0 && dot > 0.0 && dot * dot >= 0.5 * dd * ll;
+                    uint32_t leaf = tree.leaf_rgb[(k + static_cast<size_t>(m)) % 3];
+                    spikes.add(bright ? blend(leaf, 0xDCE6A0, 0.45) : leaf, std::move(poly));
+                }
+            }
+            for (TreeShape& s : spikes.shapes) tree.shapes.push_back(std::move(s));
+        }
     }
 }
 

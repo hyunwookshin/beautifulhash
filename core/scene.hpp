@@ -113,6 +113,17 @@ struct Tree {
     std::vector<std::vector<Point>> cover;   // ground cover at the base: grass, snow, or rocks
     std::vector<uint32_t> cover_rgb;
     bool cover_tinted = false;              // grass or snow: takes the front hill's darkest band color
+    // Desert plants, decorated once the sun is known (trees::finish): the
+    // cactus segments and the Joshua tree's trunk get a sunlit side, cacti
+    // their spines, and Joshua trees spike tufts at their branch tips.
+    struct Stem {
+        Point a, b, dir;
+        double length = 0.0, girth = 0.0;
+    };
+    std::vector<Stem> stems, tips;
+    int desert = 0;  // 1 cactus, 2 Joshua tree
+    bool waisted = false;  // limbs narrow toward their middles (Joshua tree)
+    uint32_t trunk_rgb = 0, leaf_rgb[3] = {0, 0, 0};
 };
 
 // One foreground plant (subspec/vegetation.md): a fallen leaf or petal (an eye

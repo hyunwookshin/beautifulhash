@@ -85,6 +85,11 @@ std::vector<Tree> generate(const Hash256& hash, const std::vector<Hill>& hills, 
 // band color (subspec/trees.md, Ground cover). Call after the bands exist.
 void tint_cover(std::vector<Tree>& trees, const Hill& front);
 
+// Decorates desert plants once the sun is known (subspec/trees.md, Desert
+// plants in the sun): a sunlit side on the Joshua tree's trunk and upright
+// cactus segments, cactus spines, and Joshua tree spike tufts.
+void finish(std::vector<Tree>& trees, const Sun& sun);
+
 // Two-hill scenes: a line of small fixed-shape trees along the back hill's
 // crest (subspec/trees.md, Crest trees). Alpine conifers and Temperate
 // deciduous trees only. No bits.

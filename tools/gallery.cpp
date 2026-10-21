@@ -109,6 +109,7 @@ int main(int argc, char** argv) {
                 canopy::cover_ridge(scene.ridges[0], scene.hills, scene.sun, configs[v].params.theme, configs[v].params.season);
                 canopy::facet_ridges(scene.ridges, scene.hills, scene.sun, configs[v].params.theme);
                 celestial::cast_shadows(scene.trees, scene.hills[0], scene.sun);
+                trees::finish(scene.trees, scene.sun);
                 trees::tint_cover(scene.trees, scene.hills[0]);
                 scene.vegetation = vegetation::generate(hashes[i], scene.trees, scene.hills, configs[v].params.theme, configs[v].params.season);
                 scene.fog = fog::generate(hashes[i], configs[v].params.theme, configs[v].params.season);
