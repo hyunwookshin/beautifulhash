@@ -993,7 +993,9 @@ void check_celestial(int samples) {
         Hash256 back = hash;
         if (found == 1) {
             cl::encode(v, back);
-            bh::global::encode({daylight}, back);
+            bh::global::Values g = bh::global::decode(back);
+            g.daylight = daylight;
+            bh::global::encode(g, back);
         }
         if (found != 1 || back.bytes != hash.bytes) {
             if (bad < 5) std::printf("    no unique decode (%d): %s\n", found, hash.to_hex().c_str());
@@ -1178,6 +1180,39 @@ void check_second_cloud(int samples) {
     check(auroras > 0, "no aurora in the samples");
 }
 
+// ---- 14. Global: theme and season --------------------------------------------
+
+void check_global(int samples) {
+    std::printf("== Global\n");
+    // The theme and season bits (2-5) pick the biome and season: for sample
+    // hashes, all 16 settings of them render 16 different scenes, and the
+    // fields round-trip.
+    std::mt19937_64 rng(31);
+    int bad = 0;
+    for (int i = 0; i < samples; ++i) {
+        Hash256 hash = random_hash(rng, 0);
+        std::set<std::string> renders;
+        for (uint32_t t = 0; t < 4; ++t) {
+            for (uint32_t s = 0; s < 4; ++s) {
+                Hash256 h = hash;
+                bh::global::Values g = bh::global::decode(h);
+                g.theme = t;
+                g.season = s;
+                bh::global::encode(g, h);
+                bh::global::Values back = bh::global::decode(h);
+                if (back.theme != t || back.season != s || back.daylight != g.daylight) ++bad;
+                renders.insert(render_svg(bh::generate_scene(h, 0), 1024, 768));
+            }
+        }
+        if (renders.size() != 16) {
+            std::printf("    %zu of 16 theme and season renders distinct: %s\n", renders.size(), hash.to_hex().c_str());
+            ++bad;
+        }
+    }
+    std::printf("  theme and season (%d hashes x 16): %d failures\n", samples, bad);
+    check(bad == 0, "theme or season bits do not show");
+}
+
 int main(int argc, char** argv) {
     // Default: a quick run (a tenth of the full sampling). `make verify-full`
     // passes 20000 for the full run before releases.
@@ -1211,6 +1246,7 @@ int main(int argc, char** argv) {
     check_sky(std::max(8, samples / 100));
     check_night();
     check_second_cloud(std::max(24, samples / 50));
+    check_global(std::max(3, samples / 400));
 
     std::printf(failures == 0 ? "\nALL CHECKS PASSED\n" : "\n%d CHECK(S) FAILED\n", failures);
     return failures == 0 ? 0 : 1;

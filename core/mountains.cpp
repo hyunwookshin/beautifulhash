@@ -322,6 +322,23 @@ const Config& default_config() {
     return c;
 }
 
+const Config& config_for(Theme theme, Season season) {
+    // One configuration per biome and season, built once.
+    static const std::vector<Config> configs = [] {
+        std::vector<Config> out;
+        for (Theme t : kThemes) {
+            for (Season s : kSeasons) {
+                Params p;
+                p.theme = t;
+                p.season = s;
+                out.push_back(make_config(p));
+            }
+        }
+        return out;
+    }();
+    return configs[static_cast<size_t>(theme) * 4 + static_cast<size_t>(season)];
+}
+
 int role(bool three_ridge, int index) {
     int last = three_ridge ? 2 : 1;
     if (index == 0) return 0;

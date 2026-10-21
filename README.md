@@ -2,7 +2,7 @@
 
 | ![A Temperate autumn BeautifulHash landscape: a small orange tree on a green hill and a tall one at the right edge, a russet wooded ridge, a gray-green mountain range, and two soft clouds in a pale sky](docs/scenery.svg) | ![An Alpine winter BeautifulHash landscape: a faceted snowy peak behind a dense conifer-covered ridge, two soft clouds in a pale sky, and conifers on a snowy hill](docs/alpine-winter.svg) |
 |---|---|
-| `aa6ed8c1b2283a48a64fca7f8be20b89e01fa378280f91c631ffe62c2f144534` | `aa6ed8c1b2283a48a64fca7f8be20b89e01fa378280f91c631ffe62c2f144534` |
+| `9e6ed8c1b2283a48a64fca7f8be20b89e01fa378280f91c631ffe62c2f144534` | `826ed8c1b2283a48a64fca7f8be20b89e01fa378280f91c631ffe62c2f144534` |
 
 The project is to turn any input (strings, numbers, pdfs) into a beautiful,
 distinctive, and repeatable landscape imagery in SVG format.
@@ -77,8 +77,8 @@ The number of available combinations and the uniqueness of the mapping are diffe
 
 ### Current Status
 
-The reference implementation in `core/` (C++17) draws seven of the eight
-namespaces and part of the eighth. Each is specified under `subspec/`:
+The reference implementation in `core/` (C++17) draws all eight namespaces, and
+reads every one of the 256 input bits. Each is specified under `subspec/`:
 
 | Namespace | Status |
 |---|---|
@@ -89,7 +89,7 @@ namespaces and part of the eighth. Each is specified under `subspec/`:
 | Vegetation | Implemented: seasonal ground cover on the front hill (fallen leaves and snow pocks at the trees; petals, grass, and desert rosettes in the open) |
 | Sky | Implemented: a sky tint and two clouds, each a curved shape in a hash-shaped trapezoid, crisp on its leading side and dissolving elsewhere, as clear as the fog allows; on some Tundra nights the second cloud becomes an aurora |
 | Celestial | Implemented: an implicit, never-drawn sun (or moon at night) that lights the front hill's bands, the ridge faces, and casts the trees' shadows |
-| Global | Partly implemented: a daylight field makes one scene in four a moonlit dusk (deep blue sky, cooler colors, sculpted moonlit ridges) and refines the sun's direction by day, and 10 bits shape the second cloud. Theme and season are still fixed per gallery configuration |
+| Global | Implemented: the biome and season, a daylight field that makes one scene in four a moonlit dusk (and refines the sun's direction by day), and 10 bits that shape the second cloud. The gallery overrides biome and season to show every combination on the same hashes |
 
 ### Building
 

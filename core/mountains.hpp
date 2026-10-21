@@ -111,6 +111,8 @@ struct Config {
 
 Config make_config(const Params& params);
 const Config& default_config();
+// The configuration for a biome and season (Global theme and season bits).
+const Config& config_for(Theme theme, Season season);
 
 // Depth role of ridge `index`: 0 front, 1 middle, 2 back.
 int role(bool three_ridge, int index);

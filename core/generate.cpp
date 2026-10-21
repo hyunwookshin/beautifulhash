@@ -8,6 +8,7 @@
 #include "canopy.hpp"
 #include "celestial.hpp"
 #include "fog.hpp"
+#include "global.hpp"
 #include "format.hpp"
 #include "palette.hpp"
 #include "sky.hpp"
@@ -128,7 +129,10 @@ Scene generate_scene(const Hash256& hash, int version) {
     }
     Scene scene;
     scene.version = version;
-    const mountains::Config& config = mountains::default_config();
+    // Global picks the biome and season (subspec/global.md); every namespace
+    // takes them as context.
+    global::Values g = global::decode(hash);
+    const mountains::Config& config = mountains::config_for(global::theme(g), global::season(g));
     scene.ridges = mountains::generate(config, hash);
     // Hills are generated after Mountains and before Trees and Vegetation,
     // which will plant on them using the advertised hill profiles.

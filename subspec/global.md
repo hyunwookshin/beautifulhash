@@ -22,13 +22,14 @@ Every other namespace builds on these choices, so Global is generated first.
 | Season | 4–5 | 4–5 | 2 | Winter, spring, summer, fall |
 | Second cloud | 6–15 | 6–15 | 10 | Top 3, width 3, center 3, lead 1 (subspec/sky.md, Second cloud) |
 
-Theme and season are each read directly as a 2-bit value, so all four biomes
-and all four seasons are equally likely. The season's effects cascade through
+Theme and season are each read directly as a 2-bit value, in the orders listed
+(theme 0 Alpine to 3 Desert; season 0 winter to 3 fall), so all four biomes and
+all four seasons are equally likely. The season's effects cascade through
 Mountains, Hills, Trees, and Vegetation (see SPECIFICATIONS.md, Seasons).
 
-The daylight field and the second cloud are implemented. Theme and season still
-come from the gallery configuration. With the second cloud, Global has no
-unassigned bits; composition has no bits of its own.
+Every field is implemented: the scene's biome and season come from these bits
+(the gallery overrides them, to show every combination on the same hashes).
+Global has no unassigned bits, and composition has no bits of its own.
 
 ### Daylight
 
@@ -133,5 +134,5 @@ colors distinct after the night shift at every depth it is drawn at, that the
 
 ### Status
 
-The daylight field is implemented. Theme and season widths are provisional; the
-value order within each field and the composition layout are not yet defined.
+Implemented. `make verify` checks that all 16 theme and season settings of a
+hash render different scenes and that the fields round-trip.
