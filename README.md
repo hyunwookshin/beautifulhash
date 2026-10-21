@@ -1,8 +1,8 @@
 ## BeautifulHash
 
-| ![A Temperate autumn BeautifulHash landscape: a small orange tree on a green hill and a tall one at the right edge, a russet wooded ridge, a gray-green mountain range, and a soft cloud in a pale sky](docs/scenery.svg) | ![An Alpine winter BeautifulHash landscape: layered blue ridges with a conifer tree line, a snowy back peak, and a small grove of conifers on a pale snowy hill](docs/alpine-winter.svg) |
+| ![A Temperate autumn BeautifulHash landscape: a small orange tree on a green hill and a tall one at the right edge, a russet wooded ridge, a gray-green mountain range, and two soft clouds in a pale sky](docs/scenery.svg) | ![An Alpine winter BeautifulHash landscape: a faceted snowy peak behind a dense conifer-covered ridge, two soft clouds in a pale sky, and conifers on a snowy hill](docs/alpine-winter.svg) |
 |---|---|
-| `aa6ed8c1b2283a48a64fca7f8be20b89e01fa378280f91c631ffe62c2f144534` | `ec6a17f8d540f175abe79b32907742efd2631a98d11df20ace953a4ff454379d` |
+| `aa6ed8c1b2283a48a64fca7f8be20b89e01fa378280f91c631ffe62c2f144534` | `aa6ed8c1b2283a48a64fca7f8be20b89e01fa378280f91c631ffe62c2f144534` |
 
 The project is to turn any input (strings, numbers, pdfs) into a beautiful,
 distinctive, and repeatable landscape imagery in SVG format.
@@ -87,9 +87,9 @@ namespaces and part of the eighth. Each is specified under `subspec/`:
 | Trees | Implemented, visual tuning in progress: 1 to 10 fractal trees per scene (conifers, deciduous trees with seasonal leaves, cacti, Joshua trees) |
 | Fog | Implemented: an 8-bit haze (density, tint, ground mist) in every depth gap |
 | Vegetation | Implemented: seasonal ground cover on the front hill (fallen leaves and snow pocks at the trees; petals, grass, and desert rosettes in the open) |
-| Sky | Implemented: a sky tint and one cloud, a curved shape in a hash-shaped trapezoid, crisp on its leading side and dissolving elsewhere, as clear as the fog allows |
+| Sky | Implemented: a sky tint and two clouds, each a curved shape in a hash-shaped trapezoid, crisp on its leading side and dissolving elsewhere, as clear as the fog allows; on some Tundra nights the second cloud becomes an aurora |
 | Celestial | Implemented: an implicit, never-drawn sun (or moon at night) that lights the front hill's bands, the ridge faces, and casts the trees' shadows |
-| Global | Partly implemented: a daylight field makes one scene in four a moonlit dusk (deep blue sky, cooler colors, sculpted moonlit ridges) and refines the sun's direction by day. Theme and season are still fixed per gallery configuration |
+| Global | Partly implemented: a daylight field makes one scene in four a moonlit dusk (deep blue sky, cooler colors, sculpted moonlit ridges) and refines the sun's direction by day, and 10 bits shape the second cloud. Theme and season are still fixed per gallery configuration |
 
 ### Building
 

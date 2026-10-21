@@ -115,6 +115,8 @@ int main(int argc, char** argv) {
                 scene.vegetation = vegetation::generate(hashes[i], scene.trees, scene.hills, configs[v].params.theme, configs[v].params.season);
                 scene.fog = fog::generate(hashes[i], configs[v].params.theme, configs[v].params.season);
                 scene.sky = sky::generate(hashes[i], scene.fog);
+                scene.cloud2 = sky::generate_second(hashes[i], scene.fog);
+                scene.aurora = sky::aurora(configs[v].params.theme, scene.sun, scene.cloud2);
                 if (scene.sun.night) night::apply(scene, configs[v].params.theme, configs[v].params.season);
                 std::string base = "v" + std::to_string(v) + "_h" + std::to_string(i) + ".svg";
                 write_file(dir + "/" + base, render_svg(scene, 1024, 768));

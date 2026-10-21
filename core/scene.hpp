@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <string>
 #include <vector>
 
 namespace bh {
@@ -158,6 +159,8 @@ struct Sky {
     double glow_r = 0.0;   // glow radius
     int lead = 0;          // crisp side: 0 left, 1 right
     int peak = 85;         // peak opacity, hundredths
+    std::string id = "cloud";  // SVG id prefix: "cloud", or "cloud2" for the second cloud
+    double blur = 0.012;       // blur deviation, as a fraction of the top width
 };
 
 // One haze layer, repeated in every depth gap (subspec/fog.md). Opacities are in
@@ -188,6 +191,8 @@ struct Scene {
     Fog fog;
     Sun sun;
     Sky sky;
+    Sky cloud2;           // the second cloud (subspec/sky.md, Second cloud)
+    bool aurora = false;  // the second cloud drawn as an aurora (Tundra nights)
 };
 
 }  // namespace bh

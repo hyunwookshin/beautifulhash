@@ -149,6 +149,8 @@ Scene generate_scene(const Hash256& hash, int version) {
     scene.fog = fog::generate(hash, config.params.theme, config.params.season);
     // The sky's cloud shows as clearly as the fog allows.
     scene.sky = sky::generate(hash, scene.fog);
+    scene.cloud2 = sky::generate_second(hash, scene.fog);
+    scene.aurora = sky::aurora(config.params.theme, scene.sun, scene.cloud2);
     // At night every color moves darker and bluer (subspec/global.md, Night).
     if (scene.sun.night) night::apply(scene, config.params.theme, config.params.season);
     return scene;
@@ -171,6 +173,8 @@ std::string render_svg(const Scene& scene, uint32_t width, uint32_t height) {
     // and the cloud's gradient.
     const std::vector<uint32_t>& sky = sky_colors(scene.sun.elevation, static_cast<int>(scene.sky.tint), scene.sun.night);
     out += "<defs>" + sky::gradient_svg(scene.sky, scene.sun) + sky::cloud_defs_svg(scene.sky, scene.sun, scale);
+    if (scene.aurora) out += sky::aurora_defs_svg(scene.cloud2, scale);
+    else out += sky::cloud_defs_svg(scene.cloud2, scene.sun, scale);
     int glow = scene.sun.night ? 30
                : scene.sun.elevation <= 6 ? static_cast<int>(std::lround(70.0 * (7 - scene.sun.elevation) / 7.0)) : 0;
     if (glow > 0) {
@@ -226,6 +230,9 @@ std::string render_svg(const Scene& scene, uint32_t width, uint32_t height) {
         out += " fill=\"url(#sun-glow)\"/>\n";
     }
     // The cloud, behind every ridge.
+    // The second cloud, behind the first, or on a Tundra night its aurora.
+    if (scene.aurora) out += sky::aurora_svg(scene.cloud2, scale) + "\n";
+    else if (!scene.cloud2.outline.empty()) out += sky::cloud_svg(scene.cloud2, scale) + "\n";
     if (!scene.sky.outline.empty()) out += sky::cloud_svg(scene.sky, scale) + "\n";
 
     // Back to front. Fog is a separate element between ridges, so it never
@@ -382,6 +389,8 @@ std::string render_svg(const Scene& scene, uint32_t width, uint32_t height) {
     // depth gap gets the same haze layer: between ridges, between the front
     // ridge and the hills, and between the back hill (with its trees) and the
     // front hill.
+    // The aurora's faint green cast on the ridges and their snow.
+    if (scene.aurora) out += sky::aurora_tint_svg(scene.cloud2, static_cast<int>(scene.ridges.size()), width, height);
     if (!scene.hills.empty()) append_fog(out, width, height);
     for (size_t n = scene.hills.size(); n-- > 0;) {
         const Hill& h = scene.hills[n];

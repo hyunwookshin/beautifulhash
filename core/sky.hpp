@@ -5,6 +5,7 @@
 
 #include "hash.hpp"
 #include "scene.hpp"
+#include "theme.hpp"
 
 // Sky namespace (subspec/sky.md): one cloud and the sky's tint.
 namespace bh::sky {
@@ -36,6 +37,30 @@ Sky generate(const Hash256& hash, const Fog& fog);
 
 // The sky tint: 256 light blues, the sky gradient's top color.
 uint32_t tint(uint32_t index);
+
+// The second cloud (subspec/sky.md, Second cloud): 10 bits in Global (bits
+// 6-15), its other fields derived from them and the first cloud's.
+inline constexpr int kSecondBits = 10;
+struct Second {
+    uint32_t top = 0, width = 0, center = 0, lead = 0;  // 3, 3, 3, 1 bits
+};
+Second decode_second(const Hash256& hash);
+void encode_second(const Second& w, Hash256& hash);
+uint32_t second_bits(const Second& w);
+Second with_second_bits(uint32_t bits);
+Sky build_second(const Second& w, const Values& first, const Fog& fog);
+Sky generate_second(const Hash256& hash, const Fog& fog);
+
+// Whether the second cloud becomes an aurora: Tundra, at night, with the cloud
+// wholly in the upper sky band (subspec/sky.md, Aurora).
+bool aurora(Theme theme, const Sun& sun, const Sky& second);
+// The aurora: its gradients and filters (in <defs>), and the curtain and
+// ribbon through the second cloud's five points, lowest to highest.
+std::string aurora_defs_svg(const Sky& second, double scale);
+std::string aurora_svg(const Sky& second, double scale);
+// The aurora's faint green cast on the ridges (and their snow), clipped to
+// the ridges' paths.
+std::string aurora_tint_svg(const Sky& second, int ridges, uint32_t width, uint32_t height);
 
 // SVG pieces shared by render_svg and verify, at the given scale.
 // The sky gradient element (in <defs>), warmed by a low sun.

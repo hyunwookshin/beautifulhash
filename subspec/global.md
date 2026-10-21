@@ -20,14 +20,15 @@ Every other namespace builds on these choices, so Global is generated first.
 | Daylight | 0–1 | 0–1 | 2 | Day, refining the sun's direction (0–2), or night (3) |
 | Theme | 2–3 | 2–3 | 2 | Alpine, Temperate, Tundra, Desert |
 | Season | 4–5 | 4–5 | 2 | Winter, spring, summer, fall |
-| Composition | 6–15 | 6–15 | 10 | Not yet defined |
+| Second cloud | 6–15 | 6–15 | 10 | Top 3, width 3, center 3, lead 1 (subspec/sky.md, Second cloud) |
 
 Theme and season are each read directly as a 2-bit value, so all four biomes
 and all four seasons are equally likely. The season's effects cascade through
 Mountains, Hills, Trees, and Vegetation (see SPECIFICATIONS.md, Seasons).
 
-Only the daylight field is implemented. Theme and season still come from the
-gallery configuration.
+The daylight field and the second cloud are implemented. Theme and season still
+come from the gallery configuration. With the second cloud, Global has no
+unassigned bits; composition has no bits of its own.
 
 ### Daylight
 

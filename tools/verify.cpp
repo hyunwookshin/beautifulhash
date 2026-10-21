@@ -1127,6 +1127,57 @@ void check_night() {
     check(bad == 0, "night colors collide");
 }
 
+// ---- 13. Second cloud and aurora ----------------------------------------------
+
+void check_second_cloud(int samples) {
+    namespace sk = bh::sky;
+    std::printf("== Second cloud\n");
+    // Round trip: the 10 second-cloud bits (Global 6-15), by trying all 1024 on
+    // the same first cloud and fog, against the rendered SVG: the cloud's
+    // outline and glows by day, or the aurora's ribbon on a Tundra night.
+    std::mt19937_64 rng(29);
+    int bad = 0, auroras = 0, clouds = 0;
+    for (int i = 0; i < samples; ++i) {
+        Hash256 hash = random_hash(rng, 0);
+        if (i % 2 == 1) hash.bytes[0] |= 0xC0;  // half the samples at night
+        Theme t = i % 4 < 2 ? Theme::kTundra : Theme::kAlpine;
+        Scene scene;
+        scene.fog = bh::fog::generate(hash, t, Season::kWinter);
+        scene.sun = bh::celestial::generate(hash);
+        scene.sky = sk::generate(hash, scene.fog);
+        scene.cloud2 = sk::generate_second(hash, scene.fog);
+        scene.aurora = sk::aurora(t, scene.sun, scene.cloud2);
+        if (scene.aurora) ++auroras;
+        else ++clouds;
+        check(!scene.aurora || (t == Theme::kTundra && scene.sun.night), "aurora outside a Tundra night");
+        std::string svg = render_svg(scene, 1024, 768);
+        sk::Values first = sk::decode(hash);
+        int found = 0;
+        sk::Second w;
+        for (uint32_t c = 0; c < (1u << sk::kSecondBits); ++c) {
+            Sky s = sk::build_second(sk::with_second_bits(c), first, scene.fog);
+            if (scene.aurora != sk::aurora(t, scene.sun, s)) continue;
+            bool match = scene.aurora ? svg.find(sk::aurora_svg(s, 0.5)) != std::string::npos &&
+                                            svg.find(sk::aurora_defs_svg(s, 0.5)) != std::string::npos
+                                      : svg.find(sk::cloud_svg(s, 0.5)) != std::string::npos &&
+                                            svg.find(sk::cloud_defs_svg(s, scene.sun, 0.5)) != std::string::npos;
+            if (match) {
+                ++found;
+                w = sk::with_second_bits(c);
+            }
+        }
+        Hash256 back = hash;
+        if (found == 1) sk::encode_second(w, back);
+        if (found != 1 || back.bytes != hash.bytes) {
+            if (bad < 5) std::printf("    no unique decode (%d): %s\n", found, hash.to_hex().c_str());
+            ++bad;
+        }
+    }
+    std::printf("  round trip (%d hashes, %d clouds, %d auroras): %d mismatches\n", samples, clouds, auroras, bad);
+    check(bad == 0, "second cloud round trip mismatch");
+    check(auroras > 0, "no aurora in the samples");
+}
+
 int main(int argc, char** argv) {
     // Default: a quick run (a tenth of the full sampling). `make verify-full`
     // passes 20000 for the full run before releases.
@@ -1159,6 +1210,7 @@ int main(int argc, char** argv) {
     check_celestial(std::max(16, samples / 50));
     check_sky(std::max(8, samples / 100));
     check_night();
+    check_second_cloud(std::max(24, samples / 50));
 
     std::printf(failures == 0 ? "\nALL CHECKS PASSED\n" : "\n%d CHECK(S) FAILED\n", failures);
     return failures == 0 ? 0 : 1;

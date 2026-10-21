@@ -6,9 +6,10 @@
 
 ### Overview
 
-The Sky namespace paints the backdrop: the sky's tint and one cloud. It is the
-farthest layer back. A low sun warms both, and the fog sets how clearly the
-cloud shows.
+The Sky namespace paints the backdrop: the sky's tint and one cloud. A second
+cloud, from Global's bits, joins it, and on some Tundra nights becomes an
+aurora. The sky is the farthest layer back. A low sun warms it and the clouds,
+and the fog sets how clearly the clouds show.
 
 ### Bit layout
 
@@ -117,6 +118,72 @@ A low sun then warms the gradient's hue (subspec/celestial.md, Sky warmth).
 At night the sky takes navy-to-dusk-blue colors instead, still one distinct
 gradient per tint, and the cloud is moonlit (subspec/global.md, Night).
 
+### Second cloud
+
+A second cloud takes the 10 bits left in Global (bits 6–15, subspec/global.md):
+
+| Field | Bits | Meaning |
+|---|---:|---|
+| top $a_2$ | 3 | Height of its top edge, on the same scale as the first cloud |
+| width $c_2$ | 3 | Width of its top edge |
+| center $d_2$ | 3 | Horizontal position |
+| lead $\ell_2$ | 1 | Leading side |
+
+It is built by the same algorithm as the first cloud (steps 1–6), with its own
+shape so the two never look copied:
+
+* **Proportions from its own bits.** Its height step is
+  $(b + c_2 + 1) \bmod 4$, its bottom width step $(e + 2 + d_2) \bmod 4$, and
+  its skew $(3 - f + a_2 \bmod 2) \bmod 4$, mixing the first cloud's $b, e, f$
+  with its own fields, so its skew mostly leans the other way.
+* **Its own billows.** Its points and refinement use the seed
+  $2^{40} + 2^{16} B_2 + B$, with $B_2$ its 10 bits as one number and $B$ the
+  first cloud's 16, outside the first cloud's seed range.
+* **Smaller when lower.** A cloud lower in the sky reads as farther away: with
+  both top heights measured above a horizon at $0.45 \cdot 1536$, the second
+  cloud's width and height shrink by the ratio of its height to the first
+  cloud's, when that is below 1. It is never enlarged.
+* **Apart from the first.** If its center is within a quarter of the canvas
+  width of the first cloud's and its top within a tenth of the canvas height,
+  it moves away by $(m + \tfrac12)$ center steps for the smallest $m$ that
+  clears a quarter of the width (the other way if that leaves 8–92% of the
+  width). Half steps fall between the regular positions, so a moved cloud
+  never lands on an unmoved one.
+* **A little crisper.** Its blur deviation is $0.008W$ rather than $0.012W$.
+
+It is drawn just behind the first cloud, with its own ids (`cloud2-0` to
+`cloud2-4`, `cloud2-shade`, `cloud2-soft`, `cloud2-clip`) and the same fog
+visibility and colors.
+
+### Aurora
+
+On a Tundra night (subspec/global.md, Night), a second cloud lying wholly in
+the upper sky, its bottom edge at least 73.5% of the way up the canvas,
+becomes an aurora instead. That is about a third of Tundra nights. Its bits are
+unchanged:
+
+* **Shape.** The cloud's five boundary points, sorted from lowest to highest,
+  are stretched upward about the lowest by a factor
+  $k = \max(1, \min(4, (0.82 \cdot 1536 - h_0) / (h_4 - h_0)))$, and joined by a
+  Catmull-Rom curve (cubic Béziers with control points a sixth of the way
+  along the neighbors' chords). The ribbon winds up the sky, changing
+  direction at each point. It is an exact function of the points, so the bits
+  still decode.
+* **Curtain.** Twenty-eight copies of the ribbon rise from it to the top of the
+  canvas in equal steps, blurred only lightly (deviation $0.0035W$), so the
+  color starts at the ribbon and stops there, with no glow below it. Their color
+  runs from green `#59F0A6` at the ribbon to pinkish purple `#B07CF2` at the
+  top, at opacity $0.40\,(1 - 0.9t)$ for the copy at fraction $t$ of the way
+  up.
+* **Ribbon.** The ribbon itself is only a faint line in the curtain's green,
+  `#59F0A6` at 22%, not a bright stroke, so the aurora never reads as neon.
+* **Green cast.** A radial green glow, `#6EF0B0` at 10% fading out, centered
+  under the aurora and clipped to the ridges' paths, tints the mountains and
+  their snow very slightly.
+
+The aurora replaces the second cloud in the drawing order; its ribbon is one
+`<path id="aurora-ribbon">` in `<defs>`, used by every copy.
+
 ### Rendering
 
 `<defs>` holds the sky gradient (`id="sky"`), the five glow gradients
@@ -131,6 +198,10 @@ the five glows as `<circle>`s and the shade as a `<rect>`, behind every ridge an
 `make verify` checks two things:
 
 * Every tint gives a distinct gradient under every sun step.
+* For random hashes, by day and by night, Tundra and Alpine, it finds the
+  second cloud's 10 bits by trying all 1,024 against the second cloud's outline
+  and glows, or the aurora's ribbon and curtain, and checks that an aurora
+  appears only on a Tundra night.
 * For random hashes, it finds the 16 cloud bits by trying all 65,536 against
   the cloud's outline, glows, and gradients, and the tint by trying all 256 against the
   sky gradient. The fog and sun come from their own namespaces. Exactly one
@@ -138,7 +209,9 @@ the five glows as `<circle>`s and the shade as a `<rect>`, behind every ridge an
 
 ### Dependencies
 
-* Consumes: the fog density from Fog, and the sun from Celestial (for warmth).
+* Consumes: the fog density from Fog, the sun from Celestial (for warmth), the
+  second cloud's bits and the daylight from Global, and the biome (for the
+  aurora).
 * Provides: the backdrop.
 
 ### Open decisions
