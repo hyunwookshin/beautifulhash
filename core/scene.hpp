@@ -43,9 +43,12 @@ struct Ridge {
     std::vector<std::vector<Point>> glints;
     std::vector<int> glint_side;
     double fade_top = 0.0, fade_bottom = 0.0;  // faces: full strength above fade_top, gone by fade_bottom
-    // Front ridge only, Alpine and Temperate: a canopy of small template trees
-    // (subspec/mountains.md, Front-ridge canopy), clipped to the ridge.
+    // Clipped to the ridge: the front ridge's canopy of small template trees
+    // in Alpine and Temperate (subspec/mountains.md, Front-ridge canopy), or
+    // rock facets (subspec/mountains.md, Ridge facets).
     std::vector<CanopyPath> canopy;
+    // Facets over the snow cap, in the snow's color, clipped to the cap.
+    std::vector<CanopyPath> snow_facets;
 };
 
 // A hill's defining points and shape, advertised as context to the namespaces

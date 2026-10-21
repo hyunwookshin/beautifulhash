@@ -649,20 +649,20 @@ that catch the light. All of it is lit by the implicit sun
 * **Source:** each ridge's final silhouette $P_0, \dots, P_{n-1}$, after any
   styling.
 
-**Sharp turns.** A vertex $b$ between $a$ and $c$ turns by more than 30° when
-$u = b - a$ and $v = c - b$ satisfy $u \cdot v < 0$, or
-$(u \cdot v)^2 < 0.75\,|u|^2 |v|^2$, with no square root.
+**Sharp turns.** A vertex $b$ between $a$ and $c$ turns by more than an angle
+$\alpha$ when $u = b - a$ and $v = c - b$ satisfy $u \cdot v < 0$, or
+$(u \cdot v)^2 < \cos^2\alpha\,|u|^2 |v|^2$, with no square root.
 
 * **Peak:** $b_h > a_h$, $b_h > c_h$ (a strict rise into a strict descent, so a
-  plateau never counts) and a sharp turn.
-* **Valley:** $b_h < a_h$, $b_h < c_h$ and a sharp turn.
-* **Width:** a peak counts only if its key valleys are at least 10% of the
-  canvas apart (204.8 logical units). Its key valley on each side is the lowest
+  plateau never counts) and a turn of more than 25° ($\cos^2 25° = 0.8213938$).
+  The rule began at 30° and 10% width, which left too many ridges plain; 15°
+  and 5% faced so many peaks that their faces collided. 25° and 1/12 sit a
+  third of the way from the first rule to the loosest.
+* **Valley:** $b_h < a_h$, $b_h < c_h$ and a turn of more than 30°
+  ($\cos^2 30° = 0.75$).
+* **Width:** a peak counts only if its key valleys are at least 1/12 of the
+  canvas apart (170.7 logical units). Its key valley on each side is the lowest
   point before the ridge climbs higher than the peak, or the canvas edge.
-* **Relaxed for Tundra and Desert:** their bare ridges otherwise look plain, so
-  a peak there needs only a turn of more than 15° (cos² 15° = 0.9330127 in
-  place of 0.75) and key valleys 5% of the canvas apart (102.4 units). Valleys
-  keep the 30° rule.
 * **Peak height** $H$: the peak's height minus the ridge's lowest point.
 
 **Incoming slope.** From each qualifying peak, a ray runs down into the face,
@@ -714,8 +714,17 @@ next one, so the stretches of neighboring peaks never overlap.
 
 * The **left half** runs from the peak along the silhouette to that left low
   point, down to a floor 10 units below the ridge's lowest point, then back up
-  the incoming slope.
+  the incoming slope. Toward a neighboring peak it reaches half the canvas
+  past the low point along the floor; at the canvas edge it drops straight
+  down.
 * The **right half** mirrors it.
+* **Creases:** where two peaks meet, a crease runs from their shared low point
+  down along the average of their two incoming slopes. Both halves of each
+  peak are clipped to their side of the creases at their stretch's ends
+  (Sutherland–Hodgman against one line). Where an incoming slope would reach
+  past a crease, the neighbor's face wins, so faces of neighboring peaks never
+  overlap into a checkered cross; they meet along the crease like two slopes
+  in a gully.
 
 The top edge of each half is the silhouette itself, so nothing shows above the
 ridge.
@@ -744,14 +753,17 @@ straight triangle.
 **Light.** With the sun's shadow direction $d_x$ and elevation step $e$:
 
 * **Shade:** the half turned away from the sun is overlaid with the ridge's
-  color darkened to 60%, at opacity $0.25 + 0.02\,(15 - e)$. That is 25% under
-  a high sun and 55% under the lowest. It is the right half when $d_x \ge 0$
+  color darkened to 45%, at opacity $0.32 + 0.03\,(15 - e)$. That is 32% under
+  a high sun and 77% under the lowest. It is the right half when $d_x \ge 0$
   (sun on the left), the left half otherwise. Over snow, an overlay at opacity
   $k$ is the snow color mixed a fraction $k$ toward the darkened ridge color,
   staying in the mountain's color family.
-* **Alpenglow:** at sunset ($e \le 2$, a sun at 26° or lower), the sunlit half
-  is overlaid with `#F6A98C`, an orange-pink, at opacity $0.35 + 0.1\,(2 - e)$.
-* **Fade:** both overlays use a vertical `userSpaceOnUse` gradient that holds
+* **Light:** in daylight ($e \ge 5$), the sunlit half is overlaid with
+  `#FFF6E6`, a warm white, at opacity $0.20 + 0.01\,e$.
+* **Alpenglow:** at sunset ($e \le 4$, a sun at 32° or lower), the sunlit half
+  is overlaid with `#F6A98C`, an orange-pink, at opacity $0.40 + 0.1\,(4 - e)$,
+  up to 80% for the lowest sun.
+* **Fade:** every overlay uses a vertical `userSpaceOnUse` gradient that holds
   full opacity down to the fade top and falls to 0 at the fade bottom.
   * The fade top is the snow's lowest point, or the ridge's highest point on a
     bare ridge.
@@ -763,7 +775,7 @@ straight triangle.
   snow cap, are pure white, or at sunset the snow moved 80% toward `#FFD9C2`.
 
 **Rendering.** After the ridge's snow path (if any), each overlay is a
-`<linearGradient id="shade-N">` or `id="glow-N"` followed by a
+`<linearGradient id="shade-N">`, `id="light-N"`, or `id="glow-N"` followed by a
 `<path class="ridge-face">` filled with it. Each such path has one closed
 subpath per half. Glints follow, clipped by a `<clipPath id="snow-clip-N">`
 holding a copy of the cap outline. The fog in front softens all of it like the
@@ -777,8 +789,7 @@ unaffected.
 * 58% of two-ridge caps also carry a glint; in three-ridge mode about 4% do,
   because the far ridge is mostly a single summit with few sharp valleys.
 * In the gallery, every Tundra and Desert scene and 10 of 12 Alpine scenes
-  show faces. With the relaxed rule, 98% of Tundra ridges have a qualifying
-  peak, about 3.3 per ridge (200 random hashes).
+  show faces.
 
 #### Front-ridge trees: Alpine and Temperate
 
@@ -939,32 +950,53 @@ rounded point, then relative steps between its rounded points, so the drawn
 points are exactly the rounded ones. The hill's grass blades are written the
 same way.
 
-#### Front-ridge facets: Tundra and Desert
+#### Ridge facets
 
-A bare front ridge is faceted like weathered rock: a fine triangulation over
-its face, each triangle a step lighter or darker by how it faces the sun. The
+Bare ridges are faceted like weathered rock: a fine triangulation over the
+face, each triangle a step lighter or darker by how it faces the sun. The
 facets sit on the ridge's fill, under the peaks' lit and shaded halves (Ridge
 faces), and their steps are small, so the halves still dominate and the facets
 only fill in between them. They show at a glance as texture; the individual
-shapes take a closer look. Only the front ridge gets them, and no bits are
-used.
+shapes take a closer look. No bits are used.
 
-**Points.** A grid of cells 32 units wide and 28 tall covers the canvas from
-one row below the lowest visible point (the hills' highest silhouette) to one
-row above the ridge's highest point. Each grid corner $(i, j)$ is moved by the
-digits $D$ of $\pi$ (the first 100, cycling), keyed by
-$k = 37i + 11j + \lfloor S(32i) \rfloor$, where $S$ is the ridge's silhouette:
+* **Which ridges:** every Tundra ridge, the front two Desert ridges, and the
+  Alpine back ridge (its front ridge is forested). Temperate ridges are
+  wooded and get none.
+* **What hides a ridge:** the hills' silhouettes and those of every nearer
+  ridge. Below their highest point, triangles are skipped.
+* **Snow:** on a ridge with a snow cap, each drawn triangle is drawn twice: in
+  the rock's color under the snow, and in the snow's color over it, clipped to
+  the cap, so the snow is faceted too. The fog in front softens far ridges'
+  facets like the rest of the ridge.
 
-* by $0.8 \cdot 32\,(D_k - 4.5)/9$ across and $0.8 \cdot 28\,(D_{k+3} - 4.5)/9$
-  up, under half a cell, so the points look scattered but never cross;
+**Points.** The grid follows the slope. With $T$ the ridge's highest point,
+$F$ the lowest height that nothing in front hides, and
+$R = \lceil (T - F)/28 \rceil$ rows, row $t \in [0, 1]$ (0 at the top, 1 at the
+base) runs at
+
+$$
+h(x, t) = (1 - t)\,(0.4\,T + 0.6\,S(x)) + t\,F
+$$
+
+where $S$ is the ridge's silhouette. Near the top, rows run 60% parallel to the
+silhouette; toward the base they flatten to level. So cells under a tall,
+steep peak are tall and tilted with its flanks, and cells near the base are
+wide and flat; even in a deep valley a row is at least $0.4 \cdot 28$ units
+tall. Columns are 32 units wide. Each grid corner $(i, j)$, for $j = -1$ to
+$R + 1$, is moved by the digits $D$ of $\pi$ (the first 100, cycling), keyed by
+$k = 37i + 11j + \lfloor S(32i) \rfloor$:
+
+* across by $0.8 \cdot 32\,(D_k - 4.5)/9$, and along the rows to
+  $t = (j + 0.8\,(D_{k+3} - 4.5)/9)/R$, under half a cell, so the points look
+  scattered but never cross;
 * to a depth out of the screen $z = 0.6\,(S(x) - h) + 14\,(D_{k+7} - 4.5)/9$:
   the face leans back from the silhouette and follows its rise and fall, so
   facets on a peak's flank tilt the way the flank does.
 
 **Triangles.** Each cell splits into two triangles along one diagonal, chosen
 by the parity of $D_{53i + 29j}$. A triangle is kept when at least one corner
-is on or below the silhouette and at least one is at or above the hills; the
-group is clipped to the ridge.
+is on or below the silhouette and at least one is at or above what hides the
+ridge; the group is clipped to the ridge.
 
 **Light.** The light comes from the sun's side and above,
 $L = (-d_x \ell,\; 1,\; 0)$, with the sun's shadow direction $d_x$ and shadow
@@ -983,13 +1015,15 @@ square root. By $s$:
 
 **Rendering.** Each drawn level is one `<path class="facet">`, one closed
 subpath per triangle, written like the canopy (tenths, relative steps), in the
-front ridge's clipped group. Leaving the middle tones undrawn also keeps
+ridge's clipped group, right after its path. The snow's facets follow the snow
+path, in a group clipped by a `<clipPath id="snow-facet-clip-N">` holding the
+cap outline. Leaving the middle tones undrawn also keeps
 neighboring facets from showing seams.
 
 #### Tundra and Desert
 
 No textures in the ridge paths: the palette, the lit and shaded ridge faces,
-and on the front ridge the facets above.
+and the facets above (every Tundra ridge, the front two Desert ridges).
 
 #### Seasons
 

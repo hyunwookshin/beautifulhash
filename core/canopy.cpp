@@ -213,21 +213,28 @@ void cover_ridge(Ridge& front, const std::vector<Hill>& hills, const Sun& sun, T
     out.flush(front.canopy);
 }
 
-void facet_ridge(Ridge& front, const std::vector<Hill>& hills, const Sun& sun, Theme theme) {
-    if (theme != Theme::kTundra && theme != Theme::kDesert) return;
+namespace {
+
+// Facets over one ridge, above what the silhouettes in `covers` (the hills and
+// nearer ridges) hide. On a snow cap they also go over the snow, in its color.
+void facet(Ridge& front, const std::vector<const std::vector<Point>*>& covers, const Sun& sun) {
     static const char kPi[] =
         "3141592653589793238462643383279502884197169399375105820974944592307816406286208998628034825342117067";
     auto digit = [](long k) { return static_cast<double>(kPi[((k % 100) + 100) % 100] - '0'); };
     auto ridge_at = [&](double x) { return mountains::height_at(front.points, clamp_x(x)); };
     auto hidden_below = [&](double x) {
         double c = 0.0;
-        for (const Hill& h : hills) c = std::max(c, mountains::height_at(h.points, clamp_x(x)));
+        for (const std::vector<Point>* s : covers) c = std::max(c, mountains::height_at(*s, clamp_x(x)));
         return c;
     };
 
     // A jittered grid: one point per cell, nudged by up to 0.4 cell by the
     // digits of pi keyed by the cell and the ridge's height above it, so the
     // points look scattered but every cell still splits into two triangles.
+    // The rows follow the slope: near the top they run 60% parallel to the
+    // silhouette, and they flatten to level at the base, so cells under a
+    // tall, steep peak are tall and tilted with its flanks, and cells near the
+    // base are wide and flat.
     // Each point also gets a depth z out of the screen: the face leans back
     // from the silhouette and follows its rise and fall, with a little jitter,
     // so facets on a peak's flank tilt the way that flank does.
@@ -238,15 +245,18 @@ void facet_ridge(Ridge& front, const std::vector<Hill>& hills, const Sun& sun, T
         floor_h = std::min(floor_h, hidden_below(4.0 * i));
     }
     int cols = static_cast<int>(kCanvasWidth / kW) + 2;
-    int j0 = static_cast<int>(std::floor(floor_h / kH)) - 1, j1 = static_cast<int>(std::ceil(top / kH)) + 1;
+    int rows = std::max(1, static_cast<int>(std::ceil((top - floor_h) / kH)));
+    int j0 = -1, j1 = rows + 1;
+    auto row_h = [&](double x, double t) { return (1.0 - t) * (0.4 * top + 0.6 * ridge_at(x)) + t * floor_h; };
     struct Vertex {
         double x, h, z;
     };
     auto vertex = [&](int i, int j) {
-        double x0 = i * kW, h0 = j * kH;
+        double x0 = i * kW;
         long k = static_cast<long>(i) * 37 + static_cast<long>(j) * 11 + static_cast<long>(std::floor(ridge_at(x0)));
         double x = x0 + 0.8 * kW * (digit(k) - 4.5) / 9.0;
-        double h = h0 + 0.8 * kH * (digit(k + 3) - 4.5) / 9.0;
+        double t = (j + 0.8 * (digit(k + 3) - 4.5) / 9.0) / rows;  // 0 at the top row, 1 at the base
+        double h = row_h(x, t);
         double z = kLean * (ridge_at(x) - h) + 0.5 * kH * (digit(k + 7) - 4.5) / 9.0;
         return Vertex{x, h, z};
     };
@@ -296,9 +306,36 @@ void facet_ridge(Ridge& front, const std::vector<Hill>& hills, const Sun& sun, T
     static const double kShade[4] = {0.09, 0.04, -0.04, -0.09};
     for (int lv = 0; lv < 4; ++lv) {
         if (level[lv].empty()) continue;
+        if (!front.snow.empty()) {
+            CanopyPath s{shade(front.snow_rgb, kShade[lv]), level[lv]};
+            s.facet = true;
+            front.snow_facets.push_back(std::move(s));
+        }
         CanopyPath p{shade(front.rgb, kShade[lv]), std::move(level[lv])};
         p.facet = true;
         front.canopy.push_back(std::move(p));
+    }
+}
+
+}  // namespace
+
+void facet_ridges(std::vector<Ridge>& ridges, const std::vector<Hill>& hills, const Sun& sun, Theme theme) {
+    // Tundra: every ridge. Desert: the front two. Alpine: the back ridge, whose
+    // rock and snow are bare (its front ridge is forested).
+    size_t first = 0, last = 0;
+    if (theme == Theme::kTundra) {
+        last = ridges.size();
+    } else if (theme == Theme::kDesert) {
+        last = std::min<size_t>(2, ridges.size());
+    } else if (theme == Theme::kAlpine && ridges.size() >= 2) {
+        first = ridges.size() - 1;
+        last = ridges.size();
+    }
+    std::vector<const std::vector<Point>*> covers;
+    for (const Hill& h : hills) covers.push_back(&h.points);
+    for (size_t k = 0; k < last; ++k) {
+        if (k >= first) facet(ridges[k], covers, sun);
+        covers.push_back(&ridges[k].points);
     }
 }
 

@@ -221,8 +221,7 @@ std::vector<std::vector<Point>> snow_caps(const std::vector<Point>& pts, const P
 // the left and right halves of each qualifying peak (closed down to floor_h)
 // and, with with_glints (snow caps), ridge.glints with the realistic
 // reflective triangles, each with its side of its peak (-1 left, +1 right).
-// With relaxed (Tundra and Desert), gentler and narrower peaks qualify too.
-void snow_faces(const std::vector<Point>& pts, double floor_h, Ridge& ridge, bool with_glints, bool relaxed);
+void snow_faces(const std::vector<Point>& pts, double floor_h, Ridge& ridge, bool with_glints);
 
 // Total subdivision depth of ridge `index` as serialized, including biome
 // styling levels.

@@ -536,7 +536,7 @@ std::vector<Ridge> generate(const Config& config, const Hash256& hash) {
                 for (const Point& q : poly) top = std::min(top, q.h);
             placed[i].fade_top = top;
             placed[i].fade_bottom = low;
-            snow_faces(pts, low - 10.0, placed[i], !placed[i].snow.empty(), p.theme != Theme::kAlpine);
+            snow_faces(pts, low - 10.0, placed[i], !placed[i].snow.empty());
         }
     }
     return placed;
@@ -894,9 +894,27 @@ std::vector<Point> bend(Point a, Point b, const std::vector<Point>& pts, size_t 
     }
     return out;
 }
+// The part of a polygon on the same side of the line through p along d as
+// `keep` (Sutherland-Hodgman against one line), so a face never spills past
+// the crease between its peak and the next.
+std::vector<Point> clip_side(const std::vector<Point>& poly, Point p, Point d, Point keep) {
+    auto side = [&](const Point& q) { return d.x * (q.h - p.h) - d.h * (q.x - p.x); };
+    double want = side(keep);
+    std::vector<Point> out;
+    for (size_t k = 0; k < poly.size(); ++k) {
+        const Point &a = poly[k], &b = poly[(k + 1) % poly.size()];
+        double sa = side(a) * want, sb = side(b) * want;
+        if (sa >= 0.0) out.push_back(a);
+        if ((sa >= 0.0) != (sb >= 0.0)) {
+            double t = sa / (sa - sb);
+            out.push_back({a.x + t * (b.x - a.x), a.h + t * (b.h - a.h)});
+        }
+    }
+    return out;
+}
 }  // namespace
 
-void snow_faces(const std::vector<Point>& pts, double floor_h, Ridge& ridge, bool with_glints, bool relaxed) {
+void snow_faces(const std::vector<Point>& pts, double floor_h, Ridge& ridge, bool with_glints) {
     const double kMod = 37.0;  // N: the height modulus that picks directions
     std::vector<std::vector<Point>>& faces = ridge.glints;
     std::vector<int>& sides = ridge.glint_side;
@@ -909,12 +927,10 @@ void snow_faces(const std::vector<Point>& pts, double floor_h, Ridge& ridge, boo
     double low = pts[0].h;
     for (const Point& q : pts) low = std::min(low, q.h);
 
-    // Peaks: a rise turning into a descent by more than 30 degrees, at least
-    // 10% of the canvas wide between its key valleys (the lowest points
-    // before the ridge climbs higher than the peak on either side). Relaxed
-    // (Tundra and Desert, whose bare ridges otherwise look plain): more than
-    // 15 degrees and 5% of the canvas.
-    const double kRelaxedCos2 = 0.9330127;  // cos^2(15 degrees)
+    // Peaks: a rise turning into a descent by more than 25 degrees, at least
+    // 1/12 of the canvas wide between its key valleys (the lowest points
+    // before the ridge climbs higher than the peak on either side).
+    const double kPeakCos2 = 0.8213938;  // cos^2(25 degrees)
     struct Peak {
         size_t i;
         Point in;  // incoming slope direction, down into the face
@@ -922,11 +938,11 @@ void snow_faces(const std::vector<Point>& pts, double floor_h, Ridge& ridge, boo
     std::vector<Peak> peaks;
     for (size_t i = 1; i + 1 < n; ++i) {
         const Point &a = pts[i - 1], &b = pts[i], &c = pts[i + 1];
-        if (!(b.h > a.h && b.h > c.h && sharp_turn(a, b, c, relaxed ? kRelaxedCos2 : 0.75))) continue;
+        if (!(b.h > a.h && b.h > c.h && sharp_turn(a, b, c, kPeakCos2))) continue;
         size_t l = i, r = i;
         for (size_t k = i; k-- > 0 && pts[k].h <= b.h;) if (pts[k].h < pts[l].h) l = k;
         for (size_t k = i + 1; k < n && pts[k].h <= b.h; ++k) if (pts[k].h < pts[r].h) r = k;
-        if (pts[r].x - pts[l].x < (relaxed ? 0.05 : 0.10) * kCanvasWidth) continue;
+        if (pts[r].x - pts[l].x < kCanvasWidth / 12.0) continue;
         // The incoming slope: between the rising slope (down-left from the
         // peak) and the descending one (down-right), at a fraction set by the
         // peak's height modulo N, padded to 10-90%.
@@ -1002,18 +1018,37 @@ void snow_faces(const std::vector<Point>& pts, double floor_h, Ridge& ridge, boo
         std::vector<Point> walk = bend(top, foot, pts, i, 1);
         std::vector<Point> left = {top};
         for (size_t q = i; q-- > l;) left.push_back(pts[q]);
-        left.push_back({pts[l].x, floor_h});
+        // Toward a neighboring peak the half reaches well past the low point;
+        // the crease below trims it. At the canvas edge it drops straight down.
+        left.push_back({k == 0 ? pts[l].x : pts[l].x - 0.5 * kCanvasWidth, floor_h});
         left.push_back(foot);
         for (size_t q = walk.size(); q-- > 0;) left.push_back(walk[q]);
         std::vector<Point> right = {top};
         for (const Point& q : walk) right.push_back(q);
         right.push_back(foot);
-        right.push_back({pts[r].x, floor_h});
+        right.push_back({k + 1 == peaks.size() ? pts[r].x : pts[r].x + 0.5 * kCanvasWidth, floor_h});
         for (size_t q = r + 1; q-- > i + 1;) right.push_back(pts[q]);
-        ridge.faces.push_back(left);
-        ridge.face_side.push_back(-1);
-        ridge.faces.push_back(right);
-        ridge.face_side.push_back(1);
+        // Both halves stay on their side of the creases at the stretch's ends:
+        // lines from each low point down along the average of the two
+        // neighboring peaks' incoming slopes, where their faces meet. Where an
+        // incoming slope would reach past a crease, the neighbor's face wins, so
+        // faces never cross into a checkered pattern.
+        for (int end = 0; end < 2; ++end) {
+            size_t nb = end == 0 ? k - 1 : k + 1;
+            if ((end == 0 && k == 0) || (end == 1 && k + 1 == peaks.size())) continue;
+            Point crease{0.5 * (d.x + peaks[nb].in.x), 0.5 * (d.h + peaks[nb].in.h)};
+            const Point& low = end == 0 ? pts[l] : pts[r];
+            left = clip_side(left, low, crease, top);
+            right = clip_side(right, low, crease, top);
+        }
+        if (left.size() >= 3) {
+            ridge.faces.push_back(left);
+            ridge.face_side.push_back(-1);
+        }
+        if (right.size() >= 3) {
+            ridge.faces.push_back(right);
+            ridge.face_side.push_back(1);
+        }
     }
 }
 

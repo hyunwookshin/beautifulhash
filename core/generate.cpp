@@ -139,7 +139,7 @@ Scene generate_scene(const Hash256& hash, int version) {
     hills::add_bands(scene.hills[0], scene.sun);
     canopy::cover_hill(scene.hills[0], scene.sun, config.params.theme, config.params.season);
     canopy::cover_ridge(scene.ridges[0], scene.hills, scene.sun, config.params.theme, config.params.season);
-    canopy::facet_ridge(scene.ridges[0], scene.hills, scene.sun, config.params.theme);
+    canopy::facet_ridges(scene.ridges, scene.hills, scene.sun, config.params.theme);
     celestial::cast_shadows(scene.trees, scene.hills[0], scene.sun);
     trees::tint_cover(scene.trees, scene.hills[0]);
     scene.vegetation = vegetation::generate(hash, scene.trees, scene.hills, config.params.theme, config.params.season);
@@ -287,6 +287,15 @@ std::string render_svg(const Scene& scene, uint32_t width, uint32_t height) {
             out += "<path class=\"snow\" fill=\"";
             append_hex(out, r.snow_rgb);
             out += "\" d=\"" + snow_d + "\"/>\n";
+            // Facets over the snow, clipped to the cap (subspec/mountains.md,
+            // Ridge facets).
+            if (!r.snow_facets.empty()) {
+                std::string id = "snow-facet-clip-" + std::to_string(n + 1);
+                out += "<clipPath id=\"" + id + "\"><path d=\"" + snow_d + "\"/></clipPath>\n";
+                out += "<g clip-path=\"url(#" + id + ")\">\n";
+                append_canopy(out, r.snow_facets, scale);
+                out += "</g>\n";
+            }
 
         }
 
@@ -295,13 +304,13 @@ std::string render_svg(const Scene& scene, uint32_t width, uint32_t height) {
         // darkened, at an opacity that grows as the sun drops. It holds full
         // strength down to the snow's lowest point (or from the top of a bare
         // ridge) and fades out by the ridge's lowest point, so the snow cap
-        // reads crisp and the rock below only hints at it. At sunset the
-        // sunlit halves glow orange-pink the same way. On snow, realistic
+        // reads crisp and the rock below only hints at it. The sunlit halves
+        // catch a warm white light, or at sunset glow orange-pink the same way. On snow, realistic
         // reflective triangles on the sunlit side catch the light as glints.
         if (!r.faces.empty()) {
             std::string num = std::to_string(n + 1);
             int shaded = scene.sun.dx >= 0.0 ? 1 : -1;  // sun on the left shades right halves
-            bool sunset = scene.sun.elevation <= 2;
+            bool sunset = scene.sun.elevation <= 4;  // a sun at 32 degrees or lower
             auto layer = [&](const std::vector<std::vector<Point>>& polys, const std::vector<int>& sides, int side,
                              const std::string& fill, const std::string& extra) {
                 std::string d;
@@ -331,11 +340,15 @@ std::string render_svg(const Scene& scene, uint32_t width, uint32_t height) {
                 }
                 out += "\"/></linearGradient>\n";
             };
-            fade("shade-" + num, mix(r.rgb, 0x000000, 0.4), 25 + 2 * (15 - scene.sun.elevation));
+            fade("shade-" + num, mix(r.rgb, 0x000000, 0.55), 32 + 3 * (15 - scene.sun.elevation));
             layer(r.faces, r.face_side, shaded, "url(#shade-" + num + ")", "");
             if (sunset) {
-                fade("glow-" + num, 0xF6A98C, 35 + 10 * (2 - scene.sun.elevation));
+                fade("glow-" + num, 0xF6A98C, 40 + 10 * (4 - scene.sun.elevation));
                 layer(r.faces, r.face_side, -shaded, "url(#glow-" + num + ")", "");
+            } else {
+                // Daylight: the sunlit halves catch a warm white light.
+                fade("light-" + num, 0xFFF6E6, 20 + scene.sun.elevation);
+                layer(r.faces, r.face_side, -shaded, "url(#light-" + num + ")", "");
             }
             if (!r.glints.empty() && !r.snow.empty()) {
                 std::string id = "snow-clip-" + num;

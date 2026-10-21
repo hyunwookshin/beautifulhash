@@ -16,10 +16,10 @@ namespace bh::canopy {
 // peaks. Other biomes get none.
 void cover_ridge(Ridge& front, const std::vector<Hill>& hills, const Sun& sun, Theme theme, Season season);
 
-// Tundra and Desert: faceted rock on the front ridge. A pi-jittered grid of
-// points from the silhouette down to the hills, split into triangles, each
-// lit by how its tilt faces the sun (subspec/mountains.md, Front-ridge facets).
-void facet_ridge(Ridge& front, const std::vector<Hill>& hills, const Sun& sun, Theme theme);
+// Faceted rock (subspec/mountains.md, Ridge facets): every Tundra ridge, the
+// front two in Desert, and the Alpine back ridge with its snow. A pi-jittered
+// grid of points split into triangles, each lit by how its tilt faces the sun.
+void facet_ridges(std::vector<Ridge>& ridges, const std::vector<Hill>& hills, const Sun& sun, Theme theme);
 
 // Covers the front hill with grass blades over its bands: in Alpine, Temperate,
 // and Tundra, and a winter sprinkle in every biome (Desert only then). Needs
