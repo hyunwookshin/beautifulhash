@@ -3,36 +3,31 @@
 // downloads all happen here.
 "use strict";
 
-const THEMES = ["Alpine", "Temperate", "Tundra", "Desert"];
-const SEASONS = ["winter", "spring", "summer", "fall"];
-
-// Example hashes, each the gallery scene it was reviewed as.
+// Example landscapes, each with a short title that hints at the scene without
+// naming how it was chosen. `input` is the text that hashes to it, if any.
 const EXAMPLES = [
-  "9e6ed8c1b2283a48a64fca7f8be20b89e01fa378280f91c631ffe62c2f144534",
-  "826ed8c1b2283a48a64fca7f8be20b89e01fa378280f91c631ffe62c2f144534",
-  "e1569e3dd4aa6b575aafa013a52adaadd069636e7e1222384de6fc172ecd5f73",
-  "fbf10bee497b39492662d30a88224bd29b9e4b39c0bb6b9de047adb80220066b",
-  "a65a38fb4042fcbcad48b6ecc6ad70987129d51315698477282cc24a93cd7f23",
-  "8b78c264dd573dde8985a34ac1e2d7c2f9e596589ab0a83f2310ea2a81cf3730",
-  "3508d1ea52591c3d70d419d13f9b2cf1bb665bcc83cc7fd93d1c3ab1b03f8b8f",
-  "eff10bee497b39492662d30a88224bd29b9e4b39c0bb6b9de047adb80220066b",
-  "dbf10bee497b39492662d30a88224bd29b9e4b39c0bb6b9de047adb80220066b",
-  "048ed6b3c5613162835de5f53371dbc0ac45debff4a7d7b11dd9f3165639c1ef",
-  "5075fb5ef6771b95233e332ffdfc2b947d9924416caf103c3480658403afde2e",
-  "7ea69fd20d9b89be8765f97abe52d06c97ed877690b47c2eb3c762deec3b9b6c",
+  { hash: "9e6ed8c1b2283a48a64fca7f8be20b89e01fa378280f91c631ffe62c2f144534", title: "Where the maples burn" },
+  { hash: "486ea46224d1bb4fb680f34f7c9ad96a8f24ec88be73ea8e5a6c65260e9cb8a7", input: "world", title: "Blush on the summit" },
+  { hash: "e1569e3dd4aa6b575aafa013a52adaadd069636e7e1222384de6fc172ecd5f73", title: "Green fire overhead" },
+  { hash: "fbf10bee497b39492662d30a88224bd29b9e4b39c0bb6b9de047adb80220066b", title: "Joshua trees keep watch" },
+  { hash: "a65a38fb4042fcbcad48b6ecc6ad70987129d51315698477282cc24a93cd7f23", title: "Rose light on stone" },
+  { hash: "8b78c264dd573dde8985a34ac1e2d7c2f9e596589ab0a83f2310ea2a81cf3730", title: "Snowcap above the pines" },
+  { hash: "3508d1ea52591c3d70d419d13f9b2cf1bb665bcc83cc7fd93d1c3ab1b03f8b8f", title: "Thorns against the sky" },
+  { hash: "1620f91609560ef7072fce277eef7962594fdf5e6f5d4e2b2fb94d1761456cac", input: "nauru", title: "One golden tree" },
+  { hash: "dbf10bee497b39492662d30a88224bd29b9e4b39c0bb6b9de047adb80220066b", title: "Leaves under moonlight" },
+  { hash: "048ed6b3c5613162835de5f53371dbc0ac45debff4a7d7b11dd9f3165639c1ef", title: "Lilac sky, quiet pines" },
+  { hash: "5075fb5ef6771b95233e332ffdfc2b947d9924416caf103c3480658403afde2e", title: "Bare branches, first snow" },
+  { hash: "7ea69fd20d9b89be8765f97abe52d06c97ed877690b47c2eb3c762deec3b9b6c", title: "A sandstone afternoon" },
 ];
 const RECOMMENDED = EXAMPLES.slice(0, 4);
 
 const $ = (id) => document.getElementById(id);
 const HEX = /^[0-9a-fA-F]{64}$/;
 
-// ---- decoding the Global bits (subspec/global.md): read MSB first ----------
-function describe(hex) {
-  const b = parseInt(hex.slice(0, 2), 16);
-  const night = (b >> 6) === 3;
-  const theme = THEMES[(b >> 4) & 3];
-  const season = SEASONS[(b >> 2) & 3];
-  return { theme, season, night, label: `${theme} ${season}${night ? " night" : ""}` };
+// A caption for any landscape: an example's title, else its input, else the hash.
+function caption(hex, input) {
+  const ex = EXAMPLES.find((e) => e.hash === hex);
+  return ex ? ex.title : input ? `“${input}”` : `${hex.slice(0, 12)}…`;
 }
 
 // ---- rendering ----------------------------------------------------------------
@@ -73,12 +68,14 @@ let favs = loadFavs();
 const isFav = (hex) => favs.some((f) => f.hash === hex);
 
 // ---- tiles --------------------------------------------------------------------
-function tile(hex, onClick) {
+function tile(hex, input, onClick) {
   const t = document.createElement("button");
   t.className = "tile";
   t.type = "button";
-  const d = describe(hex);
-  t.innerHTML = `<img class="thumb" alt="${d.label} landscape" loading="lazy"><span class="cap"><b>${d.label}</b><code>${hex.slice(0, 16)}…</code></span>`;
+  const cap = caption(hex, input);
+  t.innerHTML = `<img class="thumb" alt="" loading="lazy"><span class="cap"><b></b><code>${hex.slice(0, 16)}…</code></span>`;
+  t.querySelector("b").textContent = cap;
+  t.querySelector("img").alt = `Landscape: ${cap}`;
   t.addEventListener("click", onClick);
   return t;
 }
@@ -105,14 +102,12 @@ let current = null;  // { hash, input }
 async function show(hex, input) {
   hex = hex.toLowerCase();
   current = { hash: hex, input };
-  const d = describe(hex);
   $("result").hidden = false;
   $("result-loading").hidden = false;
   $("ref-input-row").hidden = !input;
   $("ref-input").textContent = input || "";
   $("ref-hash").textContent = hex;
-  $("ref-scene").textContent = d.label;
-  $("result-img").alt = `${d.label} landscape for hash ${hex}`;
+  $("result-img").alt = `Landscape for hash ${hex}`;
   $("status").textContent = "";
   updateStar();
   if ($("panel-create").hidden === false) {
@@ -160,7 +155,7 @@ async function downloadPng(hex) {
 // ---- favorites strip ----------------------------------------------------------
 function renderFavs() {
   const list = $("fav-list");
-  list.replaceChildren(...favs.map((f) => lazy(tile(f.hash, () => show(f.hash, f.input)), f.hash)));
+  list.replaceChildren(...favs.map((f) => lazy(tile(f.hash, f.input, () => show(f.hash, f.input)), f.hash)));
   $("favorites").hidden = favs.length === 0;
 }
 
@@ -168,11 +163,11 @@ function renderFavs() {
 let lbIndex = 0;
 async function openLightbox(i) {
   lbIndex = (i + EXAMPLES.length) % EXAMPLES.length;
-  const hex = EXAMPLES[lbIndex];
-  const d = describe(hex);
-  $("lb-title").textContent = d.label;
-  $("lb-hash").textContent = hex;
-  $("lb-img").alt = `${d.label} landscape`;
+  const ex = EXAMPLES[lbIndex];
+  const hex = ex.hash;
+  $("lb-title").textContent = ex.title;
+  $("lb-hash").textContent = ex.input ? `“${ex.input}” · ${hex}` : hex;
+  $("lb-img").alt = `Landscape: ${ex.title}`;
   $("lightbox").hidden = false;
   $("lb-close").focus();
   $("lb-img").src = await svgUrl(hex);
@@ -254,12 +249,15 @@ function selectTab(name) {
 
 // ---- wiring -------------------------------------------------------------------
 function init() {
-  for (const hex of RECOMMENDED) {
+  // An example opens with its input text when it has one, else its hash.
+  const openExample = (ex) => { $("query").value = ex.input || ex.hash; return show(ex.hash, ex.input || ""); };
+  for (const ex of RECOMMENDED) {
     const b = document.createElement("button");
     b.type = "button";
     b.className = "chip";
-    b.innerHTML = `<b>${describe(hex).label}</b><code>${hex.slice(0, 12)}…</code>`;
-    b.addEventListener("click", () => { $("query").value = hex; submit(hex); });
+    b.innerHTML = `<b></b><code>${ex.input ? `“${ex.input}”` : `${ex.hash.slice(0, 12)}…`}</code>`;
+    b.querySelector("b").textContent = ex.title;
+    b.addEventListener("click", () => openExample(ex));
     $("chips").appendChild(b);
   }
   $("search").addEventListener("submit", (e) => { e.preventDefault(); submit($("query").value); });
@@ -281,7 +279,7 @@ function init() {
     catch { $("status").textContent = link; }
   });
 
-  $("carousel").replaceChildren(...EXAMPLES.map((hex, i) => lazy(tile(hex, () => openLightbox(i)), hex)));
+  $("carousel").replaceChildren(...EXAMPLES.map((ex, i) => lazy(tile(ex.hash, ex.input, () => openLightbox(i)), ex.hash)));
   const step = () => $("carousel").clientWidth * 0.8;
   $("prev").addEventListener("click", () => $("carousel").scrollBy({ left: -step(), behavior: "smooth" }));
   $("next").addEventListener("click", () => $("carousel").scrollBy({ left: step(), behavior: "smooth" }));
@@ -291,10 +289,9 @@ function init() {
   $("lb-prev").addEventListener("click", () => openLightbox(lbIndex - 1));
   $("lb-next").addEventListener("click", () => openLightbox(lbIndex + 1));
   $("lb-open").addEventListener("click", () => {
-    const hex = EXAMPLES[lbIndex];
+    const ex = EXAMPLES[lbIndex];
     closeLightbox();
-    $("query").value = hex;
-    show(hex, "");
+    openExample(ex);
     $("result").scrollIntoView({ behavior: "smooth", block: "start" });
   });
   document.addEventListener("keydown", (e) => {
@@ -314,7 +311,7 @@ function init() {
   // A shared link opens its hash; otherwise the first example.
   const fromLink = location.hash.slice(1);
   if (HEX.test(fromLink)) { $("query").value = fromLink; show(fromLink, ""); }
-  else show(EXAMPLES[0], "").then(() => { if (fromLink === "bits") selectTab("bits"); });
+  else openExample(EXAMPLES[0]).then(() => { if (fromLink === "bits") selectTab("bits"); });
 }
 
 init();
