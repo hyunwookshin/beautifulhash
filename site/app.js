@@ -431,19 +431,6 @@ function init() {
     $("sg-status").textContent = "Your mail app should open with the suggestion ready to send.";
   });
 
-  // Analytics consent (Google consent mode): ask once, remember the answer.
-  const CONSENT_KEY = "beautifulhash.consent";
-  let consent = null;
-  try { consent = localStorage.getItem(CONSENT_KEY); } catch { /* storage unavailable */ }
-  if (!consent) $("consent").hidden = false;
-  const decide = (value) => {
-    try { localStorage.setItem(CONSENT_KEY, value); } catch { /* storage unavailable */ }
-    if (typeof gtag === "function") gtag("consent", "update", { analytics_storage: value });
-    $("consent").hidden = true;
-  };
-  $("consent-accept").addEventListener("click", () => decide("granted"));
-  $("consent-decline").addEventListener("click", () => decide("denied"));
-
   buildBitmap();
   renderFavs();
 
