@@ -110,7 +110,7 @@ function lazy(t, hex) {
 // ---- the current result -------------------------------------------------------
 let current = null;  // { hash, input }
 
-async function show(hex, input) {
+async function show(hex, input, source) {
   hex = hex.toLowerCase();
   current = { hash: hex, input };
   $("result").hidden = false;
@@ -134,6 +134,29 @@ async function show(hex, input) {
   $("result-img").src = url;
   $("glow").style.setProperty("--glow-img", `url("${url}")`);
   $("result-loading").hidden = true;
+  track(hex, input, source);
+}
+
+// Reports each landscape a visitor asks for to Google Analytics as
+// landscape_generated: how it was asked for and what kind of scene came out.
+// The typed words never leave the page; only their length is sent. The
+// default landscape shown on load is not reported.
+const THEME_NAMES = ["alpine", "temperate", "tundra", "desert"];
+const SEASON_NAMES = ["winter", "spring", "summer", "fall"];
+function track(hex, input, source) {
+  if (!source || typeof gtag !== "function") return;
+  const g = parseInt(hex.slice(0, 2), 16);
+  try {
+    gtag("event", "landscape_generated", {
+      source,
+      input_kind: input ? "words" : "hash",
+      input_length: input.length,
+      in_gallery: !!discoverer(hex),
+      theme: THEME_NAMES[(g >> 4) & 3],
+      season: SEASON_NAMES[(g >> 2) & 3],
+      daylight: (g >> 6) === 3 ? "night" : "day",
+    });
+  } catch { /* analytics blocked */ }
 }
 
 function updateStar() {
@@ -144,8 +167,9 @@ function updateStar() {
 
 async function submit(text) {
   text = text.trim() || $("query").placeholder;
-  if (HEX.test(text)) return show(text, "");
-  return show(await sha256(text), text);
+  const source = $("query").value.trim() ? "typed" : "suggestion";
+  if (HEX.test(text)) return show(text, "", source);
+  return show(await sha256(text), text, source);
 }
 
 // ---- downloads ----------------------------------------------------------------
@@ -172,7 +196,7 @@ async function downloadPng(hex) {
 // ---- favorites strip ----------------------------------------------------------
 function renderFavs() {
   const list = $("fav-list");
-  list.replaceChildren(...favs.map((f) => lazy(tile(f.hash, f.input, () => show(f.hash, f.input)), f.hash)));
+  list.replaceChildren(...favs.map((f) => lazy(tile(f.hash, f.input, () => show(f.hash, f.input, "favorite")), f.hash)));
   $("favorites").hidden = favs.length === 0;
 }
 
@@ -298,14 +322,14 @@ function selectTab(name) {
 // ---- wiring -------------------------------------------------------------------
 function init() {
   // An example opens with its input text when it has one, else its hash.
-  const openExample = (ex) => { $("query").value = ex.input || ex.hash; return show(ex.hash, ex.input || ""); };
+  const openExample = (ex, source) => { $("query").value = ex.input || ex.hash; return show(ex.hash, ex.input || "", source); };
   for (const ex of RECOMMENDED) {
     const b = document.createElement("button");
     b.type = "button";
     b.className = "chip";
     b.innerHTML = `<b></b><code>${ex.input ? `“${ex.input}”` : `${ex.hash.slice(0, 12)}…`}</code>`;
     b.querySelector("b").textContent = ex.title;
-    b.addEventListener("click", () => openExample(ex));
+    b.addEventListener("click", () => openExample(ex, "chip"));
     $("chips").appendChild(b);
   }
   // The empty search box suggests a few plain words; Generate draws the one shown.
@@ -350,7 +374,7 @@ function init() {
   $("lb-open").addEventListener("click", () => {
     const ex = EXAMPLES[lbIndex];
     closeLightbox();
-    openExample(ex);
+    openExample(ex, "gallery");
     $("result").scrollIntoView({ behavior: "smooth", block: "start" });
   });
   document.addEventListener("keydown", (e) => {
@@ -438,7 +462,7 @@ function init() {
 
   // A shared link opens its hash; otherwise "world", with the search box left empty.
   const fromLink = location.hash.slice(1);
-  if (HEX.test(fromLink)) { $("query").value = fromLink; show(fromLink, ""); }
+  if (HEX.test(fromLink)) { $("query").value = fromLink; show(fromLink, "", "link"); }
   else show(EXAMPLES[1].hash, EXAMPLES[1].input).then(() => { if (fromLink === "bits") selectTab("bits"); });
 }
 
