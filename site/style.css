@@ -305,3 +305,19 @@ td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; white-spa
 .dl-menu svg.facebook path { fill: #0866ff; }
 .dl-menu svg.x path { fill: currentColor; }
 .dl-sep { padding: 8px 10px 4px; border-top: 1px solid var(--line); margin-top: 4px; font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+
+/* banner crop: the whole landscape, a draggable band, the rest dimmed */
+.crop-panel { width: min(760px, 100%); max-height: 100%; overflow: auto; display: grid; gap: 14px; padding: 20px; background: var(--panel); border-radius: 14px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35); }
+.crop-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.crop-head h3 { font-size: 22px; }
+.crop-size { font-family: var(--mono); font-size: 13px; color: var(--muted); }
+.crop-stage { position: relative; overflow: hidden; border-radius: 10px; touch-action: none; cursor: ns-resize; user-select: none; background: var(--line); }
+.crop-stage img { display: block; width: 100%; aspect-ratio: 4 / 3; max-width: 100%; pointer-events: none; }
+.crop-band { position: absolute; left: 0; right: 0; border-top: 2px solid #fff; border-bottom: 2px solid #fff; box-shadow: 0 0 0 9999px rgba(8, 12, 16, 0.55); cursor: grab; }
+.crop-band:active { cursor: grabbing; }
+.crop-band:focus-visible { outline: 2px solid var(--accent); outline-offset: -4px; }
+.crop-band::before, .crop-band::after { content: ""; position: absolute; left: 50%; width: 36px; height: 4px; margin-left: -18px; border-radius: 2px; background: #fff; }
+.crop-band::before { top: -3px; }
+.crop-band::after { bottom: -3px; }
+.crop-hint { margin: 0; font-size: 13px; color: var(--muted); }
+.crop-actions { justify-content: flex-end; }

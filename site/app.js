@@ -180,15 +180,19 @@ function save(url, name) {
   a.remove();
 }
 
-// PNG sizes. Banners are full-width crops of the landscape, centered 62% of
-// the way down, which keeps the summits, the near ridge, and the trees.
+// PNG sizes. Banners are full-width bands of the landscape; the visitor picks
+// the band in the crop dialog, starting 62% of the way down, which keeps the
+// summits, the near ridge, and the trees.
 const SIZES = {
   png: { w: 2048, h: 1536, name: "" },
-  linkedin: { w: 1584, h: 396, name: "-linkedin" },
-  x: { w: 1500, h: 500, name: "-x" },
-  facebook: { w: 1640, h: 624, name: "-facebook" },
+  linkedin: { w: 1584, h: 396, name: "-linkedin", label: "LinkedIn banner" },
+  x: { w: 1500, h: 500, name: "-x", label: "X header" },
+  facebook: { w: 1640, h: 624, name: "-facebook", label: "Facebook cover" },
 };
-async function downloadPng(hex, size) {
+// The band's height as a fraction of the landscape's, and the allowed centers.
+const bandOf = (size) => (size.h / size.w) * (1024 / 768);
+const clampCenter = (c, size) => Math.min(1 - bandOf(size) / 2, Math.max(bandOf(size) / 2, c));
+async function downloadPng(hex, size, center = 0.62) {
   const img = new Image();
   img.src = await svgUrl(hex);
   await img.decode();
@@ -196,7 +200,7 @@ async function downloadPng(hex, size) {
   canvas.width = size.w;
   canvas.height = size.h;
   // Draw the whole SVG at the banner's width, so it rasterizes sharp, and shift it up.
-  const k = size.w / 1024, top = Math.min(0, Math.max(size.h - 768 * k, size.h / 2 - 0.62 * 768 * k));
+  const k = size.w / 1024, top = Math.min(0, Math.max(size.h - 768 * k, size.h / 2 - center * 768 * k));
   canvas.getContext("2d").drawImage(img, 0, top, 1024 * k, 768 * k);
   canvas.toBlob((blob) => save(URL.createObjectURL(blob), `beautifulhash-${hex.slice(0, 12)}${size.name}.png`), "image/png");
 }
@@ -304,8 +308,63 @@ function init() {
     if (!current) return;
     const kind = item.dataset.dl;
     if (kind === "svg") save(await svgUrl(current.hash), `beautifulhash-${current.hash.slice(0, 12)}.svg`);
-    else await downloadPng(current.hash, SIZES[kind]);
-    try { if (typeof gtag === "function") gtag("event", "landscape_downloaded", { format: kind }); } catch { /* analytics blocked */ }
+    else if (kind === "png") await downloadPng(current.hash, SIZES.png);
+    else return openCrop(kind);
+    tracked(kind);
+  });
+  const tracked = (kind) => { try { if (typeof gtag === "function") gtag("event", "landscape_downloaded", { format: kind }); } catch { /* analytics blocked */ } };
+
+  // Crop dialog: a band at the banner's proportions over the whole landscape.
+  let crop = null;  // { kind, size, center }
+  const placeBand = () => {
+    const band = bandOf(crop.size);
+    $("crop-band").style.top = `${(crop.center - band / 2) * 100}%`;
+    $("crop-band").style.height = `${band * 100}%`;
+    $("crop-band").setAttribute("aria-valuenow", String(Math.round(crop.center * 100)));
+  };
+  const openCrop = async (kind) => {
+    const size = SIZES[kind];
+    crop = { kind, size, center: clampCenter(0.62, size) };
+    $("crop-title").textContent = size.label;
+    $("crop-size").textContent = `${size.w} × ${size.h}`;
+    $("crop-img").src = await svgUrl(current.hash);
+    placeBand();
+    $("crop").hidden = false;
+    $("crop-band").focus();
+  };
+  const closeCrop = () => { $("crop").hidden = true; $("dl-btn").focus(); };
+  // Dragging moves the band by the pointer's travel; a press outside it centers it there.
+  let drag = null;
+  $("crop-stage").addEventListener("pointerdown", (e) => {
+    const rect = $("crop-stage").getBoundingClientRect(), y = (e.clientY - rect.top) / rect.height;
+    if (e.target !== $("crop-band")) { crop.center = clampCenter(y, crop.size); placeBand(); }
+    drag = { y, center: crop.center, h: rect.height };
+    $("crop-stage").setPointerCapture(e.pointerId);
+    e.preventDefault();
+  });
+  $("crop-stage").addEventListener("pointermove", (e) => {
+    if (!drag) return;
+    const rect = $("crop-stage").getBoundingClientRect();
+    crop.center = clampCenter(drag.center + (e.clientY - rect.top) / drag.h - drag.y, crop.size);
+    placeBand();
+  });
+  const endDrag = () => { drag = null; };
+  $("crop-stage").addEventListener("pointerup", endDrag);
+  $("crop-stage").addEventListener("pointercancel", endDrag);
+  $("crop-band").addEventListener("keydown", (e) => {
+    const step = { ArrowUp: -0.02, ArrowDown: 0.02, PageUp: -0.1, PageDown: 0.1 }[e.key];
+    if (step === undefined) return;
+    e.preventDefault();
+    crop.center = clampCenter(crop.center + step, crop.size);
+    placeBand();
+  });
+  $("crop").addEventListener("keydown", (e) => { if (e.key === "Escape") closeCrop(); });
+  $("crop").addEventListener("click", (e) => { if (e.target === $("crop")) closeCrop(); });
+  $("crop-cancel").addEventListener("click", closeCrop);
+  $("crop-save").addEventListener("click", async () => {
+    await downloadPng(current.hash, crop.size, crop.center);
+    tracked(crop.kind);
+    closeCrop();
   });
   $("copy-link").addEventListener("click", async () => {
     if (!current) return;

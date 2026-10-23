@@ -148,6 +148,24 @@
   </div>
 </div>
 
+<div id="crop" class="lightbox" hidden>
+  <div class="crop-panel" role="dialog" aria-modal="true" aria-labelledby="crop-title">
+    <div class="crop-head">
+      <h3 id="crop-title">Banner</h3>
+      <span id="crop-size" class="crop-size"></span>
+    </div>
+    <div id="crop-stage" class="crop-stage">
+      <img id="crop-img" alt="" draggable="false">
+      <div id="crop-band" class="crop-band" tabindex="0" role="slider" aria-label="Band position" aria-valuemin="0" aria-valuemax="100"></div>
+    </div>
+    <p class="crop-hint">Drag the band, or use the arrow keys, to choose the part of the landscape to keep.</p>
+    <div class="actions crop-actions">
+      <button type="button" id="crop-cancel" class="icon-btn">Cancel</button>
+      <button type="button" id="crop-save" class="primary">Download</button>
+    </div>
+  </div>
+</div>
+
 <div id="suggest" class="suggest" hidden role="dialog" aria-labelledby="sg-title">
   <form id="suggest-form" autocomplete="off">
     <h3 id="sg-title">Suggest for the gallery</h3>
