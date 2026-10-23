@@ -126,9 +126,7 @@ async function show(hex, input, source) {
   $("clear").hidden = !$("query").value;
   $("suggest-btn").hidden = !input || !!discoverer(hex);
   updateStar();
-  if ($("panel-create").hidden === false) {
-    try { history.replaceState(null, "", `#${hex}`); } catch { /* sandboxed */ }
-  }
+  try { history.replaceState(null, "", `#${hex}`); } catch { /* sandboxed */ }
   await idle();
   const url = await svgUrl(hex);
   $("result-img").src = url;
@@ -243,84 +241,11 @@ async function openLightbox(i) {
 }
 function closeLightbox() { $("lightbox").hidden = true; }
 
-// ---- bit map tab --------------------------------------------------------------
-const NS = [
-  { key: "global", name: "Global", from: 0, width: 6,
-    fields: [["daylight (day or night)", 2], ["biome", 2], ["season", 2]] },
-  { key: "global-extra", name: "Global (extra)", from: 6, width: 10,
-    fields: [["second cloud top", 3], ["second cloud width", 3], ["second cloud center", 3], ["second cloud lead", 1]],
-    note: "Global's spare bits: the second cloud, and easter eggs such as the aurora" },
-  { key: "sky", name: "Sky", from: 16, width: 24,
-    fields: [["cloud top", 3], ["cloud height", 2], ["cloud width", 3], ["cloud center", 3], ["bottom width", 2], ["skew", 2], ["leading side", 1], ["sky tint", 8]] },
-  { key: "celestial", name: "Celestial", from: 40, width: 8, fields: [["sun or moon azimuth", 4], ["elevation", 4]] },
-  { key: "mountains", name: "Mountains", from: 48, width: 88,
-    fields: [["ridge layout header", 1], ["ridge shapes, placement, colors", 87]], note: "two- or three-ridge layout; both read all 88" },
-  { key: "hills", name: "Hills", from: 136, width: 40, fields: [["one or two hills", 1], ["crest, edges, shape, color per hill", 39]] },
-  { key: "trees", name: "Trees", from: 176, width: 48,
-    fields: [["count code", 4], ["arrangement", 2], ["size", 2], ["leaf palette", 4], ["girth, height, forks per tree", 36]],
-    note: "count code is 3 or 4 bits and the leaf palette 4 or 0; the rest goes to the trees" },
-  { key: "vegetation", name: "Vegetation", from: 224, width: 24, fields: [["palette", 4], ["density", 2], ["spread", 2], ["seed", 16]] },
-  { key: "fog", name: "Fog", from: 248, width: 8, fields: [["density", 2], ["tint", 3], ["mist", 3]] },
-];
-
-function buildBitmap() {
-  const fieldAt = (ns, bit) => {
-    let at = ns.from;
-    for (const [label, w] of ns.fields) { if (bit < at + w) return label; at += w; }
-    return "";
-  };
-  const bits = $("bits");
-  bits.appendChild(document.createElement("div"));
-  for (let c = 0; c < 16; c++) {
-    const l = document.createElement("div");
-    l.className = "collabel";
-    l.textContent = "+" + c.toString(16).toUpperCase();
-    bits.appendChild(l);
-  }
-  for (let r = 0; r < 16; r++) {
-    const rl = document.createElement("div");
-    rl.className = "rowlabel";
-    rl.textContent = String(r * 16);
-    bits.appendChild(rl);
-    for (let c = 0; c < 16; c++) {
-      const bit = r * 16 + c;
-      const ns = NS.find((n) => bit >= n.from && bit < n.from + n.width);
-      const cell = document.createElement("div");
-      cell.className = "cell";
-      cell.tabIndex = 0;
-      cell.textContent = bit;
-      cell.style.background = `var(--ns-${ns.key})`;
-      const label = `bit ${bit} · ${ns.name} · ${fieldAt(ns, bit)}`;
-      cell.title = label;
-      cell.setAttribute("aria-label", label);
-      const showHint = () => { $("bit-hint").textContent = label; };
-      cell.addEventListener("mouseenter", showHint);
-      cell.addEventListener("focus", showHint);
-      bits.appendChild(cell);
-    }
-  }
-  for (const ns of NS) {
-    $("legend").insertAdjacentHTML("beforeend", `<span><i class="sw" style="background: var(--ns-${ns.key})"></i>${ns.name}</span>`);
-    const fields = ns.fields.map(([l, w]) => `${l} ${w}`).join(" · ") + (ns.note ? `<br>(${ns.note})` : "");
-    $("ledger").insertAdjacentHTML("beforeend", `<tr><td><span class="ns"><i class="sw" style="background: var(--ns-${ns.key})"></i>${ns.name}</span></td>
-      <td class="num">${ns.from}–${ns.from + ns.width - 1}</td><td class="num">${ns.width}</td><td class="fields">${fields}</td></tr>`);
-  }
-}
-
-// ---- tabs ---------------------------------------------------------------------
-function selectTab(name) {
-  for (const b of document.querySelectorAll(".tabs button")) b.setAttribute("aria-selected", b.dataset.tab === name ? "true" : "false");
-  $("panel-create").hidden = name !== "create";
-  $("panel-bits").hidden = name !== "bits";
-  // The bit map has its own link; the create tab keeps the current hash.
-  try {
-    if (name === "bits") history.replaceState(null, "", "#bits");
-    else if (current) history.replaceState(null, "", `#${current.hash}`);
-  } catch { /* sandboxed */ }
-}
-
 // ---- wiring -------------------------------------------------------------------
 function init() {
+  // The bit map was once a tab at #bits; it is its own page now.
+  if (location.hash === "#bits") { location.replace("bitmap"); return; }
+
   // An example opens with its input text when it has one, else its hash.
   const openExample = (ex, source) => { $("query").value = ex.input || ex.hash; return show(ex.hash, ex.input || "", source); };
   for (const ex of RECOMMENDED) {
@@ -384,39 +309,13 @@ function init() {
     if (e.key === "ArrowRight") openLightbox(lbIndex + 1);
   });
 
-  // Theme: system (the default), light, or dark, remembered per browser.
-  const THEME_KEY = "beautifulhash.theme";
-  const THEMES = ["system", "light", "dark"];
-  const ICONS = {
-    system: '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>',
-    light: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
-    dark: '<path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/>',
-  };
-  const applyTheme = (name) => {
-    if (name === "system") delete document.documentElement.dataset.theme;
-    else document.documentElement.dataset.theme = name;
-    $("theme").innerHTML = `<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">${ICONS[name]}</svg>`;
-    const label = `Theme: ${name}`;
-    $("theme").setAttribute("aria-label", label);
-    $("theme").title = label;
-  };
-  applyTheme(document.documentElement.dataset.theme || "system");
-  $("theme").addEventListener("click", () => {
-    const next = THEMES[(THEMES.indexOf(document.documentElement.dataset.theme || "system") + 1) % THEMES.length];
-    applyTheme(next);
-    try { next === "system" ? localStorage.removeItem(THEME_KEY) : localStorage.setItem(THEME_KEY, next); } catch { /* storage unavailable */ }
-  });
-
   // The clear button shows while the search box has text; it and the logo
   // both empty the box and put the cursor in it.
   const clearQuery = () => { $("query").value = ""; $("clear").hidden = true; $("query").focus({ preventScroll: true }); };
   $("query").addEventListener("input", () => { $("clear").hidden = !$("query").value; });
   $("clear").addEventListener("click", clearQuery);
 
-  for (const el of document.querySelectorAll("[data-tab]")) {
-    el.addEventListener("click", (e) => { e.preventDefault(); selectTab(el.dataset.tab); });
-  }
-  document.querySelector(".wordmark").addEventListener("click", clearQuery);
+  document.querySelector(".wordmark").addEventListener("click", (e) => { e.preventDefault(); clearQuery(); });
 
   // Suggesting a landscape for the gallery: words (never a raw hash) and the
   // name to credit. There is no server, so Send opens the visitor's mail app
@@ -455,7 +354,6 @@ function init() {
     $("sg-status").textContent = "Your mail app should open with the suggestion ready to send.";
   });
 
-  buildBitmap();
   renderFavs();
 
   $("query").focus({ preventScroll: true });
@@ -463,7 +361,7 @@ function init() {
   // A shared link opens its hash; otherwise "world", with the search box left empty.
   const fromLink = location.hash.slice(1);
   if (HEX.test(fromLink)) { $("query").value = fromLink; show(fromLink, "", "link"); }
-  else show(EXAMPLES[1].hash, EXAMPLES[1].input).then(() => { if (fromLink === "bits") selectTab("bits"); });
+  else show(EXAMPLES[1].hash, EXAMPLES[1].input);
 }
 
 init();

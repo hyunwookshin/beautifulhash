@@ -26,6 +26,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>BeautifulHash</title>
 <meta name="description" content="Turn any text, file, or SHA-256 hash into its own deterministic landscape.">
+<link rel="canonical" href="https://beautifulhash.com/">
+<meta property="og:title" content="BeautifulHash: turn any input into a mathematical landscape">
+<meta property="og:description" content="Type anything. Its SHA-256 hash becomes a deterministic landscape: mountains, trees, sky, and light, drawn by plain math.">
+<meta property="og:url" content="https://beautifulhash.com/">
+<meta property="og:type" content="website">
 <link rel="icon" href="favicon.ico" sizes="any">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -37,10 +42,11 @@
 <body>
 <div id="glow" class="glow" aria-hidden="true"></div>
 <header class="bar">
-  <a class="wordmark" href="#" data-tab="create">BeautifulHash</a>
-  <nav class="tabs" role="tablist" aria-label="Sections">
-    <button role="tab" id="tab-create" aria-selected="true" aria-controls="panel-create" data-tab="create">Create</button>
-    <button role="tab" id="tab-bits" aria-selected="false" aria-controls="panel-bits" data-tab="bits">Bit map</button>
+  <a class="wordmark" href="/">BeautifulHash</a>
+  <nav class="tabs" aria-label="Pages">
+    <a href="/" aria-current="page">Create</a>
+    <a href="/bitmap">Bit map</a>
+    <a href="/algorithm">Algorithm</a>
   </nav>
   <a class="site" href="https://hyunwookshin.com" target="_blank" rel="noopener">Hyunwook Shin</a>
   <a class="gh" href="https://github.com/hyunwookshin/beautifulhash" target="_blank" rel="noopener">
@@ -51,9 +57,9 @@
 </header>
 
 <main>
-  <section id="panel-create" role="tabpanel" aria-labelledby="tab-create">
+  <section id="panel-create">
     <div class="hero">
-      <h1>Every input has its own landscape.</h1>
+      <h1>Turn any input into a mathematical landscape.</h1>
       <p class="lede">Type anything or paste a SHA-256 hash. The same input always draws the same mountains, hills, trees, sky, and light: every one of its 256 bits shows up somewhere.</p>
       <form id="search" class="search" autocomplete="off">
         <label for="query" class="visually-hidden">Text or 64-character hash</label>
@@ -109,33 +115,6 @@
       <div id="carousel" class="carousel" tabindex="0" aria-label="Gallery landscapes"></div>
     </section>
   </section>
-
-  <section id="panel-bits" role="tabpanel" aria-labelledby="tab-bits" hidden>
-    <div class="bits-page">
-      <header class="bits-head">
-        <div class="eyebrow">SHA-256 · 256 bits · algorithm V0</div>
-        <h1>Where every hash bit goes</h1>
-        <p class="lede">Each square is one bit of the 32-byte input, colored by the namespace that reads it. Every bit is read: none is left unused.</p>
-      </header>
-      <div class="bit-stats">
-        <div class="stat"><b>256</b><span>bits read and drawn</span></div>
-        <div class="stat"><b>0</b><span>bits unused</span></div>
-        <div class="stat"><b>8</b><span>namespaces</span></div>
-      </div>
-      <div class="card">
-        <div class="grid-scroll"><div class="bits" id="bits"></div></div>
-        <div class="hint" id="bit-hint">Hover or focus a bit to see its namespace and field.</div>
-        <div class="legend" id="legend"></div>
-      </div>
-      <h2>Namespace ledger</h2>
-      <div class="table-scroll">
-        <table>
-          <thead><tr><th>Namespace</th><th>Bits</th><th>Width</th><th>Fields, in read order</th></tr></thead>
-          <tbody id="ledger"></tbody>
-        </table>
-      </div>
-    </div>
-  </section>
 </main>
 
 <div id="lightbox" class="lightbox" hidden>
@@ -178,6 +157,7 @@
   <span>Deterministic: the same hash draws the same SVG, byte for byte, here and in the native build.</span>
 </footer>
 
+<script src="common.js"></script>
 <script src="bh.js"></script>
 <script src="app.js"></script>
 </body>

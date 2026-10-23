@@ -61,8 +61,9 @@ code { font-family: var(--mono); font-size: 0.86em; word-break: break-all; }
 .bar { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 24px; padding: 14px max(20px, env(safe-area-inset-left)); padding-top: calc(14px + env(safe-area-inset-top)); background: color-mix(in srgb, var(--bg) 70%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
 .wordmark { font-family: var(--display); font-size: 22px; color: var(--ink); text-decoration: none; }
 .tabs { display: flex; gap: 4px; }
-.tabs button { background: none; border: 0; padding: 6px 12px; border-radius: 999px; color: var(--muted); font-weight: 500; }
-.tabs button[aria-selected="true"] { background: var(--panel); color: var(--ink); box-shadow: 0 0 0 1px var(--line); }
+.tabs a { padding: 6px 12px; border-radius: 999px; color: var(--muted); font-weight: 500; text-decoration: none; white-space: nowrap; }
+.tabs a:hover { color: var(--ink); }
+.tabs a[aria-current="page"] { background: var(--panel); color: var(--ink); box-shadow: 0 0 0 1px var(--line); }
 .site { margin-left: auto; color: var(--muted); text-decoration: none; font-weight: 500; }
 .site:hover { color: var(--ink); }
 .gh { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); text-decoration: none; font-weight: 500; }
@@ -196,3 +197,95 @@ td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; white-spa
 .theme-btn { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 999px; border: 1px solid var(--line); background: none; color: var(--muted); padding: 0; }
 .theme-btn:hover { color: var(--ink); border-color: var(--accent); }
 .theme-btn svg { fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+
+/* algorithm page: a quiet gallery. Each room hangs one framed line drawing
+   beside its placard; the foyer and the exit frame the walk. */
+:root { --wall: #f6f7f6; --frame: #1d242b; --mat: #fbfbfa; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --wall: #121a22; --frame: #3a4652; --mat: #0e141a; } }
+:root[data-theme="dark"] { --wall: #121a22; --frame: #3a4652; --mat: #0e141a; }
+.museum { display: grid; grid-template-columns: minmax(0, 1fr); gap: clamp(72px, 12vw, 140px); padding-block: 24px 40px; }
+.foyer { display: grid; justify-items: center; gap: 18px; max-width: 720px; margin-inline: auto; text-align: center; }
+.foyer h1 { font-size: clamp(36px, 6vw, 64px); line-height: 1.05; letter-spacing: -0.01em; }
+.foyer .lede { margin: 0; font-size: 18px; color: var(--muted); max-width: 62ch; }
+.foyer-note { margin: 0; font-size: 15px; color: var(--muted); max-width: 60ch; }
+.foyer-note a, .placard a { color: var(--accent); }
+.epigraph { font-size: 22px; margin: 10px 0; color: var(--ink); }
+.floorplan { display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); width: 100%; margin-top: 18px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.floorplan a { display: grid; gap: 2px; padding: 14px 4px; text-decoration: none; color: var(--muted); border-left: 1px solid var(--line); }
+.floorplan a:first-child { border-left: 0; }
+.floorplan a:hover { color: var(--ink); background: color-mix(in srgb, var(--panel) 60%, transparent); }
+.floorplan b { font-family: var(--display); font-weight: 400; font-size: 20px; color: var(--ink); }
+.floorplan span { font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+
+.room { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 20px 48px; align-items: start; scroll-margin-top: 90px; }
+.room-no { grid-column: 1 / -1; font-family: var(--mono); font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; gap: 14px; }
+.room-no::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+.room:nth-of-type(even) .exhibit { order: 2; }
+.exhibit { margin: 0; display: grid; gap: 14px; position: sticky; top: 96px; }
+.exhibit svg { background: var(--mat); border: 1px solid var(--line); outline: 6px solid var(--wall); box-shadow: 0 0 0 7px var(--frame), 0 22px 50px rgba(10, 16, 22, 0.18); padding: 18px; margin: 7px; width: calc(100% - 14px); }
+.exhibit figcaption { font-size: 13px; color: var(--muted); font-style: italic; padding-inline: 8px; max-width: 60ch; }
+.placard { background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 26px 26px 22px; display: grid; gap: 12px; box-shadow: 0 1px 0 var(--line); }
+.placard h2 { font-size: 30px; line-height: 1.1; }
+.placard .medium { margin: 0; font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.04em; color: var(--muted); }
+.placard > p { margin: 0; font-size: 15px; }
+.formulas { margin: 6px 0 0; display: grid; gap: 4px; border-top: 1px solid var(--line); padding-top: 10px; }
+.formulas dt { overflow-x: auto; padding: 8px 0 0; }
+.formulas dd { margin: 0 0 6px; font-size: 13px; color: var(--muted); }
+.museum math { font-family: "STIX Two Math", "Cambria Math", "Latin Modern Math", serif; font-size: 1.15em; }
+.placard .spec { font-family: var(--mono); font-size: 12px; justify-self: start; }
+.placard .spec::after { content: " ↗"; }
+.exit { display: grid; justify-items: center; gap: 12px; text-align: center; padding-top: 24px; border-top: 1px solid var(--line); }
+.exit p { margin: 0; color: var(--muted); }
+.exit-link { text-decoration: none; }
+
+/* the line drawings: ink strokes, dashed guides, one accent */
+.fig { display: block; height: auto; max-width: 100%; }
+.fig .ink { fill: none; stroke: var(--ink); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.fig .thin { stroke-width: 1; }
+.fig .guide { fill: none; stroke: var(--muted); stroke-width: 1; stroke-dasharray: 4 5; }
+.fig .contour { fill: none; stroke: var(--muted); stroke-width: 0.8; opacity: 0.75; }
+.fig .rule { stroke: var(--line); stroke-width: 1; }
+.fig .acc { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.fig .acc.thin { stroke-width: 1.1; }
+.fig .shadow { fill: none; stroke: var(--accent); stroke-width: 3.4; stroke-linecap: round; opacity: 0.85; }
+.fig .trunk { stroke-width: 2.4; }
+.fig .mesh { fill: none; stroke: var(--muted); stroke-width: 0.6; opacity: 0.55; }
+.fig .hatch { stroke: var(--ink); stroke-width: 0.9; }
+.fig .nostroke { stroke: none; }
+.fig .dot { fill: var(--ink); stroke: none; }
+.fig .dot.hollow { fill: var(--mat); stroke: var(--ink); stroke-width: 1.3; }
+.fig .dot.accent { fill: var(--accent); }
+.fig text { fill: var(--ink); font: italic 16px "STIX Two Text", Georgia, "Times New Roman", serif; }
+.fig text.acc-text { fill: var(--accent); }
+.fig text.note { font: 11px var(--mono); font-style: normal; fill: var(--muted); letter-spacing: 0.02em; }
+
+@media (max-width: 900px) {
+  .room { grid-template-columns: minmax(0, 1fr); }
+  .room:nth-of-type(even) .exhibit { order: 0; }
+  .exhibit { position: static; }
+  .floorplan { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .floorplan a:nth-child(3n + 1) { border-left: 0; }
+  .floorplan a:nth-child(n + 4) { border-top: 1px solid var(--line); }
+}
+.fig text tspan.sub { font-size: 0.72em; }
+.fig .mat-fill { stroke: none; }
+.fig .tuft { stroke: var(--ink); stroke-width: 0.8; stroke-linecap: round; opacity: 0.8; }
+.fig .mat-bg { fill: var(--mat); stroke: none; }
+.floorplan span { text-wrap: balance; }
+
+/* authorship: a byline with a footnote, and the collapsed note it opens */
+.byline { margin: 0; font-family: var(--display); font-size: 17px; }
+.byline a { color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--line); }
+.fn { font-family: var(--mono); font-size: 11px; margin-left: 2px; }
+.fn a { color: var(--accent); border: 0; text-decoration: none; }
+.citations { display: grid; gap: 10px; max-width: 760px; margin-inline: auto; width: 100%; }
+.citations details { border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); scroll-margin-top: 90px; }
+.citations summary { cursor: pointer; padding: 12px 0; font-size: 14px; color: var(--muted); }
+.citations summary:hover { color: var(--ink); }
+.cite-body { display: grid; gap: 12px; padding-bottom: 18px; font-size: 14px; }
+.cite-body p { margin: 0; }
+.cite-body a { color: var(--accent); }
+.cite-body blockquote { margin: 0; padding: 10px 14px; border-left: 2px solid var(--line); color: var(--muted); font-family: var(--mono); font-size: 12.5px; white-space: pre-wrap; }
+.formulas math { font-size: 1.05em; }
+.cite-body h3 { font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-top: 10px; }
+.cite-body blockquote cite { display: block; margin-top: 6px; font-style: normal; font-size: 11px; color: var(--muted); opacity: 0.8; }

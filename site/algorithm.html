@@ -1,0 +1,373 @@
+<!doctype html>
+<html lang="en">
+<head>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-1FQ62HMFZR"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  // Consent mode: no ads, so ad storage is always denied. Analytics storage is
+  // denied by default in the EU, UK, and Switzerland (Google gets cookieless
+  // pings there) and granted elsewhere.
+  gtag('consent', 'default', { ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied', analytics_storage: 'granted' });
+  gtag('consent', 'default', { analytics_storage: 'denied', region: ['AT', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 'DE', 'GR', 'HU', 'IS', 'IE', 'IT', 'LV', 'LI', 'LT', 'LU', 'MT', 'NL', 'NO', 'PL', 'PT', 'RO', 'SK', 'SI', 'ES', 'SE', 'GB', 'CH'] });
+  gtag('js', new Date());
+
+  gtag('config', 'G-1FQ62HMFZR');
+</script>
+<meta charset="utf-8">
+<script>
+  // The visitor's theme choice, applied before the page paints; none means the system's.
+  try {
+    var theme = localStorage.getItem("beautifulhash.theme");
+    if (theme === "light" || theme === "dark") document.documentElement.dataset.theme = theme;
+  } catch (e) {}
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>The algorithm · BeautifulHash</title>
+<meta name="description" content="The math behind BeautifulHash: midpoint displacement for ridges, split faces and triangulated facets, fractal trees and their placement, a sun and moon without trigonometry, shadows on curved ground, clouds, and color in OKLCH.">
+<link rel="canonical" href="https://beautifulhash.com/algorithm">
+<meta property="og:title" content="How a hash becomes a landscape · BeautifulHash">
+<meta property="og:description" content="The math behind BeautifulHash: midpoint displacement for ridges, split faces and triangulated facets, fractal trees and their placement, a sun and moon without trigonometry, shadows on curved ground, clouds, and color in OKLCH.">
+<meta property="og:url" content="https://beautifulhash.com/algorithm">
+<meta property="og:type" content="article">
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Figtree:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="bar">
+  <a class="wordmark" href="/">BeautifulHash</a>
+  <nav class="tabs" aria-label="Pages">
+    <a href="/">Create</a>
+    <a href="/bitmap">Bit map</a>
+    <a href="/algorithm" aria-current="page">Algorithm</a>
+  </nav>
+  <a class="site" href="https://hyunwookshin.com" target="_blank" rel="noopener">Hyunwook Shin</a>
+  <a class="gh" href="https://github.com/hyunwookshin/beautifulhash" target="_blank" rel="noopener">
+    <svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+    <span>GitHub</span>
+  </a>
+  <button type="button" id="theme" class="theme-btn" aria-label="Theme: system" title="Theme: system"></button>
+</header>
+
+<main>
+<article class="museum">
+  <header class="foyer">
+    <div class="eyebrow">Permanent collection · Nine works</div>
+    <h1>How a hash becomes a landscape</h1>
+    <p class="lede">Every landscape here is a function of 256 bits. Text goes in, SHA-256 turns it into a hash, and the hash is read, field by field, as the shape of a ridge, the fork of a branch, the angle of the sun. Nothing is random and nothing is trained: the same words always draw the same picture, byte for byte.</p>
+    <p class="byline">Algorithms by <a href="https://hyunwookshin.com" target="_blank" rel="noopener">Hyunwook Shin</a><sup class="fn"><a href="#cite-1" aria-label="Note 1: authorship and the design prompts">[1]</a></sup></p>
+    <math display="block" class="epigraph"><mtext>landscape</mtext><mo>=</mo><mi>render</mi><mo>(</mo><mi>SHA-256</mi><mo>(</mo><mtext>text</mtext><mo>)</mo><mo>)</mo></math>
+    <p class="foyer-note">The nine works below show the core of the method, one formula at a time. Each figure is drawn by this page, from the formulas on its placard, with fixed values in place of hash bits. The edge cases live in the <a href="https://github.com/hyunwookshin/beautifulhash/tree/main/subspec" target="_blank" rel="noopener">full specification</a>.</p>
+    <nav class="floorplan" aria-label="Rooms">
+      <a href="#ridge"><b>I</b><span>The ridge</span></a>
+      <a href="#split"><b>II</b><span>The split</span></a>
+      <a href="#facets"><b>III</b><span>The facets</span></a>
+      <a href="#tree"><b>IV</b><span>The tree</span></a>
+      <a href="#place"><b>V</b><span>The placement</span></a>
+      <a href="#sun"><b>VI</b><span>Sun and moon</span></a>
+      <a href="#shadow"><b>VII</b><span>The shadow</span></a>
+      <a href="#cloud"><b>VIII</b><span>The cloud</span></a>
+      <a href="#palette"><b>IX</b><span>The palette</span></a>
+    </nav>
+  </header>
+
+  <section class="room" id="ridge" aria-labelledby="ridge-h">
+    <div class="room-no">Room I</div>
+    <figure class="exhibit">
+      <svg id="fig-ridge" class="fig" viewBox="0 0 640 380" role="img" aria-label="A segment AB with its midpoint M pushed perpendicular to P, and one ridge after 1, 3 and 7 levels of the same rule"></svg>
+      <figcaption>One step of the rule, then the same rule repeated: a ridge after 1, 3 and 7 levels.</figcaption>
+    </figure>
+    <div class="placard">
+      <h2 id="ridge-h">The ridge</h2>
+      <p class="medium">Constrained midpoint displacement · Mountains, bits 48–135</p>
+      <p>A ridge starts as three points. Then every segment <i>AB</i> is split at its midpoint <i>M</i>, and the midpoint is pushed sideways, perpendicular to <i>AB</i>, by an amount the hash chooses. Each level halves the segments and adds finer detail: the coarse bits set the mountain, the fine bits its texture.</p>
+      <p>The push is bounded to a tenth of the segment, and narrowed on steep segments so the new point stays between its parents. The ridge can never fold back over itself. The bits are mapped into the allowed range rather than clamped after, so two hashes never collapse to one ridge.</p>
+      <dl class="formulas">
+        <dt><math display="block"><mi>P</mi><mo>(</mo><mi>t</mi><mo>)</mo><mo>=</mo><mi>M</mi><mo>+</mo><mi>r</mi><mspace width="0.15em"/><mi>t</mi><mspace width="0.15em"/><mo>(</mo><mo>−</mo><msub><mi>Δ</mi><mi>h</mi></msub><mo>,</mo><mspace width="0.2em"/><msub><mi>Δ</mi><mi>x</mi></msub><mo>)</mo></math></dt>
+        <dd>The push, perpendicular to <i>AB</i>. With <i>r</i> = 0.1, |<i>t</i>| ≤ 1 keeps <i>P</i> within 10% of the segment's length, with no square root.</dd>
+        <dt><math display="block"><msub><mi>t</mi><mi>max</mi></msub><mo>=</mo><mi>min</mi><mo>(</mo><mn>1</mn><mo>,</mo><mspace width="0.3em"/><mfrac><mrow><mi>γ</mi><mspace width="0.1em"/><msub><mi>Δ</mi><mi>x</mi></msub></mrow><mrow><mn>2</mn><mi>r</mi><mspace width="0.1em"/><mo>|</mo><msub><mi>Δ</mi><mi>h</mi></msub><mo>|</mo></mrow></mfrac><mo>)</mo></math></dt>
+        <dd>On steep segments the range narrows, so <i>P</i> stays strictly between <i>A</i> and <i>B</i> from left to right (<i>γ</i> = 0.5).</dd>
+        <dt><math display="block"><mi>t</mi><mo>=</mo><msub><mi>t</mi><mi>max</mi></msub><mrow><mo>(</mo><mfrac><mrow><mn>2</mn><mi>v</mi></mrow><mrow><msup><mn>2</mn><mi>b</mi></msup><mo>−</mo><mn>1</mn></mrow></mfrac><mo>−</mo><mn>1</mn><mo>)</mo></mrow></math></dt>
+        <dd>The <i>b</i> bits for this point, read as a number <i>v</i>, spread evenly across the allowed range.</dd>
+      </dl>
+      <a class="spec" href="https://github.com/hyunwookshin/beautifulhash/blob/main/subspec/mountains.md" target="_blank" rel="noopener">subspec/mountains.md</a>
+    </div>
+  </section>
+
+  <section class="room" id="split" aria-labelledby="split-h">
+    <div class="room-no">Room II</div>
+    <figure class="exhibit">
+      <svg id="fig-split" class="fig" viewBox="0 0 640 380" role="img" aria-label="A ridge with a sharp peak b; a line d runs down from the peak between its two slopes, splitting the ridge into a lit half and a shaded half"></svg>
+      <figcaption>A sharp peak, and the cut that runs down from it between its two slopes, like a tripod's third leg.</figcaption>
+    </figure>
+    <div class="placard">
+      <h2 id="split-h">The split</h2>
+      <p class="medium">The incoming slope · no bits; it follows the silhouette</p>
+      <p>A flat fill reads as a paper cutout. Real peaks have faces: the slope that catches the sun and the slope that turns away. So each sharp peak sends a line down into the mountain, toward the viewer, and that line splits the ridge into a lit half and a shaded half.</p>
+      <p>Only real peaks qualify: a rise into a fall that turns by more than 25°, tested without a square root. The cut always lies between the two slopes that meet at the peak; the peak's own height decides where.</p>
+      <dl class="formulas">
+        <dt><math display="block"><msup><mrow><mo>(</mo><mi>u</mi><mo>·</mo><mi>v</mi><mo>)</mo></mrow><mn>2</mn></msup><mo>&lt;</mo><msup><mi>cos</mi><mn>2</mn></msup><mi>α</mi><mspace width="0.2em"/><msup><mrow><mo>|</mo><mi>u</mi><mo>|</mo></mrow><mn>2</mn></msup><msup><mrow><mo>|</mo><mi>v</mi><mo>|</mo></mrow><mn>2</mn></msup></math></dt>
+        <dd>With <i>u</i> = <i>b</i> − <i>a</i> and <i>v</i> = <i>c</i> − <i>b</i>, the path turns at <i>b</i> by more than α (or <i>u</i> · <i>v</i> &lt; 0). For peaks, α = 25°.</dd>
+        <dt><math display="block"><mi>d</mi><mo>=</mo><msub><mover><mi>d</mi><mo>^</mo></mover><mi>L</mi></msub><mo>+</mo><mi>f</mi><mspace width="0.1em"/><mo>(</mo><msub><mover><mi>d</mi><mo>^</mo></mover><mi>R</mi></msub><mo>−</mo><msub><mover><mi>d</mi><mo>^</mo></mover><mi>L</mi></msub><mo>)</mo></math></dt>
+        <dd>The cut's direction: a blend of the two slopes, <i>a</i> − <i>b</i> and <i>c</i> − <i>b</i>, each scaled so its larger component is 1.</dd>
+        <dt><math display="block"><mi>f</mi><mo>=</mo><mn>0.1</mn><mo>+</mo><mn>0.8</mn><mspace width="0.1em"/><mfrac><mrow><msub><mi>b</mi><mi>h</mi></msub><mspace width="0.2em"/><mi>mod</mi><mspace width="0.2em"/><mn>37</mn></mrow><mn>37</mn></mfrac></math></dt>
+        <dd>Where between them, from the peak's height <i>b<sub>h</sub></i>: kept away from both slopes, so a face never collapses to a sliver.</dd>
+      </dl>
+      <a class="spec" href="https://github.com/hyunwookshin/beautifulhash/blob/main/subspec/mountains.md" target="_blank" rel="noopener">subspec/mountains.md</a>
+    </div>
+  </section>
+
+  <section class="room" id="facets" aria-labelledby="facets-h">
+    <div class="room-no">Room III</div>
+    <figure class="exhibit">
+      <svg id="fig-facets" class="fig" viewBox="0 0 640 380" role="img" aria-label="A mountain divided into a mesh of triangles, the ones facing away from the light hatched, the ones facing it outlined"></svg>
+      <figcaption>The rock as a coarse mesh of triangles, each judged by how squarely it faces the light <i>L</i>.</figcaption>
+    </figure>
+    <div class="placard">
+      <h2 id="facets-h">The facets</h2>
+      <p class="medium">Triangulating the rock · no bits; the digits of π</p>
+      <p>Bare rock is faceted. Columns run down from the silhouette, leaning with the nearest peak's cut, and rows follow the silhouette down to the base, so the mesh lines up with the faces of Room II. Each cell splits into two triangles.</p>
+      <p>The points are nudged a little and given depth by the digits of π, so the mesh is irregular yet the same every time. Then each triangle is lit: a step lighter if it faces the sun, a step darker if it turns away, and left alone in between.</p>
+      <dl class="formulas">
+        <dt><math display="block"><mi>w</mi><mo>(</mo><mi>x</mi><mo>)</mo><mo>=</mo><mfrac><mn>1</mn><mrow><mn>1</mn><mo>+</mo><msup><mrow><mo>(</mo><mfrac><mrow><mi>x</mi><mo>−</mo><msub><mi>p</mi><mi>x</mi></msub></mrow><mn>300</mn></mfrac><mo>)</mo></mrow><mn>2</mn></msup></mrow></mfrac></math></dt>
+        <dd>How strongly a peak at <i>p<sub>x</sub></i> steers the column at <i>x</i>; a straight-down pull of weight 0.3 is added to the sum.</dd>
+        <dt><math display="block"><mi>s</mi><mo>=</mo><mi>sign</mi><mo>(</mo><mi>n</mi><mo>·</mo><mi>L</mi><mo>)</mo><mspace width="0.15em"/><mfrac><msup><mrow><mo>(</mo><mi>n</mi><mo>·</mo><mi>L</mi><mo>)</mo></mrow><mn>2</mn></msup><mrow><msup><mrow><mo>|</mo><mi>n</mi><mo>|</mo></mrow><mn>2</mn></msup><mspace width="0.1em"/><msup><mrow><mo>|</mo><mi>L</mi><mo>|</mo></mrow><mn>2</mn></msup></mrow></mfrac></math></dt>
+        <dd>The signed squared cosine between a triangle's normal <i>n</i> and the light: Lambert's law, with no square root. Above 0.4 a facet lightens; below 0.05 it darkens.</dd>
+        <dt><math display="block"><mi>L</mi><mo>=</mo><mo>(</mo><mo>−</mo><msub><mi>d</mi><mi>x</mi></msub><mi>ℓ</mi><mo>,</mo><mspace width="0.2em"/><mn>1</mn><mo>,</mo><mspace width="0.2em"/><mn>0</mn><mo>)</mo></math></dt>
+        <dd>The light comes from the sun's side and from above, using the sun of Room VI.</dd>
+      </dl>
+      <a class="spec" href="https://github.com/hyunwookshin/beautifulhash/blob/main/subspec/mountains.md" target="_blank" rel="noopener">subspec/mountains.md</a>
+    </div>
+  </section>
+
+  <section class="room" id="tree" aria-labelledby="tree-h">
+    <div class="room-no">Room IV</div>
+    <figure class="exhibit">
+      <svg id="fig-tree" class="fig" viewBox="0 0 640 410" role="img" aria-label="A tree grown from one trunk by recursive forks, with the angles of its first fork marked"></svg>
+      <figcaption>One trunk, forked again and again. Every branch is a straight line; the crown is what the rule leaves behind.</figcaption>
+    </figure>
+    <div class="placard">
+      <h2 id="tree-h">The tree</h2>
+      <p class="medium">Recursive forks · Trees, bits 176–223</p>
+      <p>Every tree grows from a trunk by forks. A fork splits a branch into a large child, which carries on, and a small one, which turns away. The split ratio <i>r</i> sets their shares, and from it their angles and lengths: the more even the split, the wider the fork.</p>
+      <p>The first forks come from the hash. When its bits run out, the tree keeps growing by rule, stepping each new fork by the golden ratio so no two forks repeat in lockstep. The rotations themselves use a rational form of the angle, so no sine or cosine is ever computed.</p>
+      <dl class="formulas">
+        <dt><math display="block"><mo>(</mo><mi>c</mi><mo>,</mo><mspace width="0.2em"/><mi>s</mi><mo>)</mo><mo>=</mo><mrow><mo>(</mo><mfrac><mrow><mn>1</mn><mo>−</mo><msup><mi>t</mi><mn>2</mn></msup></mrow><mrow><mn>1</mn><mo>+</mo><msup><mi>t</mi><mn>2</mn></msup></mrow></mfrac><mo>,</mo><mspace width="0.3em"/><mfrac><mrow><mn>2</mn><mi>t</mi></mrow><mrow><mn>1</mn><mo>+</mo><msup><mi>t</mi><mn>2</mn></msup></mrow></mfrac><mo>)</mo></mrow></math></dt>
+        <dd>A rotation from <i>t</i>, the tangent of half the angle: exact, and with no trigonometry.</dd>
+        <dt><math display="block"><msub><mi>t</mi><mi>large</mi></msub><mo>=</mo><mi>tan</mi><mspace width="0.15em"/><mn>22.5°</mn><mo>·</mo><mn>2</mn><mo>(</mo><mn>1</mn><mo>−</mo><mi>r</mi><mo>)</mo></math></dt>
+        <dd>The large child tilts by about 90°(1 − <i>r</i>), the small one by about 90°·<i>r</i>, to opposite sides. At <i>r</i> = 0.5 both are 45°.</dd>
+        <dt><math display="block"><msub><mi>u</mi><mi>k</mi></msub><mo>=</mo><mo>{</mo><mi>u</mi><mo>+</mo><mn>0.618…</mn><mo>·</mo><mo>(</mo><mi>k</mi><mo>+</mo><mn>1</mn><mo>)</mo><mo>}</mo></math></dt>
+        <dd>Fork <i>k</i> past the hash's own reuses an earlier fork's value <i>u</i>, shifted by the golden ratio; {·} keeps the fractional part.</dd>
+      </dl>
+      <a class="spec" href="https://github.com/hyunwookshin/beautifulhash/blob/main/subspec/trees.md" target="_blank" rel="noopener">subspec/trees.md</a>
+    </div>
+  </section>
+
+  <section class="room" id="place" aria-labelledby="place-h">
+    <div class="room-no">Room V</div>
+    <figure class="exhibit">
+      <svg id="fig-place" class="fig" viewBox="0 0 640 380" role="img" aria-label="A hill with a grove of trees, a straggler and an isolated tree, and grass tufts filling the open ground between them, densest near the rim"></svg>
+      <figcaption>Six trees composed on one hill, and grass tufts drawn into the open ground between them: thin at each trunk, densest toward the rim.</figcaption>
+    </figure>
+    <div class="placard">
+      <h2 id="place-h">The placement</h2>
+      <p class="medium">Composition and scatter · Trees, bits 176–223; Vegetation, bits 224–247</p>
+      <p>Trees are not sprinkled at random. Their count and arrangement fix a composition, as a painter would: a leader at the center of a grove, members overlapping around it, one tree standing apart, and a straggler once the hill holds five or more. Open hillside is left on purpose.</p>
+      <p>Grass, petals, rosettes, or fallen leaves then fill the ground the trees leave. Each plant picks a gap between two trees, settles near its middle, and lands at a depth drawn so that more of them crowd the far rim, the way receding ground holds more in less space. Near ones grow larger, in the trees' perspective.</p>
+      <dl class="formulas">
+        <dt><math display="block"><mi>c</mi><mo>=</mo><mi>W</mi><mspace width="0.1em"/><mo>(</mo><mn>0.2</mn><mo>+</mo><mn>0.6</mn><mspace width="0.1em"/><mo>{</mo><mn>0.37</mn><mo>+</mo><mn>0.29</mn><mi>a</mi><mo>+</mo><mn>0.41</mn><mi>h</mi><mo>}</mo><mo>)</mo></math></dt>
+        <dd>The grove's center, from the arrangement bits <i>a</i> and the hill <i>h</i>. The isolated tree stands 0.38<i>W</i> away, on the side with more room.</dd>
+        <dt><math display="block"><mi>x</mi><mo>=</mo><msub><mi>e</mi><mi>g</mi></msub><mo>+</mo><mo>(</mo><msub><mi>e</mi><mrow><mi>g</mi><mo>+</mo><mn>1</mn></mrow></msub><mo>−</mo><msub><mi>e</mi><mi>g</mi></msub><mo>)</mo><mspace width="0.15em"/><mfrac><mrow><mn>1</mn><mo>+</mo><msub><mi>u</mi><mn>1</mn></msub><mo>−</mo><msub><mi>u</mi><mn>2</mn></msub></mrow><mn>2</mn></mfrac></math></dt>
+        <dd>Across a gap between trees: the difference of two uniform draws peaks in the middle and thins to nothing at each trunk.</dd>
+        <dt><math display="block"><mi>h</mi><mo>=</mo><mn>0.97</mn><mspace width="0.1em"/><mi>R</mi><mo>(</mo><mi>x</mi><mo>)</mo><mspace width="0.1em"/><mo>(</mo><mn>1</mn><mo>−</mo><msubsup><mi>u</mi><mn>3</mn><mn>4</mn></msubsup><mo>)</mo></math></dt>
+        <dd>Down the slope, from just below the rim <i>R</i> to the canvas bottom. The fourth power packs plants toward the rim and keeps the front open.</dd>
+      </dl>
+      <a class="spec" href="https://github.com/hyunwookshin/beautifulhash/blob/main/subspec/vegetation.md" target="_blank" rel="noopener">subspec/trees.md, subspec/vegetation.md</a>
+    </div>
+  </section>
+
+  <section class="room" id="sun" aria-labelledby="sun-h">
+    <div class="room-no">Room VI</div>
+    <figure class="exhibit">
+      <svg id="fig-sun" class="fig" viewBox="0 0 640 380" role="img" aria-label="Left: a line from (−1, 0) with slope q meets the unit circle at the shadow direction. Right: a stick on the ground, its shadow, and the sun's azimuth and elevation"></svg>
+      <figcaption>Left, the trick: a line of slope <i>q</i> meets the circle at an angle α. Right, what it is for: a light at azimuth 55° and elevation 38°, and the shadow it casts, by sun or by moon.</figcaption>
+    </figure>
+    <div class="placard">
+      <h2 id="sun-h">Sun and moon</h2>
+      <p class="medium">An angle without trigonometry · Celestial, bits 40–47; Global, bits 0–1</p>
+      <p>Neither is ever drawn. Eight bits place the light, four for its direction around the ground and four for its height, and the scene shows it only through what it lights: faces, warm skies, and long shadows falling toward the viewer. In one scene in four it is night, and the moon takes the sun's place on the same angles: the same shadows and faces, in moonlit colors. By day, the two daylight bits nudge the sun on by thirds of a step.</p>
+      <p>Its angles are turned into vectors without sine or cosine. A line through (−1, 0) with slope <i>q</i> meets the unit circle at exactly the point at angle α, so a table of <i>q</i> values, given to four decimals, yields shadow directions of exactly unit length. The same answer comes out on every machine.</p>
+      <dl class="formulas">
+        <dt><math display="block"><mi>α</mi><mo>=</mo><mn>15°</mn><mo>+</mo><mn>10°</mn><mspace width="0.1em"/><mi>a</mi><mo>+</mo><mfrac><mn>10°</mn><mn>3</mn></mfrac><mspace width="0.1em"/><mi>d</mi><mo>,</mo><mspace width="1em"/><mi>φ</mi><mo>=</mo><mn>20°</mn><mo>+</mo><mn>3°</mn><mspace width="0.1em"/><mi>e</mi></math></dt>
+        <dd>Azimuth from the left, turning behind the scene, and elevation above the ground. The daylight value <i>d</i> is 0 to 2 by day; at night (<i>d</i> = 3) the moon keeps the plain steps.</dd>
+        <dt><math display="block"><mo>(</mo><msub><mi>d</mi><mi>x</mi></msub><mo>,</mo><mspace width="0.2em"/><msub><mi>d</mi><mi>y</mi></msub><mo>)</mo><mo>=</mo><mrow><mo>(</mo><mfrac><mrow><mn>1</mn><mo>−</mo><msup><mi>q</mi><mn>2</mn></msup></mrow><mrow><mn>1</mn><mo>+</mo><msup><mi>q</mi><mn>2</mn></msup></mrow></mfrac><mo>,</mo><mspace width="0.3em"/><mfrac><mrow><mn>2</mn><mi>q</mi></mrow><mrow><mn>1</mn><mo>+</mo><msup><mi>q</mi><mn>2</mn></msup></mrow></mfrac><mo>)</mo></mrow><mo>,</mo><mspace width="0.6em"/><mi>q</mi><mo>=</mo><mi>tan</mi><mfrac><mi>α</mi><mn>2</mn></mfrac></math></dt>
+        <dd>The shadow's direction on the ground, away from the sun: the circle's rational parametrization.</dd>
+        <dt><math display="block"><mi>ℓ</mi><mo>=</mo><mi>cot</mi><mspace width="0.15em"/><mi>φ</mi></math></dt>
+        <dd>Shadow length per unit of height, also from a table: 2.75 for the lowest sun, 0.47 for the highest.</dd>
+      </dl>
+      <a class="spec" href="https://github.com/hyunwookshin/beautifulhash/blob/main/subspec/celestial.md" target="_blank" rel="noopener">subspec/celestial.md</a>
+    </div>
+  </section>
+
+  <section class="room" id="shadow" aria-labelledby="shadow-h">
+    <div class="room-no">Room VII</div>
+    <figure class="exhibit">
+      <svg id="fig-shadow" class="fig" viewBox="0 0 640 380" role="img" aria-label="A hill drawn as contour lines, with three trees whose shadows bend along the ground"></svg>
+      <figcaption>Ten depths of one hill, and three trees. Their shadows run parallel on the ground, yet bend differently on the canvas, as the slope flattens.</figcaption>
+    </figure>
+    <div class="placard">
+      <h2 id="shadow-h">The shadow</h2>
+      <p class="medium">Casting onto a curved hill · no bits of its own; it reads the sun</p>
+      <p>The front hill is a surface, not a flat backdrop. At depth <i>f</i> = 0 it follows the crest; toward the bottom of the canvas it flattens out. Each tree stands somewhere on it, and its trunk and branches are cast onto it, point by point, along the sun's direction.</p>
+      <p>Every tree shares one direction and one length per unit of height, so on the ground all shadows are parallel. On the canvas they are not: a tree near the rim casts a steep shadow down the slope, a tree near the bottom a flat, sideways one.</p>
+      <dl class="formulas">
+        <dt><math display="block"><mi>H</mi><mo>(</mo><mi>x</mi><mo>,</mo><mi>f</mi><mo>)</mo><mo>=</mo><mo>(</mo><mn>1</mn><mo>−</mo><mi>f</mi><mo>)</mo><mspace width="0.1em"/><mo>(</mo><mo>(</mo><mn>1</mn><mo>−</mo><mi>f</mi><mo>)</mo><mspace width="0.1em"/><mi>S</mi><mo>(</mo><mi>x</mi><mo>)</mo><mo>+</mo><mi>f</mi><mspace width="0.1em"/><msub><mi>S</mi><mi>min</mi></msub><mo>)</mo></math></dt>
+        <dd>The ground's height at depth <i>f</i>, from the silhouette <i>S</i>: it hugs the crest at the top and settles toward the bottom.</dd>
+        <dt><math display="block"><msup><mi>x</mi><mo>′</mo></msup><mo>=</mo><mi>x</mi><mo>+</mo><mi>z</mi><mi>ℓ</mi><msub><mi>d</mi><mi>x</mi></msub><mo>,</mo><mspace width="1em"/><msup><mi>f</mi><mo>′</mo></msup><mo>=</mo><msub><mi>f</mi><mi>b</mi></msub><mo>+</mo><mfrac><mrow><mi>z</mi><mi>ℓ</mi><msub><mi>d</mi><mi>y</mi></msub></mrow><mi>G</mi></mfrac></math></dt>
+        <dd>Where a point a height <i>z</i> above the tree's base lands. Its height on the canvas is <i>H</i>(<i>x</i>′, <i>f</i>′).</dd>
+        <dt><math display="block"><mi>H</mi><mo>(</mo><msub><mi>x</mi><mi>b</mi></msub><mo>,</mo><msub><mi>f</mi><mi>b</mi></msub><mo>)</mo><mo>=</mo><msub><mi>h</mi><mi>b</mi></msub></math></dt>
+        <dd>A tree's base depth, solved by bisection: 50 halvings of the interval [0, 1].</dd>
+      </dl>
+      <a class="spec" href="https://github.com/hyunwookshin/beautifulhash/blob/main/subspec/celestial.md#shadows" target="_blank" rel="noopener">subspec/celestial.md</a>
+    </div>
+  </section>
+
+  <section class="room" id="cloud" aria-labelledby="cloud-h">
+    <div class="room-no">Room VIII</div>
+    <figure class="exhibit">
+      <svg id="fig-cloud" class="fig" viewBox="0 0 640 320" role="img" aria-label="A trapezoid with five points on its edge, a narrow rhombus between two of them, and the cloud outline refined from them"></svg>
+      <figcaption>A trapezoid, five points, and the outline grown from them in three rounds. Blurred in the scene, it reads as a cloud.</figcaption>
+    </figure>
+    <div class="placard">
+      <h2 id="cloud-h">The cloud</h2>
+      <p class="medium">Five points, three refinements · Sky, bits 16–31</p>
+      <p>Sixteen bits set a trapezoid: where it sits, how wide and tall, how skewed. The top edge is always the longer, so clouds are flat-bottomed and wide. Five points are placed around its edge, one in each fifth of the way around.</p>
+      <p>Then the outline is refined three times. Between every pair of neighbors, four new points are dropped inside a narrow rhombus, so the edge gains billows at three scales without ever leaving the trapezoid. 5 points become 625, joined by smooth curves and softened by a blur.</p>
+      <dl class="formulas">
+        <dt><math display="block"><msub><mi>s</mi><mi>i</mi></msub><mo>=</mo><mfrac><mrow><mi>i</mi><mo>+</mo><mn>0.2</mn><mo>+</mo><mn>0.6</mn><mspace width="0.1em"/><msub><mi>u</mi><mi>i</mi></msub></mrow><mn>5</mn></mfrac><mspace width="0.2em"/><mi>P</mi></math></dt>
+        <dd>Point <i>i</i>'s distance around the perimeter <i>P</i>, starting from the top left; <i>u<sub>i</sub></i> is a fixed scramble of the bits.</dd>
+        <dt><math display="block"><mi>w</mi><mo>(</mo><mi>t</mi><mo>)</mo><mo>=</mo><mn>0.15</mn><mspace width="0.1em"/><mo>(</mo><mn>1</mn><mo>−</mo><mo>|</mo><mn>2</mn><mi>t</mi><mo>−</mo><mn>1</mn><mo>|</mo><mo>)</mo><mspace width="0.1em"/><mo>(</mo><mn>2</mn><msup><mi>u</mi><mo>′</mo></msup><mo>−</mo><mn>1</mn><mo>)</mo></math></dt>
+        <dd>How far a new point, a fraction <i>t</i> of the way from <i>A</i> to <i>B</i>, moves sideways: at most 15% of |<i>AB</i>| in the middle, nothing at the ends. That is the rhombus.</dd>
+        <dt><math display="block"><mi>g</mi><mo>(</mo><mi>x</mi><mo>)</mo><mo>∝</mo><msup><mi>e</mi><mrow><mo>−</mo><msup><mi>x</mi><mn>2</mn></msup><mo>/</mo><mn>2</mn><msup><mi>σ</mi><mn>2</mn></msup></mrow></msup><mo>,</mo><mspace width="0.6em"/><mi>σ</mi><mo>=</mo><mn>0.012</mn><mspace width="0.1em"/><mi>W</mi></math></dt>
+        <dd>A Gaussian blur, scaled to the cloud's width <i>W</i>, melts the edge into the sky.</dd>
+      </dl>
+      <a class="spec" href="https://github.com/hyunwookshin/beautifulhash/blob/main/subspec/sky.md" target="_blank" rel="noopener">subspec/sky.md</a>
+    </div>
+  </section>
+
+  <section class="room" id="palette" aria-labelledby="palette-h">
+    <div class="room-no">Room IX</div>
+    <figure class="exhibit">
+      <svg id="fig-palette" class="fig" viewBox="0 0 640 380" role="img" aria-label="Left: a hue circle with the ridge hue ranges of the four biomes. Right: a lightness scale with three non-overlapping bands for the far, middle and front ridges"></svg>
+      <figcaption>Left, where each biome's mountains sit on the hue circle. Right, the lightness bands that keep near ridges darker than far ones, drawn as an engraver would: denser lines, darker shade.</figcaption>
+    </figure>
+    <div class="placard">
+      <h2 id="palette-h">The palette</h2>
+      <p class="medium">Color in a perceptual space · Mountains, Sky, Hills, Trees, Vegetation, Fog</p>
+      <p>Colors are chosen in OKLCH, a color space built so that equal steps look like equal steps: lightness <i>L</i>, chroma <i>C</i>, hue <i>h</i>. Each biome owns a family of hues: slate blues for Alpine, teal fading to blue for Temperate, lavender for Tundra, ochre and sand for Desert. A ridge's bits pick one shade within it.</p>
+      <p>Depth is kept by lightness alone. Each ridge has its own band, darkest in front and palest at the back, and the bands never overlap, so whatever the bits choose, the nearer mountain is darker, as haze makes it in the real world. And every one of the 256 shades must still be a distinct color once rounded to <code>#RRGGBB</code>, which the build checks.</p>
+      <dl class="formulas">
+        <dt><math display="block"><mi>L</mi><mo>=</mo><msub><mi>L</mi><mn>0</mn></msub><mo>+</mo><mo>(</mo><msub><mi>L</mi><mn>1</mn></msub><mo>−</mo><msub><mi>L</mi><mn>0</mn></msub><mo>)</mo><mspace width="0.15em"/><mfrac><mi>i</mi><mn>7</mn></mfrac><mo>,</mo><mspace width="0.6em"/><mi>i</mi><mo>∈</mo><mo>{</mo><mn>0</mn><mo>,</mo><mo>…</mo><mo>,</mo><mn>7</mn><mo>}</mo></math></dt>
+        <dd>One of 8 even steps within the ridge's lightness band; hue takes 8 steps and chroma 4, for 8 × 8 × 4 = 256 shades.</dd>
+        <dt><math display="block"><msub><mi>L</mi><mi>front</mi></msub><mo>&lt;</mo><msub><mi>L</mi><mi>middle</mi></msub><mo>&lt;</mo><msub><mi>L</mi><mi>far</mi></msub></math></dt>
+        <dd>Disjoint bands, [0.30, 0.48], [0.51, 0.65] and [0.68, 0.77]: depth order survives every choice of bits.</dd>
+        <dt><math display="block"><mtable><mtr><mtd><mi>L</mi><mo>=</mo><mn>0.70</mn><mo>+</mo><mn>0.035</mn><mi>l</mi><mo>,</mo><mspace width="0.8em"/><mi>C</mi><mo>=</mo><mn>0.03</mn><mo>+</mo><mn>0.007</mn><mi>c</mi><mo>,</mo></mtd></mtr><mtr><mtd><mi>h</mi><mo>=</mo><mn>212°</mn><mo>+</mo><mn>6°</mn><mi>k</mi></mtd></mtr></mtable></math></dt>
+        <dd>The sky: 8 bits make 256 light blues, from 2 bits of lightness <i>l</i>, 3 of chroma <i>c</i> and 3 of hue <i>k</i>. A low sun then warms them.</dd>
+      </dl>
+      <a class="spec" href="https://github.com/hyunwookshin/beautifulhash/blob/main/subspec/mountains.md" target="_blank" rel="noopener">subspec/mountains.md, subspec/sky.md</a>
+    </div>
+  </section>
+
+  <section class="citations" aria-labelledby="cite-h">
+    <h2 id="cite-h" class="eyebrow">Notes</h2>
+    <details id="cite-1">
+      <summary>[1] Authorship: the design prompts behind these rooms</summary>
+      <div class="cite-body">
+        <p>The algorithms in these rooms were designed by <a href="https://hyunwookshin.com" target="_blank" rel="noopener">Hyunwook Shin</a>, in conversation with Claude, an AI model by Anthropic, between October 18 and 21, 2026. The author set each rule: what the bits must preserve, how a ridge subdivides, how a tree forks, where the light comes from, how a cloud is built, and then judged every render and sent it back until it looked right. Claude worked out the remaining details, wrote the code and the wording of the <a href="https://github.com/hyunwookshin/beautifulhash/tree/main/subspec" target="_blank" rel="noopener">specifications</a>, and wrote this page. The full history is public in the <a href="https://github.com/hyunwookshin/beautifulhash/commits/main" target="_blank" rel="noopener">commit log</a>.</p>
+        <p>The author's prompts below are quoted verbatim, typos included, so the attribution can be checked. Long messages are excerpted; … marks a cut. They are a selection: the full exchange ran to about 250 messages.</p>
+        <h3>The bits</h3>
+        <blockquote>I'd introduce an explicit entropy-preservation objective:
+256-bit entropy preservation: BeautifulHash V0 aims to preserve all 256 bits of the input hash in its canonical SVG representation. Every namespace must account for its complete allocated bit width, including when optional visual features are absent. A namespace may redistribute its bits among its own subnamespaces, but may not discard them. …<cite>Oct 18, 2026</cite></blockquote>
+        <h3>Room I · The ridge</h3>
+        <blockquote>… how I would tackle is have anchor points so we have that. 
+
+Then between two anchor point create second layer subanchor points between two anchor points.. but the subanchor points cannot deviate from the vector connecting the two parent anchor points perpendicularly by 10%, and so on. repeat the process for those subanchor points, until full 88 bit is filled fractally …<cite>Oct 18, 2026</cite></blockquote>
+        <blockquote>… Keep the 10% perpendicular displacement rule as the initial default, but separate fractal roughness from the overall vertical scale so different themes can produce different mountain profiles.
+
+Before finalizing the algorithm, specify how we guarantee left-to-right monotonicity, how each displacement is preserved through SVG serialization, and how the complete 88-bit mapping remains injective even when the third ridge is absent.
+
+Treat the 32/32/24 allocation as provisional until we've rendered sample landscapes. and it should be monotonic no pride rock from lion king<cite>Oct 18, 2026</cite></blockquote>
+        <blockquote>… Rather than starting with two anchors alone, we'd derive a dominant summit position and elevation from the hash, then generate shoulders and secondary peaks around it. …<cite>Oct 18, 2026</cite></blockquote>
+        <blockquote>ah got it we should make these horn like peaks for back moutains only, while front mountains have more points but not as crazy with peaks, otherwise it feels like we are in some volcanic place<cite>Oct 18, 2026</cite></blockquote>
+        <h3>Room II · The split</h3>
+        <blockquote>… There is what we call incoming slope, which is same as a regular slope, but the slope that comes towards you.. How that works is this, whenever there is a peak (clear direction changes from rising / to descending \ , no plateaus) by at least more than 30 degree turn, we draw a line which is some function of the point's height modulo some number last rising slope and last descending slope (this line cannot swing more to the left than the rising and more to the right than the descending) that line is the inward slope (imagine a tripod with one leg coming twards you). Okay? Now there is another straight line which is cutoff slope, which is a slope which is crossing horizontally but not part of the ridge. how do we know where is the cutoff slope, look for the valleys which is same as peaks but flipped. it is a function of the valley's point (modulo same number) and the descending \ and ascending slope / immediate to it. Choose one line and keep extending (say descending) that line and the ascending slope forms an angle 180 - the angle of the valey. That is the cutoff slope. There can be two cutoff slope depending on what you pick. but here is the thing the cutoff slope can only extend as long as it meets the incoming slope forming sort of triangular pattern. That patch is what we call reflective surface. If that reflective surface is greater than 1/3 of the height of the peak then it is unrealistic reflective surface (cause mountains rarely has that large flat surface), but if it is less than that it is a realistic reflective surface. …<cite>Oct 20, 2026</cite></blockquote>
+        <blockquote>1. Yes now there will be two sides the one to the left of the peak, and one to the right of the peak, the one that tilts away of the sun gets a slight shade (matching the mountain color scheme). For sun that tilts lower, the shade will be stronger, for sun that tilts so low, the bright side gets orangish/pinkish treatment, to indicate sunset.<cite>Oct 20, 2026</cite></blockquote>
+        <blockquote>now let's make it high poly.. we have the two slopes we calculated it, we do a mini postprocess The triangle point stays, but along the line, follow the ridge (some function of the ridge) to bend the "walk down" so it is not just straight down..<cite>Oct 20, 2026</cite></blockquote>
+        <h3>Room III · The facets</h3>
+        <blockquote>… I was thinking was triangulation. You draw 100x 100 micro dots plotted (imagine) in the front most mountain. The dot placement is a function of the ridge coordinate and pi, so it is not exactly a grid but  pretty much randomly plotted points. then we join the dits forming trangles. now the triangles angled towards the sun (likely very narrow like 10 degrees swung to the left by at least 60 degrees) get bright treatment (sun reflectivity) the triangle angled away from the sun get much darker treatment. Not as many triangles as trees, but enough to not be able to make out the shape without squinting at it. …<cite>Oct 21, 2026</cite></blockquote>
+        <blockquote>Make the triangulation much larger, and vertical, and precisely following the slope of the ridge and the half-cutting incoming ridge. and as it approaches the mountain in front of it gradient it away so the details brush off, providing a bit more contrast between two mountain textures. Also use the ridge height zones 1~20, 20~40 , 40~60..  as a way to remove certain patches, so it is not just triangulation everywhere.<cite>Oct 21, 2026</cite></blockquote>
+        <h3>Room IV · The tree</h3>
+        <blockquote>… So you start from one base (whose girth is also determine by leading bits) then at height X. it branches (also bit-derived), how much of the base is split (7:3 6:4) is also bit derived, and the angle (so here is the important part, the angle is not bit derived, if the large portion of the tree is retained (such as 9:1 ratio) then the angle should be minimal (mostly straight up) and the smaller portion of the tree branch should be near perpendicular (imagine a twig offshoot from the side of the trunk) if it is 50:50 it should angle evenly forming a "Y". and keep going with the fractal until you run out of the bits. …<cite>Oct 19, 2026</cite></blockquote>
+        <blockquote>… Make the branching recursive even after the bits run out.
+
+We don't need a new hash bit for every branch. Once we've consumed the allocated bits, we can continue subdividing using a deterministic recurrence based on the tree's existing parameters.
+
+That produces geometric detail without claiming additional entropy. …<cite>Oct 19, 2026</cite></blockquote>
+        <blockquote>For deciduous trees (temperate) we mentioned how angle depends on the split size, well the winner branch (thicker) gets to angle even less so giving the main trunk more chance to "grow upward"<cite>Oct 19, 2026</cite></blockquote>
+        <h3>Room V · The placement</h3>
+        <blockquote>… I'd rather see a small grove of overlapping trees, an isolated medium tree, and some open hillside. Ten trees don't have to mean ten equally prominent objects. …<cite>Oct 19, 2026</cite></blockquote>
+        <blockquote>Actually here is the interesting thing we can do (and yes feel free to add desert plant) the vegetation should be a lot smaller individually, and for every season besides fall, it should be negative (i.e. away from trees) flipped from fall where they are near the trees<cite>Oct 19, 2026</cite></blockquote>
+        <blockquote>… For spring/summer, the density of the vegetation goes down as it gets more distant (towards the top crest edge of the hill) which is not realistic, there should be more densitiy as it nears the rim otherwise, it feels fake since near the rim I don't see as much..<cite>Oct 20, 2026</cite></blockquote>
+        <h3>Room VI · Sun and moon</h3>
+        <blockquote>… Remember the sun? I don't plan to ever show sun here, but we have an implicit angle of the sun..  it will cause a shadow on the trees on the hills. The shadow will match the darkeset color on the hill and the angle and length of the shadow depends on where the sun will be. It will be 3D with angle starting from the left x axis (when image is flat/square with you) and another angle for vertical starting from the direction vector from the first angle. …<cite>Oct 20, 2026</cite></blockquote>
+        <blockquote>… I do want 3/4 of the time its a day, and only 1/4 is night, and that too with some blue glow like dusk. I wonder if we could change the role of the sun to that of the moon, if it is in the night mode, and the face, instead of getting that "orangey" shade for evening, gets "whitish" shade, for that moon reflection. …<cite>Oct 21, 2026</cite></blockquote>
+        <blockquote>I think the sun angle already controls the subdivision of the day, so we already have that (the sun location and part of the day are coupled). For night, it doesn't but moon position still matters for the shadows and lighting<cite>Oct 21, 2026</cite></blockquote>
+        <h3>Room VII · The shadow</h3>
+        <blockquote>… The shadow follows the contour of the hill but gets flatter as it nears the bottom edge of the canvas exactly how we calculated the "stripes" for the front hills. The shadow itself doesn't need to be fancy but it should at least cast the branching to the ground (not the leaves) and slightly thicker than usual.btw this is only for the front hills<cite>Oct 20, 2026</cite></blockquote>
+        <h3>Room VIII · The cloud</h3>
+        <blockquote>For cloud I was thinking like this implement a trapezoid with two parallel lines running horizontally top part much longer than the far part (three points of trapezoid decided by the bits, fourth one decided by the bit but must be parallel so there is a constraint), but it is upto the algorithm, then make any five points along the trapezoid edges (so trapped inside it), pick a side (governed by some bit) and that side is sharp edge (where cloud moving towards) rest are hazy so forming a gradient which dissolves into the sky.. …<cite>Oct 20, 2026</cite></blockquote>
+        <blockquote>… So I recommend between two points pick the four points again using the bits that fits inside a narrow rombus built between the two adjacent points, then the circular arc joins the points as a second order, and repeated by third order (i.e. do this two more times)<cite>Oct 20, 2026</cite></blockquote>
+        <blockquote>… let's make the five points be the starting point for gradient. Also make the cloud a bit flat overall (not same size of course, but bound them to be flatter more) and make the edges around the cloud blend in more.. with slight darker shade of white (just tad shade) near the bottom of the cloud just to get the 3d effect …<cite>Oct 20, 2026</cite></blockquote>
+        <h3>Room IX · The palette</h3>
+        <blockquote>… I'd actually propose 8 bits (256 colors) per ridge. Color matters enough to reserve a meaningful budget, and the difference is only two bits per ridge.
+Here's how I'd divide the 88-bit Mountains namespace:
+Component    Bits
+Header (third ridge present)    1
+Ridge 1 geometry    24
+Ridge 1 color    8
+Ridge 2 geometry    24
+Ridge 2 color    8
+Ridge 3 / redistributed detail    23
+Total    88
+For Ridge 3, I'd similarly reserve 8 of its 23 bits for color, leaving 15 for geometry.
+That means the optional ridge has less geometric detail, which is reasonable if it's farther away.
+One distinction, though: 256 color codes don't automatically guarantee 256 distinct rendered colors. Our theme-aware palette mapping and lighting transformation must preserve those distinctions if we're pursuing SVG injectivity.
+And I wouldn't divide the 8 bits equally into RGB channels. Instead, I'd use a theme-specific palette containing 256 coordinated colors, or a carefully designed mapping into a perceptual color space. …<cite>Oct 18, 2026</cite></blockquote>
+        <blockquote>Shared color family. Let the theme determine a coherent palette, while each ridge's eight color bits select a distinct shade within that family. Preserve the 256 unique colors per ridge. …<cite>Oct 18, 2026</cite></blockquote>
+        <blockquote>nice now the sky.. when the sun is lower we do want that pink, purple, orange gradient generally the warmer color near closest to the sun even if the sun is not visible, can you make in the gradient so the sky does look realistic<cite>Oct 20, 2026</cite></blockquote>
+      </div>
+    </details>
+  </section>
+
+  <footer class="exit">
+    <p class="eyebrow">Exit</p>
+    <p>Every hash walks through all nine rooms. Type a word and see where it leads.</p>
+    <a class="primary exit-link" href="/">Make a landscape</a>
+  </footer>
+</article>
+</main>
+
+<footer class="foot">
+  <span>Deterministic: the same hash draws the same SVG, byte for byte, here and in the native build.</span>
+</footer>
+
+<script src="common.js"></script>
+<script src="algorithm.js"></script>
+</body>
+</html>
