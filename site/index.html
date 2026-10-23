@@ -90,8 +90,20 @@
             <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.25 4.1 1 5.8L12 16.9l-5.25 2.7 1-5.8L3.5 9.7l5.9-.9z"/></svg>
             <span>Favorite</span>
           </button>
-          <button id="dl-svg" class="icon-btn">Download SVG</button>
-          <button id="dl-png" class="icon-btn">Download PNG</button>
+          <div class="dl">
+            <button id="dl-btn" class="icon-btn" aria-haspopup="menu" aria-expanded="false" aria-controls="dl-menu">
+              <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 4v11M7 10.5l5 5 5-5M5 20h14"/></svg>
+              <span>Download</span><span class="caret" aria-hidden="true">▾</span>
+            </button>
+            <div id="dl-menu" class="dl-menu" role="menu" aria-labelledby="dl-btn" hidden>
+              <button role="menuitem" data-dl="png"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" class="line"><path d="M4 5h16v14H4zM4 15l5-5 4 4 3-3 4 4"/></svg><span>Standard<small>PNG · 2048 × 1536</small></span></button>
+              <button role="menuitem" data-dl="svg"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" class="line"><path d="M5 17C8 8 16 8 19 17M3.5 15.5h3v3h-3zM17.5 15.5h3v3h-3z"/></svg><span>Vector<small>SVG · any size</small></span></button>
+              <div class="dl-sep" role="separator">Banners</div>
+              <button role="menuitem" data-dl="linkedin"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" class="brand linkedin"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 1 1 0-4.125 2.062 2.062 0 0 1 0 4.125zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg><span>LinkedIn<small>1584 × 396</small></span></button>
+              <button role="menuitem" data-dl="x"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" class="brand x"><path d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932ZM17.61 20.644h2.039L6.486 3.24H4.298Z"/></svg><span>X<small>1500 × 500</small></span></button>
+              <button role="menuitem" data-dl="facebook"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" class="brand facebook"><path d="M24 12.073C24 5.405 18.627 0 12 0S0 5.405 0 12.073C0 18.1 4.388 23.094 10.125 24v-8.437H7.078v-3.49h3.047V9.413c0-3.025 1.792-4.697 4.533-4.697 1.312 0 2.686.236 2.686.236v2.97h-1.513c-1.491 0-1.956.93-1.956 1.886v2.264h3.328l-.532 3.49h-2.796V24C19.612 23.094 24 18.1 24 12.073z"/></svg><span>Facebook<small>1640 × 624</small></span></button>
+            </div>
+          </div>
           <button id="copy-link" class="icon-btn">Copy link</button>
           <button id="suggest-btn" class="icon-btn" hidden>Suggest for the gallery</button>
         </div>

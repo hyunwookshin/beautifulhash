@@ -180,15 +180,25 @@ function save(url, name) {
   a.remove();
 }
 
-async function downloadPng(hex) {
+// PNG sizes. Banners are full-width crops of the landscape, centered 62% of
+// the way down, which keeps the summits, the near ridge, and the trees.
+const SIZES = {
+  png: { w: 2048, h: 1536, name: "" },
+  linkedin: { w: 1584, h: 396, name: "-linkedin" },
+  x: { w: 1500, h: 500, name: "-x" },
+  facebook: { w: 1640, h: 624, name: "-facebook" },
+};
+async function downloadPng(hex, size) {
   const img = new Image();
   img.src = await svgUrl(hex);
   await img.decode();
   const canvas = document.createElement("canvas");
-  canvas.width = 2048;
-  canvas.height = 1536;
-  canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
-  canvas.toBlob((blob) => save(URL.createObjectURL(blob), `beautifulhash-${hex.slice(0, 12)}.png`), "image/png");
+  canvas.width = size.w;
+  canvas.height = size.h;
+  // Draw the whole SVG at the banner's width, so it rasterizes sharp, and shift it up.
+  const k = size.w / 1024, top = Math.min(0, Math.max(size.h - 768 * k, size.h / 2 - 0.62 * 768 * k));
+  canvas.getContext("2d").drawImage(img, 0, top, 1024 * k, 768 * k);
+  canvas.toBlob((blob) => save(URL.createObjectURL(blob), `beautifulhash-${hex.slice(0, 12)}${size.name}.png`), "image/png");
 }
 
 // ---- favorites strip ----------------------------------------------------------
@@ -275,8 +285,28 @@ function init() {
     updateStar();
     renderFavs();
   });
-  $("dl-svg").addEventListener("click", async () => current && save(await svgUrl(current.hash), `beautifulhash-${current.hash.slice(0, 12)}.svg`));
-  $("dl-png").addEventListener("click", () => current && downloadPng(current.hash));
+  // Download menu: the standard PNG, the SVG, or a banner for a social profile.
+  const menu = $("dl-menu"), items = [...menu.querySelectorAll("[role=menuitem]")];
+  const setMenu = (open) => {
+    menu.hidden = !open;
+    $("dl-btn").setAttribute("aria-expanded", String(open));
+    if (open) items[0].focus();
+  };
+  $("dl-btn").addEventListener("click", () => setMenu(menu.hidden));
+  document.addEventListener("click", (e) => { if (!menu.hidden && !e.target.closest(".dl")) setMenu(false); });
+  menu.addEventListener("keydown", (e) => {
+    const i = items.indexOf(document.activeElement);
+    if (e.key === "Escape") { setMenu(false); $("dl-btn").focus(); }
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); items[(i + (e.key === "ArrowDown" ? 1 : items.length - 1)) % items.length].focus(); }
+  });
+  for (const item of items) item.addEventListener("click", async () => {
+    setMenu(false);
+    if (!current) return;
+    const kind = item.dataset.dl;
+    if (kind === "svg") save(await svgUrl(current.hash), `beautifulhash-${current.hash.slice(0, 12)}.svg`);
+    else await downloadPng(current.hash, SIZES[kind]);
+    try { if (typeof gtag === "function") gtag("event", "landscape_downloaded", { format: kind }); } catch { /* analytics blocked */ }
+  });
   $("copy-link").addEventListener("click", async () => {
     if (!current) return;
     const link = `${location.origin}${location.pathname}#${current.hash}`;

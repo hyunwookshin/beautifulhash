@@ -90,11 +90,11 @@ main { max-width: 1160px; margin: 0 auto; padding-inline: 20px; padding-block: 4
 .chip:hover { border-color: var(--accent); }
 
 /* result */
-.result { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); margin-top: 36px; border: 1px solid var(--line); border-radius: 16px; overflow: hidden; background: var(--panel); box-shadow: 0 18px 50px rgba(0, 0, 0, 0.12); }
-.frame { position: relative; margin: 0; overflow: hidden; background: var(--panel); aspect-ratio: 4 / 3; max-width: 100%; }
+.result { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); margin-top: 36px; border: 1px solid var(--line); border-radius: 16px; background: var(--panel); box-shadow: 0 18px 50px rgba(0, 0, 0, 0.12); }
+.frame { position: relative; margin: 0; overflow: hidden; border-radius: 15px 0 0 15px; background: var(--panel); aspect-ratio: 4 / 3; max-width: 100%; }
 .frame img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .loading { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); background: var(--panel); }
-.details { display: grid; align-content: start; gap: 18px; min-width: 0; padding: 22px; background: var(--panel); border-left: 1px solid var(--line); }
+.details { display: grid; align-content: start; gap: 18px; min-width: 0; padding: 22px; background: var(--panel); border-left: 1px solid var(--line); border-radius: 0 15px 15px 0; }
 .ref { margin: 0; display: grid; gap: 12px; }
 .ref dt { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
 .ref dd { margin: 2px 0 0; min-width: 0; overflow-wrap: anywhere; }
@@ -167,7 +167,8 @@ td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; white-spa
   .bar { gap: 12px; flex-wrap: wrap; }
   .gh span { display: none; }
   .result { grid-template-columns: minmax(0, 1fr); }
-  .details { border-left: 0; border-top: 1px solid var(--line); }
+  .details { border-left: 0; border-top: 1px solid var(--line); border-radius: 0 0 15px 15px; }
+  .frame { border-radius: 15px 15px 0 0; }
   .search { flex-direction: column; }
   /* the example chips become one swipeable row instead of a tall stack */
   .try { width: 100%; }
@@ -289,3 +290,18 @@ td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; white-spa
 .formulas math { font-size: 1.05em; }
 .cite-body h3 { font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-top: 10px; }
 .cite-body blockquote cite { display: block; margin-top: 6px; font-style: normal; font-size: 11px; color: var(--muted); opacity: 0.8; }
+
+/* download menu: standard, vector, and social banners */
+.dl { position: relative; }
+.icon-btn .caret { font-size: 11px; color: var(--muted); }
+.dl-menu { position: absolute; z-index: 12; left: 0; top: calc(100% + 6px); min-width: 230px; display: grid; padding: 6px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 16px 40px rgba(0, 0, 0, 0.22); }
+.dl-menu button { display: flex; align-items: center; gap: 12px; padding: 8px 10px; border: 0; border-radius: 8px; background: none; text-align: left; }
+.dl-menu button:hover, .dl-menu button:focus-visible { background: color-mix(in srgb, var(--accent) 12%, transparent); outline: none; }
+.dl-menu span { display: grid; font-size: 14px; font-weight: 500; }
+.dl-menu small { font-size: 12px; font-weight: 400; color: var(--muted); font-family: var(--mono); }
+.dl-menu svg.line path { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linejoin: round; stroke-linecap: round; }
+.dl-menu svg.brand path { stroke: none; }
+.dl-menu svg.linkedin path { fill: #0a66c2; }
+.dl-menu svg.facebook path { fill: #0866ff; }
+.dl-menu svg.x path { fill: currentColor; }
+.dl-sep { padding: 8px 10px 4px; border-top: 1px solid var(--line); margin-top: 4px; font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
