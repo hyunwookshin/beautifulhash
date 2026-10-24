@@ -103,6 +103,7 @@ main { max-width: 1160px; margin: 0 auto; padding-inline: 20px; padding-block: 4
 .peer:not([src]) { visibility: hidden; }
 .loading { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); background: var(--panel); }
 .details { display: flex; flex-direction: column; gap: 18px; min-width: 0; padding: 22px; background: var(--panel); border-left: 1px solid var(--line); border-radius: 0 15px 15px 0; }
+.today-tag { margin: 0 0 -8px; font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
 .ref { margin: 0; display: grid; gap: 12px; }
 .ref dt { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
 .ref dd { margin: 2px 0 0; min-width: 0; overflow-wrap: anywhere; }
@@ -406,3 +407,7 @@ td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; white-spa
 .tip.show { animation: tip 3.4s ease-in-out forwards; }
 @keyframes tip { 0% { opacity: 0; } 15%, 80% { opacity: 1; } 100% { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .tip.show { animation-timing-function: steps(1, end); } }
+
+/* "Today's landscape": top left of the image on arrival, fading out after a few seconds */
+.today-pill { left: 14px; top: 14px; bottom: auto; translate: none; background: var(--accent); color: var(--accent-ink); font-weight: 600; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25); }
+.today-pill.show { animation: tip 5s ease-in-out forwards; }

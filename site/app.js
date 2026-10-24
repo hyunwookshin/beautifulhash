@@ -27,7 +27,12 @@ const RECOMMENDED = EXAMPLES.slice(0, 4);
 const today = () => new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
 async function welcome() {
   const text = today();
-  return show(await sha256(text), text);
+  await show(await sha256(text), text);
+  // A pill on the image's top left says so, then fades away.
+  const pill = $("today-pill");
+  pill.classList.remove("show");
+  void pill.offsetWidth;  // restart the animation
+  pill.classList.add("show");
 }
 const SUGGESTIONS = ["Hello!", "chocolate muffin", "good morning", "my cat Miso", "rainy Tuesday", "Happy Birthday", "coffee first", "see you at sunset"];
 
@@ -136,6 +141,8 @@ async function show(hex, input, source) {
   $("result").hidden = false;
   // A landscape drawn ahead of time (a neighbor, or one seen before) shows at once.
   $("result-loading").hidden = urls.has(hex);
+  // Labeled while the input is today's date, or counts on from it (date+1, …).
+  $("today-tag").hidden = !input || !input.startsWith(today());
   $("ref-input-row").hidden = !input;
   $("ref-input").textContent = input || "";
   $("ref-hash").textContent = hex;
