@@ -696,15 +696,18 @@ function init() {
 
 
   // The clear button shows while the search box has text; it and the logo
-  // both empty the box and put the cursor in it.
-  const clearQuery = () => { $("query").value = ""; $("clear").hidden = true; $("query").focus({ preventScroll: true }); };
+  // both empty the box. The clear button then puts the cursor in it, to type
+  // anew; the logo does too, but only with a keyboard and mouse: on a touch
+  // screen the on-screen keyboard would cover half the page.
+  const typing = !matchMedia("(pointer: coarse)").matches;
+  const clearQuery = (focus) => { $("query").value = ""; $("clear").hidden = true; if (focus) $("query").focus({ preventScroll: true }); };
   $("query").addEventListener("input", () => { $("clear").hidden = !$("query").value; });
-  $("clear").addEventListener("click", clearQuery);
+  $("clear").addEventListener("click", () => clearQuery(true));
 
   // The logo starts over, as a fresh visit would: the welcome landscape, no hash.
   document.querySelector(".wordmark").addEventListener("click", (e) => {
     e.preventDefault();
-    clearQuery();
+    clearQuery(typing);
     show(WELCOME.hash, WELCOME.input);
     window.scrollTo({ top: 0, behavior: "smooth" });
   });
@@ -748,7 +751,8 @@ function init() {
 
   renderFavs();
 
-  $("query").focus({ preventScroll: true });
+  // Ready to type on arrival, except on a touch screen (see clearQuery).
+  if (typing) $("query").focus({ preventScroll: true });
 
   // A shared link opens its hash; otherwise "world", with the search box left empty.
   const fromLink = location.hash.slice(1);
