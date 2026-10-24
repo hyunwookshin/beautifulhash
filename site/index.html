@@ -110,10 +110,11 @@
               <button role="menuitem" data-sub="tablets" aria-haspopup="menu"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" class="line"><path d="M4 4.5h7.25v15H4zM12.75 4.5H20v15h-7.25z"/></svg><span>Foldables and tablets<small>Fold · Flip · iPad · Tab</small></span><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" class="line chev"><path d="M9 6l6 6-6 6"/></svg></button>
               <button role="menuitem" data-dl="desktop"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" class="line"><path d="M3 4h18v12H3zM9 20h6M12 16v4"/></svg><span>Desktop<small>3840 × 2160 · 4K</small></span></button>
                 <div class="dl-sep" role="separator">Print</div>
-                <button role="menuitem" data-dl="card"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" class="line"><path d="M3 6h18v12H3zM3 6l9 7 9-7"/></svg><span>Personalized card<small>5 × 7 in · 2175 × 1575</small></span></button>
+                <button role="menuitem" data-dl="card"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" class="line"><path d="M3 6h18v12H3zM3 6l9 7 9-7"/></svg><span>Personalized cards<small>5 × 7, postcard, square, A6</small></span></button>
               </div>
             </div>
           </div>
+          <button id="card-btn" class="icon-btn"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M3 6h18v12H3zM3 6l9 7 9-7"/></svg><span>Personalized cards</span></button>
           <button id="copy-link" class="icon-btn">Share link</button>
           <button id="suggest-btn" class="icon-btn" hidden>Suggest for the gallery</button>
         </div>
@@ -147,15 +148,27 @@
 
 <div id="card" class="lightbox" hidden>
   <div class="card-panel" role="dialog" aria-modal="true" aria-labelledby="card-title">
-    <h3 id="card-title">Your card is downloaded</h3>
-    <p class="card-lede">Upload it to a card maker to print it. The image is 5 × 7 inches at 300 dpi, with an eighth of an inch to spare on each side for trimming.</p>
-    <ul class="makers">
-      <li><a href="https://www.zazzle.com/customizer?dz=ea39d9d8-28a0-4eac-9a67-f765461399d2&amp;qty=1&amp;src=pdp" target="_blank" rel="noopener"><b>Zazzle</b><small>Cards printed from your upload</small><span aria-hidden="true">↗</span></a></li>
-      <li><a href="https://www.vistaprint.com/stationery" target="_blank" rel="noopener"><b>Vistaprint</b><small>Cards and invitations</small><span aria-hidden="true">↗</span></a></li>
-      <li><a href="https://www.shutterfly.com/cards-stationery/" target="_blank" rel="noopener"><b>Shutterfly</b><small>Photo cards for any occasion</small><span aria-hidden="true">↗</span></a></li>
-      <li><a href="https://www.moo.com/us/greeting-cards" target="_blank" rel="noopener"><b>MOO</b><small>Greeting cards on heavy paper</small><span aria-hidden="true">↗</span></a></li>
-    </ul>
-    <div class="actions crop-actions"><button type="button" id="card-done" class="primary">Done</button></div>
+    <h3 id="card-title">Personalized cards</h3>
+    <p class="card-lede">Print this landscape as a card: download it at a card's size, then upload it to a card maker.</p>
+    <section class="card-step">
+      <h4><span class="step-no">1</span>Download the card</h4>
+      <label for="card-format" class="visually-hidden">Card format</label>
+      <div class="card-pick">
+        <select id="card-format"></select>
+        <button type="button" id="card-dl" class="primary">Download</button>
+      </div>
+      <p id="card-note" class="card-note">300 dpi, with an eighth of an inch (3 mm for A6) to spare on each side for trimming.</p>
+    </section>
+    <section class="card-step">
+      <h4><span class="step-no">2</span>Upload it to a card maker</h4>
+      <ul class="makers">
+        <li><a href="https://www.zazzle.com/customizer?dz=ea39d9d8-28a0-4eac-9a67-f765461399d2&amp;qty=1&amp;src=pdp" target="_blank" rel="noopener"><b>Zazzle</b><small>Cards printed from your upload</small><span aria-hidden="true">↗</span></a></li>
+        <li><a href="https://www.vistaprint.com/stationery" target="_blank" rel="noopener"><b>Vistaprint</b><small>Cards and invitations</small><span aria-hidden="true">↗</span></a></li>
+        <li><a href="https://www.shutterfly.com/cards-stationery/" target="_blank" rel="noopener"><b>Shutterfly</b><small>Photo cards for any occasion</small><span aria-hidden="true">↗</span></a></li>
+        <li><a href="https://www.moo.com/us/greeting-cards" target="_blank" rel="noopener"><b>MOO</b><small>Greeting cards on heavy paper</small><span aria-hidden="true">↗</span></a></li>
+      </ul>
+    </section>
+    <div class="actions crop-actions"><button type="button" id="card-done" class="icon-btn">Done</button></div>
   </div>
 </div>
 

@@ -235,8 +235,6 @@ const SIZES = {
   linkedin: { w: 1584, h: 396, name: "-linkedin", label: "LinkedIn banner" },
   x: { w: 1500, h: 500, name: "-x", label: "X header" },
   facebook: { w: 1640, h: 624, name: "-facebook", label: "Facebook cover" },
-  // A 5 × 7 inch card at 300 dpi, plus 1/8 inch of bleed on each side.
-  card: { w: 2175, h: 1575, name: "-card", label: "Personalized card" },
   desktop: { w: 3840, h: 2160, name: "-desktop", label: "Desktop background" },
 };
 // Phone and tablet backgrounds, by maker, at each screen's native portrait
@@ -259,10 +257,18 @@ const DEVICES = {
       ["Galaxy Tab S10 Ultra", 1848, 2960]]],
   ],
 };
+// Card formats at 300 dpi, each with 1/8 inch (A6: 3 mm) of bleed on every side.
+const CARDS = [
+  ["5 × 7 in, landscape", 2175, 1575], ["5 × 7 in, portrait", 1575, 2175],
+  ["4 × 6 in postcard, landscape", 1875, 1275], ["4 × 6 in postcard, portrait", 1275, 1875],
+  ["4.25 × 5.5 in (A2), landscape", 1725, 1350], ["5.5 × 5.5 in, square", 1725, 1725],
+  ["A6, landscape", 1819, 1311], ["A6, portrait", 1311, 1819],
+];
 const slug = (name) => name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 for (const groups of Object.values(DEVICES)) {
   for (const [, list] of groups) for (const [label, w, h] of list) SIZES[slug(label)] = { w, h, name: `-${slug(label)}`, label };
 }
+for (const [label, w, h] of CARDS) SIZES[`card-${slug(label)}`] = { w, h, name: `-card-${slug(label)}`, label: `Card, ${label}` };
 // A size narrower than 4:3 is a column (it crops across), else a band (it crops
 // down); bandOf is its share of the landscape along that axis.
 const isColumn = (size) => size.w / size.h < 1024 / 768;
@@ -399,6 +405,7 @@ function init() {
     const kind = item.dataset.dl;
     if (kind === "svg") save(await svgUrl(current.hash), `beautifulhash-${current.hash.slice(0, 12)}.svg`);
     else if (kind === "png") await downloadPng(current.hash, SIZES.png);
+    else if (kind === "card") return openCard();
     else return openCrop(kind);
     tracked(kind);
   });
@@ -425,7 +432,11 @@ function init() {
     $("crop").hidden = false;
     $("crop-band").focus();
   };
-  const closeCrop = () => { $("crop").hidden = true; $("dl-btn").focus(); };
+  // A card's crop returns to the card dialog; anything else, to the menu button.
+  const closeCrop = () => {
+    $("crop").hidden = true;
+    if (crop.kind.startsWith("card-")) { $("card").hidden = false; $("card-dl").focus(); } else $("dl-btn").focus();
+  };
   // Dragging moves the band by the pointer's travel; a press outside it centers it there.
   let drag = null;
   $("crop-stage").addEventListener("pointerdown", (e) => {
@@ -460,11 +471,24 @@ function init() {
   $("crop-save").addEventListener("click", async () => {
     await downloadPng(current.hash, crop.size, crop.center);
     tracked(crop.kind);
+    if (crop.kind.startsWith("card-")) $("card-note").textContent = `Downloaded: ${crop.size.w} × ${crop.size.h} pixels. Now upload it below.`;
     closeCrop();
-    // A card goes on to a printer: offer a few card makers to upload it to.
-    if (crop.kind === "card") { $("card").hidden = false; $("card-done").focus(); }
   });
-  const closeCard = () => { $("card").hidden = true; $("dl-btn").focus(); };
+  // Personalized cards: step 1 picks a format and downloads it through the crop
+  // dialog; step 2 links to card makers to upload it to.
+  $("card-format").replaceChildren(...CARDS.map(([label, w, h]) => new Option(`${label} · ${w} × ${h}`, `card-${slug(label)}`)));
+  const CARD_NOTE = $("card-note").textContent;
+  let cardOpener = null;
+  const openCard = () => {
+    if (!current) return;
+    cardOpener = document.activeElement;
+    $("card-note").textContent = CARD_NOTE;
+    $("card").hidden = false;
+    $("card-format").focus();
+  };
+  const closeCard = () => { $("card").hidden = true; (cardOpener && cardOpener.isConnected && !cardOpener.closest("[hidden]") ? cardOpener : $("dl-btn")).focus(); };
+  $("card-btn").addEventListener("click", openCard);
+  $("card-dl").addEventListener("click", () => { $("card").hidden = true; openCrop($("card-format").value); });
   $("card-done").addEventListener("click", closeCard);
   $("card").addEventListener("click", (e) => { if (e.target === $("card")) closeCard(); });
   $("card").addEventListener("keydown", (e) => { if (e.key === "Escape") closeCard(); });
