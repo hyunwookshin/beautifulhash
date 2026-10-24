@@ -312,7 +312,7 @@ function init() {
     b.addEventListener("click", () => openExample(ex, "chip"));
     $("chips").appendChild(b);
   }
-  // The empty search box suggests a few plain words; Generate draws the one shown.
+  // The empty search box suggests a few plain words; Convert draws the one shown.
   let hint = 0;
   $("query").placeholder = SUGGESTIONS[0];
   setInterval(() => {
@@ -420,7 +420,7 @@ function init() {
     catch { $("status").textContent = link; }
   });
 
-  // A gallery tile loads straight into the generator, as a favorite does.
+  // A gallery tile loads straight into the result, as a favorite does.
   $("carousel").replaceChildren(...EXAMPLES.map((ex) => lazy(tile(ex.hash, ex.input, () => {
     openExample(ex, "gallery");
     $("result").scrollIntoView({ behavior: "smooth", block: "start" });
