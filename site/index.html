@@ -78,6 +78,8 @@
       <figure class="frame">
         <img id="result-img" alt="">
         <div id="result-loading" class="loading" hidden>Drawing…</div>
+        <button type="button" class="round step-btn prev" data-step="-1" aria-label="Previous landscape"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6"/></svg></button>
+        <button type="button" class="round step-btn next" data-step="1" aria-label="Next landscape"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
       </figure>
       <aside class="details">
         <dl class="ref">
@@ -113,23 +115,29 @@
           <button id="suggest-btn" class="icon-btn" hidden>Suggest for the gallery</button>
         </div>
         <p id="status" class="status" role="status"></p>
+        <div class="stepper">
+          <button type="button" class="round" data-step="-1" aria-label="Previous landscape"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6"/></svg></button>
+          <button type="button" class="round" data-step="1" aria-label="Next landscape"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+        </div>
       </aside>
     </section>
 
     <section id="favorites" class="strip" hidden>
       <h2>Favorites</h2>
-      <div id="fav-list" class="thumbs"></div>
+      <div class="rail">
+        <div id="fav-list" class="thumbs"></div>
+        <button type="button" class="round rail-btn prev" data-rail="-1" aria-label="Scroll favorites left"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6"/></svg></button>
+        <button type="button" class="round rail-btn next" data-rail="1" aria-label="Scroll favorites right"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+      </div>
     </section>
 
     <section class="strip examples">
-      <div class="strip-head">
-        <h2>Gallery</h2>
-        <div class="nav">
-          <button class="round" id="prev" aria-label="Previous landscapes">‹</button>
-          <button class="round" id="next" aria-label="Next landscapes">›</button>
-        </div>
+      <h2>Gallery</h2>
+      <div class="rail">
+        <div id="carousel" class="carousel" tabindex="0" aria-label="Gallery landscapes"></div>
+        <button type="button" class="round rail-btn prev" data-rail="-1" aria-label="Scroll the gallery left"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6"/></svg></button>
+        <button type="button" class="round rail-btn next" data-rail="1" aria-label="Scroll the gallery right"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
       </div>
-      <div id="carousel" class="carousel" tabindex="0" aria-label="Gallery landscapes"></div>
     </section>
   </section>
 </main>

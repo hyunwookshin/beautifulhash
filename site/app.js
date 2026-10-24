@@ -37,6 +37,8 @@ function discoverer(hex) {
   const ex = EXAMPLES.find((e) => e.hash === hex);
   return ex ? ex.by : "";
 }
+// The credit shown for it: the site's author is not credited on his own site.
+const credit = (hex) => discoverer(hex) === "Hyunwook Shin" ? "" : discoverer(hex);
 
 // ---- rendering ----------------------------------------------------------------
 let render = null;
@@ -83,7 +85,7 @@ function tile(hex, input, onClick) {
   const cap = caption(hex, input);
   t.innerHTML = `<img class="thumb" alt="" loading="lazy"><span class="cap"><b></b><code>${hex.slice(0, 16)}…</code><small class="by"></small></span>`;
   t.querySelector("b").textContent = cap;
-  const by = discoverer(hex);
+  const by = credit(hex);
   t.querySelector(".by").textContent = by ? `Discovered by ${by}` : "";
   t.querySelector(".by").hidden = !by;
   t.querySelector("img").alt = `Landscape: ${cap}`;
@@ -109,17 +111,27 @@ function lazy(t, hex) {
 
 // ---- the current result -------------------------------------------------------
 let current = null;  // { hash, input }
+// What the arrows walk: the gallery or the favorites, looping, when the current
+// landscape came from one of them; otherwise "seed", which counts past the
+// input: world, world+1, world+2, and back.
+let mode = "seed";
 
 async function show(hex, input, source) {
   hex = hex.toLowerCase();
   current = { hash: hex, input };
+  if (source !== "arrow") {
+    mode = source === "gallery" ? "gallery" : source === "favorite" ? "favorites"
+         : isFav(hex) ? "favorites" : EXAMPLES.some((e) => e.hash === hex) ? "gallery" : "seed";
+  }
+  highlight(source === "arrow");
+  for (const b of document.querySelectorAll("[data-step='-1']")) b.disabled = mode === "seed" && !SEED_STEP.test(input || hex);
   $("result").hidden = false;
   $("result-loading").hidden = false;
   $("ref-input-row").hidden = !input;
   $("ref-input").textContent = input || "";
   $("ref-hash").textContent = hex;
-  $("ref-by-row").hidden = !discoverer(hex);
-  $("ref-by").textContent = discoverer(hex);
+  $("ref-by-row").hidden = !credit(hex);
+  $("ref-by").textContent = credit(hex);
   $("result-img").alt = `Landscape for hash ${hex}`;
   $("status").textContent = "";
   // Only words that are not in the gallery yet can be suggested for it.
@@ -133,6 +145,38 @@ async function show(hex, input, source) {
   $("glow").style.setProperty("--glow-img", `url("${url}")`);
   $("result-loading").hidden = true;
   track(hex, input, source);
+}
+
+// Moves to the next (d = 1) or previous (d = -1) landscape.
+const SEED_STEP = /^(.*)\+(\d+)$/s;
+async function stepBy(d) {
+  if (!current) return;
+  const list = mode === "gallery" ? EXAMPLES : mode === "favorites" ? favs : null;
+  if (list && list.length) {
+    const i = list.findIndex((x) => x.hash === current.hash);
+    const next = list[((i < 0 ? (d > 0 ? -1 : 0) : i) + d + list.length) % list.length];
+    if (mode === "gallery") { $("query").value = next.input || next.hash; $("clear").hidden = false; }
+    return show(next.hash, next.input || "", "arrow");
+  }
+  mode = "seed";
+  const m = SEED_STEP.exec(current.input || current.hash);
+  const root = m ? m[1] : current.input || current.hash, n = (m ? +m[2] : 0) + d;
+  if (n < 0) return;
+  const text = n ? `${root}+${n}` : root;
+  $("query").value = text;
+  $("clear").hidden = false;
+  return HEX.test(text) ? show(text, "", "arrow") : show(await sha256(text), text, "arrow");
+}
+
+// Outlines the current landscape's tile in the strip the arrows walk, and
+// scrolls that strip to it when an arrow moved there.
+function highlight(scroll) {
+  const strip = mode === "gallery" ? $("carousel") : mode === "favorites" ? $("fav-list") : null;
+  for (const t of document.querySelectorAll(".tile")) {
+    const on = !!current && t.parentElement === strip && t.dataset.hash === current.hash;
+    t.classList.toggle("selected", on);
+    if (on && scroll) strip.scrollTo({ left: t.offsetLeft - (strip.clientWidth - t.offsetWidth) / 2, behavior: "smooth" });
+  }
 }
 
 // Reports each landscape a visitor asks for to Google Analytics as
@@ -220,6 +264,7 @@ function renderFavs() {
   const list = $("fav-list");
   list.replaceChildren(...favs.map((f) => lazy(tile(f.hash, f.input, () => show(f.hash, f.input, "favorite")), f.hash)));
   $("favorites").hidden = favs.length === 0;
+  highlight(false);
 }
 
 // A vertical wheel scrolls a strip sideways while it can still move that way,
@@ -381,9 +426,18 @@ function init() {
   // The gallery scrolls sideways with a mouse wheel too, and by dragging.
   dragScroll($("carousel"));
   dragScroll($("fav-list"));
-  const step = () => $("carousel").clientWidth * 0.8;
-  $("prev").addEventListener("click", () => $("carousel").scrollBy({ left: -step(), behavior: "smooth" }));
-  $("next").addEventListener("click", () => $("carousel").scrollBy({ left: step(), behavior: "smooth" }));
+  // The strips' own arrows scroll them; the result's arrows step through landscapes.
+  for (const b of document.querySelectorAll("[data-rail]")) b.addEventListener("click", () => {
+    const strip = b.parentElement.querySelector(".carousel, .thumbs");
+    strip.scrollBy({ left: Number(b.dataset.rail) * strip.clientWidth * 0.8, behavior: "smooth" });
+  });
+  for (const b of document.querySelectorAll("[data-step]")) b.addEventListener("click", () => stepBy(Number(b.dataset.step)));
+  document.addEventListener("keydown", (e) => {
+    if ((e.key !== "ArrowLeft" && e.key !== "ArrowRight") || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+    if (!$("crop").hidden || e.target.closest?.("input, textarea, select, [role=menu], [role=slider], .carousel, .thumbs")) return;
+    e.preventDefault();
+    stepBy(e.key === "ArrowRight" ? 1 : -1);
+  });
 
 
   // The clear button shows while the search box has text; it and the logo
