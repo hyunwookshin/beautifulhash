@@ -235,11 +235,32 @@ const SIZES = {
   linkedin: { w: 1584, h: 396, name: "-linkedin", label: "LinkedIn banner" },
   x: { w: 1500, h: 500, name: "-x", label: "X header" },
   facebook: { w: 1640, h: 624, name: "-facebook", label: "Facebook cover" },
-  iphone: { w: 1179, h: 2556, name: "-iphone", label: "Phone background" },
-  android: { w: 1080, h: 2400, name: "-android", label: "Phone background" },
-  tablet: { w: 2048, h: 2732, name: "-tablet", label: "Tablet background" },
   desktop: { w: 3840, h: 2160, name: "-desktop", label: "Desktop background" },
 };
+// Phone and tablet backgrounds, by maker, at each screen's native portrait
+// resolution. A foldable's inner screen is nearly square.
+const DEVICES = {
+  phones: [
+    ["iPhone", [
+      ["iPhone 16 Pro Max", 1320, 2868], ["iPhone 16 Pro", 1206, 2622], ["iPhone 16 and 15", 1179, 2556], ["iPhone SE", 750, 1334]]],
+    ["Pixel", [
+      ["Pixel 9 Pro XL", 1344, 2992], ["Pixel 9 Pro", 1280, 2856], ["Pixel 9", 1080, 2424]]],
+    ["Galaxy", [
+      ["Galaxy S25 Ultra", 1440, 3120], ["Galaxy S25", 1080, 2340], ["Other Android", 1080, 2400]]],
+  ],
+  tablets: [
+    ["Foldables", [
+      ["Galaxy Z Fold6, inner", 1856, 2160], ["Galaxy Z Fold6, cover", 968, 2376], ["Galaxy Z Flip6", 1080, 2640],
+      ["Pixel 9 Pro Fold, inner", 2076, 2152], ["Pixel 9 Pro Fold, cover", 1080, 2424]]],
+    ["Tablets", [
+      ["iPad Pro 13″", 2064, 2752], ["iPad Pro 11″", 1668, 2420], ["iPad Air 11″", 1640, 2360], ["iPad mini", 1488, 2266],
+      ["Galaxy Tab S10 Ultra", 1848, 2960]]],
+  ],
+};
+const slug = (name) => name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+for (const groups of Object.values(DEVICES)) {
+  for (const [, list] of groups) for (const [label, w, h] of list) SIZES[slug(label)] = { w, h, name: `-${slug(label)}`, label };
+}
 // A size narrower than 4:3 is a column (it crops across), else a band (it crops
 // down); bandOf is its share of the landscape along that axis.
 const isColumn = (size) => size.w / size.h < 1024 / 768;
@@ -330,21 +351,47 @@ function init() {
     updateStar();
     renderFavs();
   });
-  // Download menu: the standard PNG, the SVG, or a banner for a social profile.
-  const menu = $("dl-menu"), items = [...menu.querySelectorAll("[role=menuitem]")];
+  // Download menu: the standard PNG, the SVG, a banner for a social profile, or a
+  // background. Phones and tablets open a second page in place of the first,
+  // with a back row, so the menu keeps its width on a phone.
+  const menu = $("dl-menu");
+  const PAGE_TITLES = { phones: "Phones", tablets: "Foldables and tablets" };
+  for (const [page, groups] of Object.entries(DEVICES)) {
+    const div = document.createElement("div");
+    div.className = "dl-page";
+    div.dataset.page = page;
+    div.hidden = true;
+    div.innerHTML = `<button role="menuitem" class="dl-back" data-back><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" class="line"><path d="M15 6l-6 6 6 6"/></svg><span>${PAGE_TITLES[page]}</span></button>`
+      + groups.map(([maker, list]) => `<div class="dl-sep" role="separator">${maker}</div>`
+        + list.map(([label, w, h]) => `<button role="menuitem" data-dl="${slug(label)}"><span>${label}<small>${w} × ${h}</small></span></button>`).join("")).join("");
+    menu.appendChild(div);
+  }
+  const items = () => [...menu.querySelectorAll(".dl-page:not([hidden]) [role=menuitem]")];
+  const showPage = (page, focus) => {
+    for (const p of menu.querySelectorAll(".dl-page")) p.hidden = p.dataset.page !== page;
+    (focus ? menu.querySelector(`[data-sub="${focus}"]`) : items()[0])?.focus();
+  };
   const setMenu = (open) => {
     menu.hidden = !open;
     $("dl-btn").setAttribute("aria-expanded", String(open));
-    if (open) items[0].focus();
+    if (open) showPage("main");
   };
   $("dl-btn").addEventListener("click", () => setMenu(menu.hidden));
   document.addEventListener("click", (e) => { if (!menu.hidden && !e.target.closest(".dl")) setMenu(false); });
   menu.addEventListener("keydown", (e) => {
-    const i = items.indexOf(document.activeElement);
-    if (e.key === "Escape") { setMenu(false); $("dl-btn").focus(); }
-    if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); items[(i + (e.key === "ArrowDown" ? 1 : items.length - 1)) % items.length].focus(); }
+    const list = items(), i = list.indexOf(document.activeElement), page = menu.querySelector(".dl-page:not([hidden])").dataset.page;
+    if (e.key === "Escape") { e.stopPropagation(); if (page === "main") { setMenu(false); $("dl-btn").focus(); } else showPage("main", page); }
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); list[(i + (e.key === "ArrowDown" ? 1 : list.length - 1)) % list.length].focus(); }
+    if (e.key === "ArrowRight" && document.activeElement.dataset.sub) { e.preventDefault(); showPage(document.activeElement.dataset.sub); }
+    if (e.key === "ArrowLeft" && page !== "main") { e.preventDefault(); showPage("main", page); }
   });
-  for (const item of items) item.addEventListener("click", async () => {
+  menu.addEventListener("click", async (e) => {
+    const item = e.target.closest("[role=menuitem]");
+    if (!item) return;
+    // The page swap hides the clicked row; keep the outside-click check from closing the menu.
+    e.stopPropagation();
+    if (item.dataset.sub) return showPage(item.dataset.sub);
+    if (item.hasAttribute("data-back")) return showPage("main", item.closest(".dl-page").dataset.page);
     setMenu(false);
     if (!current) return;
     const kind = item.dataset.dl;

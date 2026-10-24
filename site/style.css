@@ -115,6 +115,7 @@ main { max-width: 1160px; margin: 0 auto; padding-inline: 20px; padding-block: 4
 .round:hover { border-color: var(--accent); }
 .round svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .round:disabled { opacity: 0.4; cursor: default; border-color: var(--line); }
+.step-btn:disabled { visibility: hidden; }
 /* stepping: a pair at the details' bottom right, and a pair over the image on hover */
 .stepper { display: flex; gap: 8px; margin-top: auto; align-self: flex-end; }
 .step-btn, .rail-btn { position: absolute; z-index: 2; top: 50%; translate: 0 -50%; width: 40px; height: 40px; opacity: 0; transition: opacity 0.15s; background: color-mix(in srgb, var(--panel) 82%, transparent); box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18); }
@@ -299,7 +300,7 @@ td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; white-spa
 /* download menu: standard, vector, and social banners */
 .dl { position: relative; }
 .icon-btn .caret { font-size: 11px; color: var(--muted); }
-.dl-menu { position: absolute; z-index: 12; left: 0; top: calc(100% + 6px); min-width: 230px; display: grid; padding: 6px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 16px 40px rgba(0, 0, 0, 0.22); }
+.dl-menu { position: absolute; z-index: 12; left: 0; top: calc(100% + 6px); min-width: 230px; width: max-content; max-width: calc(100vw - 32px); display: grid; padding: 6px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 16px 40px rgba(0, 0, 0, 0.22); }
 .dl-menu button { display: flex; align-items: center; gap: 12px; padding: 8px 10px; border: 0; border-radius: 8px; background: none; text-align: left; }
 .dl-menu button:hover, .dl-menu button:focus-visible { background: color-mix(in srgb, var(--accent) 12%, transparent); outline: none; }
 .dl-menu span { display: grid; font-size: 14px; font-weight: 500; }
@@ -309,6 +310,11 @@ td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; white-spa
 .dl-menu svg.linkedin path { fill: #0a66c2; }
 .dl-menu svg.facebook path { fill: #0866ff; }
 .dl-menu svg.x path { fill: currentColor; }
+.dl-page { display: grid; }
+@media (max-width: 760px) { .dl-menu { left: auto; right: 0; } }
+.dl-menu .chev { margin-left: auto; color: var(--muted); }
+.dl-back { font-weight: 600; }
+.dl-back span { font-size: 15px; }
 .dl-sep { padding: 8px 10px 4px; border-top: 1px solid var(--line); margin-top: 4px; font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
 
 /* banner crop: the whole landscape, a draggable band, the rest dimmed */
