@@ -109,6 +109,8 @@
               <button role="menuitem" data-sub="phones" aria-haspopup="menu"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" class="line"><path d="M7.5 2.5h9a1.5 1.5 0 0 1 1.5 1.5v16a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 6 20V4a1.5 1.5 0 0 1 1.5-1.5zM10.5 18.5h3"/></svg><span>Phones<small>iPhone · Pixel · Galaxy</small></span><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" class="line chev"><path d="M9 6l6 6-6 6"/></svg></button>
               <button role="menuitem" data-sub="tablets" aria-haspopup="menu"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" class="line"><path d="M4 4.5h7.25v15H4zM12.75 4.5H20v15h-7.25z"/></svg><span>Foldables and tablets<small>Fold · Flip · iPad · Tab</small></span><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" class="line chev"><path d="M9 6l6 6-6 6"/></svg></button>
               <button role="menuitem" data-dl="desktop"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" class="line"><path d="M3 4h18v12H3zM9 20h6M12 16v4"/></svg><span>Desktop<small>3840 × 2160 · 4K</small></span></button>
+                <div class="dl-sep" role="separator">Print</div>
+                <button role="menuitem" data-dl="card"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" class="line"><path d="M3 6h18v12H3zM3 6l9 7 9-7"/></svg><span>Personalized card<small>5 × 7 in · 2175 × 1575</small></span></button>
               </div>
             </div>
           </div>
@@ -142,6 +144,20 @@
     </section>
   </section>
 </main>
+
+<div id="card" class="lightbox" hidden>
+  <div class="card-panel" role="dialog" aria-modal="true" aria-labelledby="card-title">
+    <h3 id="card-title">Your card is downloaded</h3>
+    <p class="card-lede">Upload it to a card maker to print it. The image is 5 × 7 inches at 300 dpi, with an eighth of an inch to spare on each side for trimming.</p>
+    <ul class="makers">
+      <li><a href="https://www.zazzle.com/customizer?dz=ea39d9d8-28a0-4eac-9a67-f765461399d2&amp;qty=1&amp;src=pdp" target="_blank" rel="noopener"><b>Zazzle</b><small>Cards printed from your upload</small><span aria-hidden="true">↗</span></a></li>
+      <li><a href="https://www.vistaprint.com/stationery" target="_blank" rel="noopener"><b>Vistaprint</b><small>Cards and invitations</small><span aria-hidden="true">↗</span></a></li>
+      <li><a href="https://www.shutterfly.com/cards-stationery/" target="_blank" rel="noopener"><b>Shutterfly</b><small>Photo cards for any occasion</small><span aria-hidden="true">↗</span></a></li>
+      <li><a href="https://www.moo.com/us/greeting-cards" target="_blank" rel="noopener"><b>MOO</b><small>Greeting cards on heavy paper</small><span aria-hidden="true">↗</span></a></li>
+    </ul>
+    <div class="actions crop-actions"><button type="button" id="card-done" class="primary">Done</button></div>
+  </div>
+</div>
 
 <div id="crop" class="lightbox" hidden>
   <div class="crop-panel" role="dialog" aria-modal="true" aria-labelledby="crop-title">

@@ -235,6 +235,8 @@ const SIZES = {
   linkedin: { w: 1584, h: 396, name: "-linkedin", label: "LinkedIn banner" },
   x: { w: 1500, h: 500, name: "-x", label: "X header" },
   facebook: { w: 1640, h: 624, name: "-facebook", label: "Facebook cover" },
+  // A 5 × 7 inch card at 300 dpi, plus 1/8 inch of bleed on each side.
+  card: { w: 2175, h: 1575, name: "-card", label: "Personalized card" },
   desktop: { w: 3840, h: 2160, name: "-desktop", label: "Desktop background" },
 };
 // Phone and tablet backgrounds, by maker, at each screen's native portrait
@@ -459,7 +461,13 @@ function init() {
     await downloadPng(current.hash, crop.size, crop.center);
     tracked(crop.kind);
     closeCrop();
+    // A card goes on to a printer: offer a few card makers to upload it to.
+    if (crop.kind === "card") { $("card").hidden = false; $("card-done").focus(); }
   });
+  const closeCard = () => { $("card").hidden = true; $("dl-btn").focus(); };
+  $("card-done").addEventListener("click", closeCard);
+  $("card").addEventListener("click", (e) => { if (e.target === $("card")) closeCard(); });
+  $("card").addEventListener("keydown", (e) => { if (e.key === "Escape") closeCard(); });
   $("copy-link").addEventListener("click", async () => {
     if (!current) return;
     const link = `${location.origin}${location.pathname}#${current.hash}`;
