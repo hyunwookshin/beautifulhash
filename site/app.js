@@ -8,7 +8,6 @@
 // `by` is who discovered it (the hash-only ones were found while testing).
 const EXAMPLES = [
   { hash: "9e6ed8c1b2283a48a64fca7f8be20b89e01fa378280f91c631ffe62c2f144534", title: "Where the maples burn", by: "Claude" },
-  { hash: "486ea46224d1bb4fb680f34f7c9ad96a8f24ec88be73ea8e5a6c65260e9cb8a7", input: "world", title: "Blush on the summit", by: "Hyunwook Shin" },
   { hash: "c06b0cfe0cc5e900c57784484094331f095bf441995c3c31ea6c75691c786c35", input: "flower", title: "Moonlit snow, sleeping pines", by: "Hyunwook Shin" },
   { hash: "e6f933f76267778a781c8ceed4c85da4ef68694fd2217755e5f1a7a02884b98f", input: "academy", title: "Granite under the moon", by: "Hyunwook Shin" },
   { hash: "a65a38fb4042fcbcad48b6ecc6ad70987129d51315698477282cc24a93cd7f23", title: "Rose light on stone", by: "Claude" },
@@ -21,6 +20,9 @@ const EXAMPLES = [
   { hash: "099ae4672fc8922e18dc0a75b1ff155f414ef140cbe583c86e8440de05542029", input: "peel", title: "Clean air, quiet valley", by: "Hyunwook Shin" },
 ];
 const RECOMMENDED = EXAMPLES.slice(0, 4);
+// The landscape shown on arrival: "world", kept out of the gallery so its
+// arrows count on from it (world+1, world+2, …) instead of walking the gallery.
+const WELCOME = { hash: "486ea46224d1bb4fb680f34f7c9ad96a8f24ec88be73ea8e5a6c65260e9cb8a7", input: "world" };
 const SUGGESTIONS = ["Hello!", "chocolate muffin", "good morning", "my cat Miso", "rainy Tuesday", "Happy Birthday", "coffee first", "see you at sunset"];
 
 const $ = (id) => document.getElementById(id);
@@ -492,7 +494,7 @@ function init() {
   // A shared link opens its hash; otherwise "world", with the search box left empty.
   const fromLink = location.hash.slice(1);
   if (HEX.test(fromLink)) { $("query").value = fromLink; show(fromLink, "", "link"); }
-  else show(EXAMPLES[1].hash, EXAMPLES[1].input);
+  else show(WELCOME.hash, WELCOME.input);
 }
 
 init();
