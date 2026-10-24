@@ -37,7 +37,7 @@ function discoverer(hex) {
   const ex = EXAMPLES.find((e) => e.hash === hex);
   return ex ? ex.by : "";
 }
-// The credit shown for it: the site's author is not credited on his own site.
+// The credit shown for it; the site's author goes uncredited on the site.
 const credit = (hex) => discoverer(hex) === "Hyunwook Shin" ? "" : discoverer(hex);
 
 // ---- rendering ----------------------------------------------------------------
