@@ -235,6 +235,7 @@ function updateViewer() {
   if ($("viewer").hidden || !current) return;
   $("viewer-img").src = $("result-img").src;
   $("viewer-img").alt = $("result-img").alt;
+  $("viewer-bg").style.backgroundImage = `url("${$("result-img").src}")`;
   $("viewer-title").textContent = caption(current.hash, current.input);
   $("viewer-hash").textContent = `${current.hash.slice(0, 16)}…`;
 }

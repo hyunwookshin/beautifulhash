@@ -129,9 +129,10 @@ main { max-width: 1160px; margin: 0 auto; padding-inline: 20px; padding-block: 4
 .tile.selected { outline: 2px solid var(--accent); outline-offset: -2px; border-color: var(--accent); }
 .thumbs, .carousel { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(220px, 280px); gap: 14px; overflow-x: auto; scroll-snap-type: x proximity; padding-bottom: 8px; scrollbar-width: thin; }
 .dragging { cursor: grabbing; scroll-snap-type: none; user-select: none; }
-.tile { scroll-snap-align: start; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; padding: 0; text-align: left; display: grid; }
+.tile { scroll-snap-align: start; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; padding: 0; text-align: left; display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; }
 .tile:hover { border-color: var(--accent); }
-.tile .thumb { aspect-ratio: 4 / 3; max-width: 100%; background: var(--line); display: block; width: 100%; object-fit: cover; }
+/* Safari sizes a grid column to an image's natural width unless told not to */
+.tile .thumb { aspect-ratio: 4 / 3; max-width: 100%; min-width: 0; height: auto; background: var(--line); display: block; width: 100%; object-fit: cover; }
 .tile .cap { padding: 10px 12px; display: grid; gap: 2px; }
 .tile .cap b { font-weight: 600; font-size: 14px; }
 .tile .cap code { color: var(--muted); font-size: 11px; }
@@ -375,7 +376,9 @@ td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; white-spa
 .expand-btn svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .frame:hover .expand-btn, .frame.touched .expand-btn, .expand-btn:focus-visible { opacity: 1; pointer-events: auto; }
 .viewer { touch-action: none; position: fixed; inset: 0; z-index: 30; display: grid; place-items: center; background: #000; }
-.viewer img { max-width: 100%; max-height: 100%; width: 100%; height: 100%; object-fit: contain; }
+/* the whole landscape, fitted; the space around it is the landscape again, blurred */
+.viewer img { position: absolute; inset: 0; width: 100%; height: 100%; max-width: 100%; object-fit: contain; }
+.viewer-bg { position: absolute; inset: -40px; background: center / cover no-repeat; filter: blur(32px) brightness(0.7) saturate(1.1); transform: scale(1.05); }
 .viewer-close { position: absolute; top: calc(12px + env(safe-area-inset-top, 0px)); right: 12px; width: 40px; height: 40px; border: 1px solid rgba(255, 255, 255, 0.35); border-radius: 999px; background: rgba(10, 14, 18, 0.45); color: #fff; font-size: 22px; line-height: 1; }
 
 /* a one-time hint for touch screens; it fades in, holds, and fades out */
