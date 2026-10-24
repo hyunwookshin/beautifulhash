@@ -145,6 +145,7 @@ async function show(hex, input, source) {
   await idle();
   const url = await svgUrl(hex);
   $("result-img").src = url;
+  if (!$("viewer").hidden) { $("viewer-img").src = url; $("viewer-img").alt = $("result-img").alt; }
   $("glow").style.setProperty("--glow-img", `url("${url}")`);
   $("result-loading").hidden = true;
   track(hex, input, source);
@@ -530,8 +531,42 @@ function init() {
     $("viewer").hidden = false;
     $("viewer-close").focus();
     $("viewer").requestFullscreen?.().catch(() => {});
+    tip("tip-full");
   });
-  $("viewer").addEventListener("click", closeViewer);
+  // Swipes step through landscapes: sideways on the page, up and down in full
+  // screen (up for the next, as in a feed). A swipe is a quick, mostly straight
+  // touch drag of 50px or more; it never also counts as a tap.
+  let swiped = false;
+  const onSwipe = (el, axis) => {
+    let start = null;
+    el.addEventListener("pointerdown", (e) => { if (e.pointerType !== "mouse") start = { x: e.clientX, y: e.clientY, t: e.timeStamp }; });
+    el.addEventListener("pointercancel", () => { start = null; });
+    el.addEventListener("pointerup", (e) => {
+      if (!start) return;
+      const dx = e.clientX - start.x, dy = e.clientY - start.y, quick = e.timeStamp - start.t < 800;
+      start = null;
+      const [along, across] = axis === "x" ? [dx, dy] : [dy, dx];
+      if (!quick || Math.abs(along) < 50 || Math.abs(along) < 1.5 * Math.abs(across)) return;
+      swiped = true;
+      setTimeout(() => { swiped = false; }, 400);
+      stepBy(along < 0 ? 1 : -1);
+    });
+  };
+  // On a touch screen, a pill fades in and out once per visit to say so: on
+  // the page when the image comes into view, and in full screen when it opens.
+  const touch = matchMedia("(pointer: coarse)").matches, tipped = new Set();
+  const tip = (id) => {
+    if (!touch || tipped.has(id)) return;
+    tipped.add(id);
+    $(id).classList.add("show");
+  };
+  new IntersectionObserver((entries, io) => {
+    if (entries.some((e) => e.isIntersecting)) { tip("tip-page"); io.disconnect(); }
+  }, { threshold: 0.6 }).observe($("result").querySelector(".frame"));
+  onSwipe($("result").querySelector(".frame"), "x");
+  onSwipe($("viewer"), "y");
+  $("result-img").addEventListener("click", (e) => { if (swiped) e.stopImmediatePropagation(); }, true);
+  $("viewer").addEventListener("click", () => { if (!swiped) closeViewer(); });
   $("viewer").addEventListener("keydown", (e) => { if (e.key === "Escape") closeViewer(); });
   document.addEventListener("fullscreenchange", () => { if (!document.fullscreenElement && !$("viewer").hidden) closeViewer(); });
   $("copy-link").addEventListener("click", async () => {

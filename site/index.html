@@ -78,6 +78,7 @@
       <figure class="frame">
         <img id="result-img" alt="">
         <div id="result-loading" class="loading" hidden>Drawing…</div>
+        <div id="tip-page" class="tip" aria-hidden="true">Swipe left or right for more</div>
         <button type="button" id="expand" class="expand-btn" aria-label="Full screen"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
         <button type="button" class="round step-btn prev" data-step="-1" aria-label="Previous landscape"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6"/></svg></button>
         <button type="button" class="round step-btn next" data-step="1" aria-label="Next landscape"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
@@ -150,6 +151,7 @@
 
 <div id="viewer" class="viewer" hidden role="dialog" aria-modal="true" aria-label="Landscape, full screen">
   <img id="viewer-img" alt="">
+  <div id="tip-full" class="tip" aria-hidden="true">Swipe up or down for more</div>
   <button type="button" id="viewer-close" class="viewer-close" aria-label="Close full screen">×</button>
 </div>
 

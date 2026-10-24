@@ -91,7 +91,7 @@ main { max-width: 1160px; margin: 0 auto; padding-inline: 20px; padding-block: 4
 
 /* result */
 .result { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); margin-top: 36px; border: 1px solid var(--line); border-radius: 16px; background: var(--panel); box-shadow: 0 18px 50px rgba(0, 0, 0, 0.12); }
-.frame { position: relative; margin: 0; overflow: hidden; border-radius: 15px 0 0 15px; background: var(--panel); aspect-ratio: 4 / 3; max-width: 100%; }
+.frame { touch-action: pan-y; position: relative; margin: 0; overflow: hidden; border-radius: 15px 0 0 15px; background: var(--panel); aspect-ratio: 4 / 3; max-width: 100%; }
 .frame img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .loading { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); background: var(--panel); }
 .details { display: flex; flex-direction: column; gap: 18px; min-width: 0; padding: 22px; background: var(--panel); border-left: 1px solid var(--line); border-radius: 0 15px 15px 0; }
@@ -374,6 +374,13 @@ td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; white-spa
 .expand-btn { position: absolute; z-index: 2; right: 12px; bottom: 12px; width: 40px; height: 40px; display: grid; place-items: center; padding: 0; border: 1px solid rgba(255, 255, 255, 0.35); border-radius: 10px; background: rgba(10, 14, 18, 0.45); color: #fff; backdrop-filter: blur(6px); opacity: 0; pointer-events: none; transition: opacity 0.2s; }
 .expand-btn svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .frame:hover .expand-btn, .frame.touched .expand-btn, .expand-btn:focus-visible { opacity: 1; pointer-events: auto; }
-.viewer { position: fixed; inset: 0; z-index: 30; display: grid; place-items: center; background: #000; }
+.viewer { touch-action: none; position: fixed; inset: 0; z-index: 30; display: grid; place-items: center; background: #000; }
 .viewer img { max-width: 100%; max-height: 100%; width: 100%; height: 100%; object-fit: contain; }
 .viewer-close { position: absolute; top: calc(12px + env(safe-area-inset-top, 0px)); right: 12px; width: 40px; height: 40px; border: 1px solid rgba(255, 255, 255, 0.35); border-radius: 999px; background: rgba(10, 14, 18, 0.45); color: #fff; font-size: 22px; line-height: 1; }
+
+/* a one-time hint for touch screens; it fades in, holds, and fades out */
+.tip { position: absolute; z-index: 3; left: 50%; bottom: 16px; translate: -50% 0; padding: 8px 14px; border-radius: 999px; background: rgba(10, 14, 18, 0.6); color: #fff; font-size: 13px; font-weight: 500; white-space: nowrap; backdrop-filter: blur(6px); opacity: 0; pointer-events: none; }
+.viewer .tip { bottom: calc(28px + env(safe-area-inset-bottom, 0px)); }
+.tip.show { animation: tip 3.4s ease-in-out forwards; }
+@keyframes tip { 0% { opacity: 0; } 15%, 80% { opacity: 1; } 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .tip.show { animation-timing-function: steps(1, end); } }
