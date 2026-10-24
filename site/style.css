@@ -124,13 +124,6 @@ main { max-width: 1160px; margin: 0 auto; padding-inline: 20px; padding-block: 4
 
 /* lightbox: an in-page div over a scrim */
 .lightbox { position: fixed; inset: 0; z-index: 20; background: var(--scrim); display: grid; place-items: center; padding: 20px; }
-.lb-panel { position: relative; width: min(1100px, 100%); max-height: 100%; overflow: auto; background: var(--panel); border-radius: 14px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35); }
-.lb-panel img { display: block; width: 100%; aspect-ratio: 4 / 3; max-width: 100%; object-fit: cover; background: var(--line); }
-.lb-close { position: absolute; top: 12px; right: 12px; z-index: 1; }
-.lb-meta { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px; padding: 16px 18px; }
-.lb-meta h3 { font-size: 22px; }
-.lb-meta code { color: var(--muted); }
-.lb-meta > div:first-child { min-width: 0; flex: 1 1 320px; }
 
 .foot { max-width: 1160px; margin: 0 auto; padding: 24px 20px calc(32px + env(safe-area-inset-bottom)); color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); }
 
@@ -181,7 +174,6 @@ td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; white-spa
 
 /* discoverer credit */
 .tile .cap .by { color: var(--muted); font-size: 12px; }
-.lb-by { margin: 4px 0 0; color: var(--muted); font-size: 14px; }
 
 /* gallery suggestion: a small floating form, opened from the result card */
 .suggest { position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); z-index: 16; width: min(360px, calc(100% - 32px)); max-height: calc(100% - 32px); overflow: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35); }
@@ -319,5 +311,10 @@ td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; white-spa
 .crop-band::before, .crop-band::after { content: ""; position: absolute; left: 50%; width: 36px; height: 4px; margin-left: -18px; border-radius: 2px; background: #fff; }
 .crop-band::before { top: -3px; }
 .crop-band::after { bottom: -3px; }
+.crop-stage.column { cursor: ew-resize; }
+.crop-stage.column .crop-band { border: 0; border-left: 2px solid #fff; border-right: 2px solid #fff; }
+.crop-stage.column .crop-band::before, .crop-stage.column .crop-band::after { top: 50%; left: auto; width: 4px; height: 36px; margin: -18px 0 0; }
+.crop-stage.column .crop-band::before { left: -3px; }
+.crop-stage.column .crop-band::after { right: -3px; bottom: auto; }
 .crop-hint { margin: 0; font-size: 13px; color: var(--muted); }
 .crop-actions { justify-content: flex-end; }

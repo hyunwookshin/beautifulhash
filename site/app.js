@@ -180,18 +180,26 @@ function save(url, name) {
   a.remove();
 }
 
-// PNG sizes. Banners are full-width bands of the landscape; the visitor picks
-// the band in the crop dialog, starting 62% of the way down, which keeps the
-// summits, the near ridge, and the trees.
+// PNG sizes. Banners and wide screens are full-width bands of the landscape,
+// starting 62% of the way down, which keeps the summits, the near ridge, and
+// the trees; portrait screens are full-height columns, starting centered. The
+// visitor moves the band in the crop dialog.
 const SIZES = {
   png: { w: 2048, h: 1536, name: "" },
   linkedin: { w: 1584, h: 396, name: "-linkedin", label: "LinkedIn banner" },
   x: { w: 1500, h: 500, name: "-x", label: "X header" },
   facebook: { w: 1640, h: 624, name: "-facebook", label: "Facebook cover" },
+  iphone: { w: 1179, h: 2556, name: "-iphone", label: "Phone background" },
+  android: { w: 1080, h: 2400, name: "-android", label: "Phone background" },
+  tablet: { w: 2048, h: 2732, name: "-tablet", label: "Tablet background" },
+  desktop: { w: 3840, h: 2160, name: "-desktop", label: "Desktop background" },
 };
-// The band's height as a fraction of the landscape's, and the allowed centers.
-const bandOf = (size) => (size.h / size.w) * (1024 / 768);
+// A size narrower than 4:3 is a column (it crops across), else a band (it crops
+// down); bandOf is its share of the landscape along that axis.
+const isColumn = (size) => size.w / size.h < 1024 / 768;
+const bandOf = (size) => isColumn(size) ? (size.w / size.h) * (768 / 1024) : (size.h / size.w) * (1024 / 768);
 const clampCenter = (c, size) => Math.min(1 - bandOf(size) / 2, Math.max(bandOf(size) / 2, c));
+const startCenter = (size) => clampCenter(isColumn(size) ? 0.5 : 0.62, size);
 async function downloadPng(hex, size, center = 0.62) {
   const img = new Image();
   img.src = await svgUrl(hex);
@@ -199,9 +207,11 @@ async function downloadPng(hex, size, center = 0.62) {
   const canvas = document.createElement("canvas");
   canvas.width = size.w;
   canvas.height = size.h;
-  // Draw the whole SVG at the banner's width, so it rasterizes sharp, and shift it up.
-  const k = size.w / 1024, top = Math.min(0, Math.max(size.h - 768 * k, size.h / 2 - center * 768 * k));
-  canvas.getContext("2d").drawImage(img, 0, top, 1024 * k, 768 * k);
+  // Draw the whole SVG scaled to cover the canvas, so it rasterizes sharp, and
+  // shift it so the chosen center lands mid-canvas.
+  const col = isColumn(size), k = col ? size.h / 768 : size.w / 1024;
+  const shift = (len, full) => Math.min(0, Math.max(len - full * k, len / 2 - center * full * k));
+  canvas.getContext("2d").drawImage(img, col ? shift(size.w, 1024) : 0, col ? 0 : shift(size.h, 768), 1024 * k, 768 * k);
   canvas.toBlob((blob) => save(URL.createObjectURL(blob), `beautifulhash-${hex.slice(0, 12)}${size.name}.png`), "image/png");
 }
 
@@ -238,22 +248,6 @@ function dragScroll(el) {
   el.addEventListener("click", (e) => { if (moved) { e.stopPropagation(); e.preventDefault(); moved = false; } }, true);
   el.addEventListener("dragstart", (e) => e.preventDefault());
 }
-
-// ---- examples carousel and lightbox ------------------------------------------
-let lbIndex = 0;
-async function openLightbox(i) {
-  lbIndex = (i + EXAMPLES.length) % EXAMPLES.length;
-  const ex = EXAMPLES[lbIndex];
-  const hex = ex.hash;
-  $("lb-title").textContent = ex.title;
-  $("lb-hash").textContent = ex.input ? `“${ex.input}” · ${hex}` : hex;
-  $("lb-by").textContent = `Discovered by ${ex.by}`;
-  $("lb-img").alt = `Landscape: ${ex.title}`;
-  $("lightbox").hidden = false;
-  $("lb-close").focus();
-  $("lb-img").src = await svgUrl(hex);
-}
-function closeLightbox() { $("lightbox").hidden = true; }
 
 // ---- wiring -------------------------------------------------------------------
 function init() {
@@ -314,17 +308,20 @@ function init() {
   });
   const tracked = (kind) => { try { if (typeof gtag === "function") gtag("event", "landscape_downloaded", { format: kind }); } catch { /* analytics blocked */ } };
 
-  // Crop dialog: a band at the banner's proportions over the whole landscape.
+  // Crop dialog: a band (or a column) at the size's proportions over the whole landscape.
   let crop = null;  // { kind, size, center }
   const placeBand = () => {
-    const band = bandOf(crop.size);
-    $("crop-band").style.top = `${(crop.center - band / 2) * 100}%`;
-    $("crop-band").style.height = `${band * 100}%`;
+    const band = bandOf(crop.size), col = isColumn(crop.size), b = $("crop-band").style;
+    b.top = col ? "0" : `${(crop.center - band / 2) * 100}%`;
+    b.height = col ? "100%" : `${band * 100}%`;
+    b.left = col ? `${(crop.center - band / 2) * 100}%` : "0";
+    b.width = col ? `${band * 100}%` : "100%";
+    $("crop-stage").classList.toggle("column", col);
     $("crop-band").setAttribute("aria-valuenow", String(Math.round(crop.center * 100)));
   };
   const openCrop = async (kind) => {
     const size = SIZES[kind];
-    crop = { kind, size, center: clampCenter(0.62, size) };
+    crop = { kind, size, center: startCenter(size) };
     $("crop-title").textContent = size.label;
     $("crop-size").textContent = `${size.w} × ${size.h}`;
     $("crop-img").src = await svgUrl(current.hash);
@@ -336,23 +333,26 @@ function init() {
   // Dragging moves the band by the pointer's travel; a press outside it centers it there.
   let drag = null;
   $("crop-stage").addEventListener("pointerdown", (e) => {
-    const rect = $("crop-stage").getBoundingClientRect(), y = (e.clientY - rect.top) / rect.height;
-    if (e.target !== $("crop-band")) { crop.center = clampCenter(y, crop.size); placeBand(); }
-    drag = { y, center: crop.center, h: rect.height };
+    const at = (e) => {
+      const r = $("crop-stage").getBoundingClientRect();
+      return isColumn(crop.size) ? (e.clientX - r.left) / r.width : (e.clientY - r.top) / r.height;
+    };
+    const p = at(e);
+    if (e.target !== $("crop-band")) { crop.center = clampCenter(p, crop.size); placeBand(); }
+    drag = { at, p, center: crop.center };
     $("crop-stage").setPointerCapture(e.pointerId);
     e.preventDefault();
   });
   $("crop-stage").addEventListener("pointermove", (e) => {
     if (!drag) return;
-    const rect = $("crop-stage").getBoundingClientRect();
-    crop.center = clampCenter(drag.center + (e.clientY - rect.top) / drag.h - drag.y, crop.size);
+    crop.center = clampCenter(drag.center + drag.at(e) - drag.p, crop.size);
     placeBand();
   });
   const endDrag = () => { drag = null; };
   $("crop-stage").addEventListener("pointerup", endDrag);
   $("crop-stage").addEventListener("pointercancel", endDrag);
   $("crop-band").addEventListener("keydown", (e) => {
-    const step = { ArrowUp: -0.02, ArrowDown: 0.02, PageUp: -0.1, PageDown: 0.1 }[e.key];
+    const step = { ArrowUp: -0.02, ArrowLeft: -0.02, ArrowDown: 0.02, ArrowRight: 0.02, PageUp: -0.1, PageDown: 0.1 }[e.key];
     if (step === undefined) return;
     e.preventDefault();
     crop.center = clampCenter(crop.center + step, crop.size);
@@ -373,7 +373,11 @@ function init() {
     catch { $("status").textContent = link; }
   });
 
-  $("carousel").replaceChildren(...EXAMPLES.map((ex, i) => lazy(tile(ex.hash, ex.input, () => openLightbox(i)), ex.hash)));
+  // A gallery tile loads straight into the generator, as a favorite does.
+  $("carousel").replaceChildren(...EXAMPLES.map((ex) => lazy(tile(ex.hash, ex.input, () => {
+    openExample(ex, "gallery");
+    $("result").scrollIntoView({ behavior: "smooth", block: "start" });
+  }), ex.hash)));
   // The gallery scrolls sideways with a mouse wheel too, and by dragging.
   dragScroll($("carousel"));
   dragScroll($("fav-list"));
@@ -381,22 +385,6 @@ function init() {
   $("prev").addEventListener("click", () => $("carousel").scrollBy({ left: -step(), behavior: "smooth" }));
   $("next").addEventListener("click", () => $("carousel").scrollBy({ left: step(), behavior: "smooth" }));
 
-  $("lb-close").addEventListener("click", closeLightbox);
-  $("lightbox").addEventListener("click", (e) => { if (e.target === $("lightbox")) closeLightbox(); });
-  $("lb-prev").addEventListener("click", () => openLightbox(lbIndex - 1));
-  $("lb-next").addEventListener("click", () => openLightbox(lbIndex + 1));
-  $("lb-open").addEventListener("click", () => {
-    const ex = EXAMPLES[lbIndex];
-    closeLightbox();
-    openExample(ex, "gallery");
-    $("result").scrollIntoView({ behavior: "smooth", block: "start" });
-  });
-  document.addEventListener("keydown", (e) => {
-    if ($("lightbox").hidden) return;
-    if (e.key === "Escape") closeLightbox();
-    if (e.key === "ArrowLeft") openLightbox(lbIndex - 1);
-    if (e.key === "ArrowRight") openLightbox(lbIndex + 1);
-  });
 
   // The clear button shows while the search box has text; it and the logo
   // both empty the box and put the cursor in it.
