@@ -140,7 +140,8 @@ async function show(hex, input, source) {
   $("clear").hidden = !$("query").value;
   $("suggest-btn").hidden = !input || !!discoverer(hex);
   updateStar();
-  try { history.replaceState(null, "", `#${hex}`); } catch { /* sandboxed */ }
+  // The welcome landscape keeps a bare address; any other puts its hash there to share.
+  try { history.replaceState(null, "", source ? `#${hex}` : location.pathname); } catch { /* sandboxed */ }
   await idle();
   const url = await svgUrl(hex);
   $("result-img").src = url;
@@ -527,7 +528,13 @@ function init() {
   $("query").addEventListener("input", () => { $("clear").hidden = !$("query").value; });
   $("clear").addEventListener("click", clearQuery);
 
-  document.querySelector(".wordmark").addEventListener("click", (e) => { e.preventDefault(); clearQuery(); });
+  // The logo starts over, as a fresh visit would: the welcome landscape, no hash.
+  document.querySelector(".wordmark").addEventListener("click", (e) => {
+    e.preventDefault();
+    clearQuery();
+    show(WELCOME.hash, WELCOME.input);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  });
 
   // Suggesting a landscape for the gallery: words (never a raw hash) and the
   // name to credit. There is no server, so Send opens the visitor's mail app
