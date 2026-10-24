@@ -76,7 +76,11 @@
 
     <section id="result" class="result" hidden aria-live="polite">
       <figure class="frame">
-        <img id="result-img" alt="">
+        <div class="track" id="track">
+          <img id="peer-prev" class="peer prev" alt="" aria-hidden="true">
+          <img id="result-img" alt="">
+          <img id="peer-next" class="peer next" alt="" aria-hidden="true">
+        </div>
         <div id="result-loading" class="loading" hidden>Drawing…</div>
         <div id="tip-page" class="tip" aria-hidden="true">Swipe left or right for more</div>
         <button type="button" id="expand" class="expand-btn" aria-label="Full screen"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
@@ -151,7 +155,11 @@
 
 <div id="viewer" class="viewer" hidden role="dialog" aria-modal="true" aria-label="Landscape, full screen">
   <div id="viewer-bg" class="viewer-bg" aria-hidden="true"></div>
-  <img id="viewer-img" alt="">
+  <div class="track" id="vtrack">
+    <img id="vpeer-prev" class="peer prev" alt="" aria-hidden="true">
+    <img id="viewer-img" alt="">
+    <img id="vpeer-next" class="peer next" alt="" aria-hidden="true">
+  </div>
   <div id="tip-full" class="tip" aria-hidden="true">Swipe up or down for more</div>
   <div id="viewer-toast" class="tip toast" role="status"></div>
   <div class="viewer-cap"><b id="viewer-title"></b><code id="viewer-hash"></code></div>

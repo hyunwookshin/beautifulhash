@@ -128,7 +128,8 @@ async function show(hex, input, source) {
   highlight(source === "arrow");
   for (const b of document.querySelectorAll("[data-step='-1']")) b.disabled = mode === "seed" && !SEED_STEP.test(input || hex);
   $("result").hidden = false;
-  $("result-loading").hidden = false;
+  // A landscape drawn ahead of time (a neighbor, or one seen before) shows at once.
+  $("result-loading").hidden = urls.has(hex);
   $("ref-input-row").hidden = !input;
   $("ref-input").textContent = input || "";
   $("ref-hash").textContent = hex;
@@ -149,27 +150,49 @@ async function show(hex, input, source) {
   $("glow").style.setProperty("--glow-img", `url("${url}")`);
   $("result-loading").hidden = true;
   track(hex, input, source);
+  prefetch();
 }
 
 // Moves to the next (d = 1) or previous (d = -1) landscape.
 const SEED_STEP = /^(.*)\+(\d+)$/s;
-async function stepBy(d) {
-  if (!current) return;
+// The landscape one step away, as { hash, input, query }, or null if none.
+async function target(d) {
+  if (!current) return null;
   const list = mode === "gallery" ? EXAMPLES : mode === "favorites" ? favs : null;
   if (list && list.length) {
     const i = list.findIndex((x) => x.hash === current.hash);
     const next = list[((i < 0 ? (d > 0 ? -1 : 0) : i) + d + list.length) % list.length];
-    if (mode === "gallery") { $("query").value = next.input || next.hash; $("clear").hidden = false; }
-    return show(next.hash, next.input || "", "arrow");
+    return { hash: next.hash, input: next.input || "", query: mode === "gallery" ? next.input || next.hash : null };
   }
-  mode = "seed";
   const m = SEED_STEP.exec(current.input || current.hash);
   const root = m ? m[1] : current.input || current.hash, n = (m ? +m[2] : 0) + d;
-  if (n < 0) return;
+  if (n < 0) return null;
   const text = n ? `${root}+${n}` : root;
-  $("query").value = text;
-  $("clear").hidden = false;
-  return HEX.test(text) ? show(text, "", "arrow") : show(await sha256(text), text, "arrow");
+  return HEX.test(text) ? { hash: text.toLowerCase(), input: "", query: text } : { hash: await sha256(text), input: text, query: text };
+}
+async function stepBy(d) {
+  if (mode !== "seed" && !(mode === "gallery" ? EXAMPLES : favs).length) mode = "seed";
+  const t = await target(d);
+  if (!t) return;
+  if (t.query !== null) { $("query").value = t.query; $("clear").hidden = false; }
+  return show(t.hash, t.input, "arrow");
+}
+
+// Draws the landscapes on either side of the current one while it is being
+// looked at, so a swipe or an arrow shows them at once; a swipe drags them in
+// beside it. Stale results (the visitor moved on meanwhile) are dropped.
+let prefetchToken = 0;
+async function prefetch() {
+  const token = ++prefetchToken, from = current && current.hash;
+  for (const d of [1, -1]) {
+    await idle();
+    const t = canStep(d) ? await target(d) : null;
+    const url = t ? await svgUrl(t.hash) : "";
+    if (token !== prefetchToken || !current || current.hash !== from) return;
+    for (const id of d > 0 ? ["peer-next", "vpeer-next"] : ["peer-prev", "vpeer-prev"]) {
+      if (url) $(id).src = url; else $(id).removeAttribute("src");
+    }
+  }
 }
 
 // Outlines the current landscape's tile in the strip the arrows walk, and
@@ -219,6 +242,7 @@ function toggleFav() {
   saveFavs(favs);
   updateStar();
   renderFavs();
+  prefetch();
 }
 // Shares the current landscape's link: the device's share sheet where there is
 // one, else the clipboard. Returns a word for the visitor, or "" if nothing to say.
@@ -590,16 +614,16 @@ function init() {
   // a quarter of the way, or on a quick flick, it slides off and the next one
   // slides in from the other side once drawn. A swipe never counts as a tap.
   let swiped = false;
-  const onSwipe = (el, axis, img) => {
-    let start = null;
+  const onSwipe = (el, axis, track) => {
+    let start = null, busy = false;
     const size = () => (axis === "x" ? el.clientWidth : el.clientHeight);
-    const move = (px, animate) => {
-      img.style.transition = animate ? "transform 0.22s ease-out" : "none";
-      img.style.transform = px ? `translate${axis.toUpperCase()}(${px}px)` : "";
+    const move = (px, ms) => {
+      track.style.transition = ms ? `transform ${ms}ms cubic-bezier(0.2, 0.8, 0.2, 1)` : "none";
+      track.style.transform = px ? `translate${axis.toUpperCase()}(${px}px)` : "";
     };
     const wait = (ms) => new Promise((r) => setTimeout(r, ms));
     el.addEventListener("pointerdown", (e) => {
-      if (e.pointerType === "mouse" || e.target.closest("button")) return;
+      if (busy || e.pointerType === "mouse" || e.target.closest("button")) return;
       start = { x: e.clientX, y: e.clientY, t: e.timeStamp, locked: false };
     });
     el.addEventListener("pointermove", (e) => {
@@ -612,9 +636,9 @@ function init() {
         else return;
       }
       // A step that goes nowhere still gives a little, then resists.
-      move(canStep(along < 0 ? 1 : -1) ? along : along * 0.25, false);
+      move(canStep(along < 0 ? 1 : -1) ? along : along * 0.25, 0);
     });
-    el.addEventListener("pointercancel", () => { if (start?.locked) move(0, true); start = null; });
+    el.addEventListener("pointercancel", () => { if (start?.locked) move(0, 200); start = null; });
     el.addEventListener("pointerup", async (e) => {
       if (!start) return;
       const s0 = start;
@@ -623,18 +647,21 @@ function init() {
       swiped = true;
       setTimeout(() => { swiped = false; }, 400);
       const along = axis === "x" ? e.clientX - s0.x : e.clientY - s0.y, d = along < 0 ? 1 : -1;
-      const far = Math.abs(along) > size() / 4 || (e.timeStamp - s0.t < 300 && Math.abs(along) > 50);
-      if (!far || !canStep(d)) return move(0, true);
-      move(-d * size(), true);
-      await wait(220);
+      const far = Math.abs(along) > size() / 4 || (e.timeStamp - s0.t < 300 && Math.abs(along) > 40);
+      if (!far || !canStep(d)) return move(0, 200);
+      // Slide the neighbor fully in, then make it the current image in place.
+      busy = true;
+      move(-d * size(), 200);
+      await wait(200);
+      const peer = track.querySelector(d > 0 ? ".peer.next" : ".peer.prev"), img = track.querySelector("img:not(.peer)");
+      if (peer.getAttribute("src")) img.src = peer.src;
+      move(0, 0);
+      busy = false;
       await stepBy(d);
-      move(d * size(), false);
-      void img.offsetWidth;
-      move(0, true);
     });
   };
-  onSwipe($("result").querySelector(".frame"), "x", $("result-img"));
-  onSwipe($("viewer"), "y", $("viewer-img"));
+  onSwipe($("result").querySelector(".frame"), "x", $("track"));
+  onSwipe($("viewer"), "y", $("vtrack"));
   $("result-img").addEventListener("click", (e) => { if (swiped) e.stopImmediatePropagation(); }, true);
   $("viewer").addEventListener("click", (e) => {
     if (swiped || e.target.closest("button")) return;
