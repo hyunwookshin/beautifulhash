@@ -145,7 +145,7 @@ async function show(hex, input, source) {
   await idle();
   const url = await svgUrl(hex);
   $("result-img").src = url;
-  if (!$("viewer").hidden) { $("viewer-img").src = url; $("viewer-img").alt = $("result-img").alt; }
+  updateViewer();
   $("glow").style.setProperty("--glow-img", `url("${url}")`);
   $("result-loading").hidden = true;
   track(hex, input, source);
@@ -207,9 +207,39 @@ function track(hex, input, source) {
 
 function updateStar() {
   const on = current && isFav(current.hash);
-  $("star").setAttribute("aria-pressed", on ? "true" : "false");
-  $("star").querySelector("span").textContent = on ? "Favorited" : "Favorite";
+  for (const b of [$("star"), $("v-fav")]) {
+    b.setAttribute("aria-pressed", on ? "true" : "false");
+    b.querySelector("span").textContent = on ? "Favorited" : "Favorite";
+  }
 }
+function toggleFav() {
+  if (!current) return;
+  favs = isFav(current.hash) ? favs.filter((f) => f.hash !== current.hash)
+                             : [{ hash: current.hash, input: current.input || "" }, ...favs];
+  saveFavs(favs);
+  updateStar();
+  renderFavs();
+}
+// Shares the current landscape's link: the device's share sheet where there is
+// one, else the clipboard. Returns a word for the visitor, or "" if nothing to say.
+async function shareLink() {
+  if (!current) return "";
+  const url = `${location.origin}${location.pathname}#${current.hash}`;
+  if (navigator.share) {
+    try { await navigator.share({ title: "BeautifulHash", text: caption(current.hash, current.input), url }); return ""; }
+    catch (e) { if (e.name === "AbortError") return ""; }
+  }
+  try { await navigator.clipboard.writeText(url); return "Link copied."; } catch { return url; }
+}
+function updateViewer() {
+  if ($("viewer").hidden || !current) return;
+  $("viewer-img").src = $("result-img").src;
+  $("viewer-img").alt = $("result-img").alt;
+  $("viewer-title").textContent = caption(current.hash, current.input);
+  $("viewer-hash").textContent = `${current.hash.slice(0, 16)}…`;
+}
+// Whether stepping d (1 or -1) moves anywhere: only the plain input stays put going back.
+const canStep = (d) => !!current && (mode !== "seed" || d > 0 || SEED_STEP.test(current.input || current.hash));
 
 async function submit(text) {
   text = text.trim() || $("query").placeholder;
@@ -363,14 +393,7 @@ function init() {
   }, 3200);
   $("search").addEventListener("submit", (e) => { e.preventDefault(); submit($("query").value); });
 
-  $("star").addEventListener("click", () => {
-    if (!current) return;
-    favs = isFav(current.hash) ? favs.filter((f) => f.hash !== current.hash)
-                               : [{ hash: current.hash, input: current.input || "" }, ...favs];
-    saveFavs(favs);
-    updateStar();
-    renderFavs();
-  });
+  $("star").addEventListener("click", toggleFav);
   // Download menu: the standard PNG, the SVG, a banner for a social profile, or a
   // background. Phones and tablets open a second page in place of the first,
   // with a back row, so the menu keeps its width on a phone.
@@ -520,60 +543,106 @@ function init() {
     clearTimeout(touchedTimer);
     touchedTimer = setTimeout(() => $("result").querySelector(".frame").classList.remove("touched"), 3000);
   });
+  // On a touch screen, a pill fades in and out to say how to swipe: on the
+  // page when the image first comes into view and on leaving full screen, and
+  // on entering full screen.
+  const touch = matchMedia("(pointer: coarse)").matches;
+  const pill = (id, text) => {
+    const el = $(id);
+    if (text) el.textContent = text;
+    el.classList.remove("show");
+    void el.offsetWidth;  // restart the animation
+    el.classList.add("show");
+  };
+  const tip = (id) => { if (touch) pill(id); };
+  new IntersectionObserver((entries, io) => {
+    if (entries.some((e) => e.isIntersecting)) { tip("tip-page"); io.disconnect(); }
+  }, { threshold: 0.6 }).observe($("result").querySelector(".frame"));
+
+  // Full screen: the landscape with its caption and a column of actions, as in
+  // a feed. A tap hides or shows them; ×, Escape, or leaving the browser's full
+  // screen closes it.
   const closeViewer = () => {
+    if ($("viewer").hidden) return;
     $("viewer").hidden = true;
     if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
     $("expand").focus({ preventScroll: true });
+    tip("tip-page");
   };
   $("expand").addEventListener("click", () => {
-    $("viewer-img").src = $("result-img").src;
-    $("viewer-img").alt = $("result-img").alt;
     $("viewer").hidden = false;
+    $("viewer").classList.remove("bare");
+    updateViewer();
     $("viewer-close").focus();
     $("viewer").requestFullscreen?.().catch(() => {});
     tip("tip-full");
   });
+  $("viewer-close").addEventListener("click", closeViewer);
+  $("v-fav").addEventListener("click", toggleFav);
+  $("v-share").addEventListener("click", async () => { const said = await shareLink(); if (said) pill("viewer-toast", said); });
+  $("v-save").addEventListener("click", async () => { if (!current) return; await downloadPng(current.hash, SIZES.png); tracked("png"); pill("viewer-toast", "Saved."); });
+  $("viewer").addEventListener("keydown", (e) => { if (e.key === "Escape") closeViewer(); });
+  document.addEventListener("fullscreenchange", () => { if (!document.fullscreenElement) closeViewer(); });
+
   // Swipes step through landscapes: sideways on the page, up and down in full
-  // screen (up for the next, as in a feed). A swipe is a quick, mostly straight
-  // touch drag of 50px or more; it never also counts as a tap.
+  // screen (up for the next, as in a feed). The image follows the finger; past
+  // a quarter of the way, or on a quick flick, it slides off and the next one
+  // slides in from the other side once drawn. A swipe never counts as a tap.
   let swiped = false;
-  const onSwipe = (el, axis) => {
+  const onSwipe = (el, axis, img) => {
     let start = null;
-    el.addEventListener("pointerdown", (e) => { if (e.pointerType !== "mouse") start = { x: e.clientX, y: e.clientY, t: e.timeStamp }; });
-    el.addEventListener("pointercancel", () => { start = null; });
-    el.addEventListener("pointerup", (e) => {
+    const size = () => (axis === "x" ? el.clientWidth : el.clientHeight);
+    const move = (px, animate) => {
+      img.style.transition = animate ? "transform 0.22s ease-out" : "none";
+      img.style.transform = px ? `translate${axis.toUpperCase()}(${px}px)` : "";
+    };
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    el.addEventListener("pointerdown", (e) => {
+      if (e.pointerType === "mouse" || e.target.closest("button")) return;
+      start = { x: e.clientX, y: e.clientY, t: e.timeStamp, locked: false };
+    });
+    el.addEventListener("pointermove", (e) => {
       if (!start) return;
-      const dx = e.clientX - start.x, dy = e.clientY - start.y, quick = e.timeStamp - start.t < 800;
-      start = null;
+      const dx = e.clientX - start.x, dy = e.clientY - start.y;
       const [along, across] = axis === "x" ? [dx, dy] : [dy, dx];
-      if (!quick || Math.abs(along) < 50 || Math.abs(along) < 1.5 * Math.abs(across)) return;
+      if (!start.locked) {
+        if (Math.abs(along) > 8 && Math.abs(along) > Math.abs(across)) start.locked = true;
+        else if (Math.abs(across) > 8) { start = null; return; }
+        else return;
+      }
+      // A step that goes nowhere still gives a little, then resists.
+      move(canStep(along < 0 ? 1 : -1) ? along : along * 0.25, false);
+    });
+    el.addEventListener("pointercancel", () => { if (start?.locked) move(0, true); start = null; });
+    el.addEventListener("pointerup", async (e) => {
+      if (!start) return;
+      const s0 = start;
+      start = null;
+      if (!s0.locked) return;
       swiped = true;
       setTimeout(() => { swiped = false; }, 400);
-      stepBy(along < 0 ? 1 : -1);
+      const along = axis === "x" ? e.clientX - s0.x : e.clientY - s0.y, d = along < 0 ? 1 : -1;
+      const far = Math.abs(along) > size() / 4 || (e.timeStamp - s0.t < 300 && Math.abs(along) > 50);
+      if (!far || !canStep(d)) return move(0, true);
+      move(-d * size(), true);
+      await wait(220);
+      await stepBy(d);
+      move(d * size(), false);
+      void img.offsetWidth;
+      move(0, true);
     });
   };
-  // On a touch screen, a pill fades in and out once per visit to say so: on
-  // the page when the image comes into view, and in full screen when it opens.
-  const touch = matchMedia("(pointer: coarse)").matches, tipped = new Set();
-  const tip = (id) => {
-    if (!touch || tipped.has(id)) return;
-    tipped.add(id);
-    $(id).classList.add("show");
-  };
-  new IntersectionObserver((entries, io) => {
-    if (entries.some((e) => e.isIntersecting)) { tip("tip-page"); io.disconnect(); }
-  }, { threshold: 0.6 }).observe($("result").querySelector(".frame"));
-  onSwipe($("result").querySelector(".frame"), "x");
-  onSwipe($("viewer"), "y");
+  onSwipe($("result").querySelector(".frame"), "x", $("result-img"));
+  onSwipe($("viewer"), "y", $("viewer-img"));
   $("result-img").addEventListener("click", (e) => { if (swiped) e.stopImmediatePropagation(); }, true);
-  $("viewer").addEventListener("click", () => { if (!swiped) closeViewer(); });
-  $("viewer").addEventListener("keydown", (e) => { if (e.key === "Escape") closeViewer(); });
-  document.addEventListener("fullscreenchange", () => { if (!document.fullscreenElement && !$("viewer").hidden) closeViewer(); });
+  $("viewer").addEventListener("click", (e) => {
+    if (swiped || e.target.closest("button")) return;
+    $("viewer").classList.toggle("bare");
+  });
+
   $("copy-link").addEventListener("click", async () => {
-    if (!current) return;
-    const link = `${location.origin}${location.pathname}#${current.hash}`;
-    try { await navigator.clipboard.writeText(link); $("status").textContent = "Link copied."; }
-    catch { $("status").textContent = link; }
+    const said = await shareLink();
+    if (said) $("status").textContent = said;
   });
 
   // A gallery tile loads straight into the result, as a favorite does.

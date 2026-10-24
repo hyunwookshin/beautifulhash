@@ -380,7 +380,18 @@ td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; white-spa
 
 /* a one-time hint for touch screens; it fades in, holds, and fades out */
 .tip { position: absolute; z-index: 3; left: 50%; bottom: 16px; translate: -50% 0; padding: 8px 14px; border-radius: 999px; background: rgba(10, 14, 18, 0.6); color: #fff; font-size: 13px; font-weight: 500; white-space: nowrap; backdrop-filter: blur(6px); opacity: 0; pointer-events: none; }
-.viewer .tip { bottom: calc(28px + env(safe-area-inset-bottom, 0px)); }
+.viewer .tip { top: calc(64px + env(safe-area-inset-top, 0px)); bottom: auto; }
+.viewer .toast { top: auto; bottom: calc(110px + env(safe-area-inset-bottom, 0px)); }
+.viewer-cap { position: absolute; left: 0; right: 0; bottom: 0; display: grid; gap: 4px; padding: 48px 88px calc(20px + env(safe-area-inset-bottom, 0px)) 20px; background: linear-gradient(transparent, rgba(0, 0, 0, 0.55)); color: #fff; pointer-events: none; }
+.viewer-cap b { font-size: 17px; font-weight: 600; overflow-wrap: anywhere; }
+.viewer-cap code { font-size: 12px; opacity: 0.75; }
+.viewer-acts { position: absolute; right: 12px; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 16px; }
+.v-act { display: grid; justify-items: center; gap: 4px; padding: 0; border: 0; background: none; color: #fff; font-size: 11px; font-weight: 600; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6); }
+.v-act svg { width: 46px; height: 46px; padding: 11px; border-radius: 999px; background: rgba(10, 14, 18, 0.45); backdrop-filter: blur(6px); fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.v-act[aria-pressed="true"] svg { fill: #ffd34d; stroke: #ffd34d; }
+.viewer-cap, .viewer-acts, .viewer-close { transition: opacity 0.2s; }
+.viewer.bare .viewer-cap, .viewer.bare .viewer-acts, .viewer.bare .viewer-close { opacity: 0; pointer-events: none; }
+.viewer.bare .viewer-acts button, .viewer.bare .viewer-close { visibility: hidden; }
 .tip.show { animation: tip 3.4s ease-in-out forwards; }
 @keyframes tip { 0% { opacity: 0; } 15%, 80% { opacity: 1; } 100% { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .tip.show { animation-timing-function: steps(1, end); } }
