@@ -176,6 +176,8 @@ td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; white-spa
   .result { grid-template-columns: minmax(0, 1fr); }
   .details { border-left: 0; border-top: 1px solid var(--line); border-radius: 0 0 15px 15px; }
   .frame { border-radius: 15px 15px 0 0; }
+  /* the arrows sit right under the image, where a thumb reaches them */
+  .stepper { order: -1; margin-top: 0; align-self: stretch; justify-content: space-between; }
   .search { flex-direction: column; }
   /* the example chips become one swipeable row instead of a tall stack */
   .try { width: 100%; }
@@ -303,7 +305,7 @@ td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; white-spa
 .dl-menu { position: absolute; z-index: 12; left: 0; top: calc(100% + 6px); min-width: 230px; width: max-content; max-width: calc(100vw - 32px); display: grid; padding: 6px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 16px 40px rgba(0, 0, 0, 0.22); }
 .dl-menu button { display: flex; align-items: center; gap: 12px; padding: 8px 10px; border: 0; border-radius: 8px; background: none; text-align: left; }
 .dl-menu button:hover, .dl-menu button:focus-visible { background: color-mix(in srgb, var(--accent) 12%, transparent); outline: none; }
-.dl-menu span { display: grid; font-size: 14px; font-weight: 500; }
+.dl-menu button > span { display: grid; font-size: 14px; font-weight: 500; }
 .dl-menu small { font-size: 12px; font-weight: 400; color: var(--muted); font-family: var(--mono); }
 .dl-menu svg.line path { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linejoin: round; stroke-linecap: round; }
 .dl-menu svg.brand path { stroke: none; }

@@ -270,6 +270,16 @@ for (const groups of Object.values(DEVICES)) {
   for (const [, list] of groups) for (const [label, w, h] of list) SIZES[slug(label)] = { w, h, name: `-${slug(label)}`, label };
 }
 for (const [label, w, h] of CARDS) SIZES[`card-${slug(label)}`] = { w, h, name: `-card-${slug(label)}`, label: `Card, ${label}` };
+// The visitor's own screen, in device pixels: CSS pixels times the pixel
+// ratio. Phones and tablets get it upright; a desktop screen stays wide. A
+// browser reports the scaled resolution, so a phone set to a lower display
+// resolution gets that one, which is the one its wallpaper shows at.
+function thisScreen() {
+  const dpr = window.devicePixelRatio || 1, a = Math.round(screen.width * dpr), b = Math.round(screen.height * dpr);
+  const touch = matchMedia("(pointer: coarse)").matches, small = Math.min(screen.width, screen.height) < 600;
+  const label = touch ? (small ? "This phone" : "This tablet") : "This screen";
+  return touch ? { w: Math.min(a, b), h: Math.max(a, b), name: "-screen", label } : { w: a, h: b, name: "-screen", label };
+}
 // A size narrower than 4:3 is a column (it crops across), else a band (it crops
 // down); bandOf is its share of the landscape along that axis.
 const isColumn = (size) => size.w / size.h < 1024 / 768;
@@ -383,7 +393,13 @@ function init() {
   const setMenu = (open) => {
     menu.hidden = !open;
     $("dl-btn").setAttribute("aria-expanded", String(open));
-    if (open) showPage("main");
+    if (open) {
+      // Measured on each opening: the window may have moved to another monitor.
+      SIZES.screen = thisScreen();
+      $("dl-screen-name").textContent = SIZES.screen.label;
+      $("dl-screen-size").textContent = `${SIZES.screen.w} × ${SIZES.screen.h}`;
+      showPage("main");
+    }
   };
   $("dl-btn").addEventListener("click", () => setMenu(menu.hidden));
   document.addEventListener("click", (e) => { if (!menu.hidden && !e.target.closest(".dl")) setMenu(false); });
