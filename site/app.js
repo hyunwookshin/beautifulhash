@@ -507,8 +507,33 @@ function init() {
   $("card-btn").addEventListener("click", openCard);
   $("card-dl").addEventListener("click", () => { $("card").hidden = true; openCrop($("card-format").value); });
   $("card-done").addEventListener("click", closeCard);
+  $("card-close").addEventListener("click", closeCard);
   $("card").addEventListener("click", (e) => { if (e.target === $("card")) closeCard(); });
   $("card").addEventListener("keydown", (e) => { if (e.key === "Escape") closeCard(); });
+  // Full screen: a tap on the image shows the expand button for a few seconds
+  // (hover shows it with a mouse). The viewer fills the window, and the whole
+  // screen where the browser allows it.
+  let touchedTimer = 0;
+  $("result-img").addEventListener("click", () => {
+    $("result").querySelector(".frame").classList.add("touched");
+    clearTimeout(touchedTimer);
+    touchedTimer = setTimeout(() => $("result").querySelector(".frame").classList.remove("touched"), 3000);
+  });
+  const closeViewer = () => {
+    $("viewer").hidden = true;
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    $("expand").focus({ preventScroll: true });
+  };
+  $("expand").addEventListener("click", () => {
+    $("viewer-img").src = $("result-img").src;
+    $("viewer-img").alt = $("result-img").alt;
+    $("viewer").hidden = false;
+    $("viewer-close").focus();
+    $("viewer").requestFullscreen?.().catch(() => {});
+  });
+  $("viewer").addEventListener("click", closeViewer);
+  $("viewer").addEventListener("keydown", (e) => { if (e.key === "Escape") closeViewer(); });
+  document.addEventListener("fullscreenchange", () => { if (!document.fullscreenElement && !$("viewer").hidden) closeViewer(); });
   $("copy-link").addEventListener("click", async () => {
     if (!current) return;
     const link = `${location.origin}${location.pathname}#${current.hash}`;
@@ -532,7 +557,7 @@ function init() {
   for (const b of document.querySelectorAll("[data-step]")) b.addEventListener("click", () => stepBy(Number(b.dataset.step)));
   document.addEventListener("keydown", (e) => {
     if ((e.key !== "ArrowLeft" && e.key !== "ArrowRight") || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
-    if (!$("crop").hidden || e.target.closest?.("input, textarea, select, [role=menu], [role=slider], .carousel, .thumbs")) return;
+    if (!$("crop").hidden || !$("viewer").hidden || e.target.closest?.("input, textarea, select, [role=menu], [role=slider], .carousel, .thumbs")) return;
     e.preventDefault();
     stepBy(e.key === "ArrowRight" ? 1 : -1);
   });
